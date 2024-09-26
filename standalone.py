@@ -243,8 +243,13 @@ def connect_bluetooth_device():
         print("AirPods are already connected.")
         return
 
-    print("Connecting to AirPods...")
-    subprocess.run(["bluetoothctl", "connect", AIRPODS_MAC])
+    print("Checking if AirPods are available...")
+    result = subprocess.run(["bluetoothctl", "devices"], capture_output=True, text=True)
+    if AIRPODS_MAC in result.stdout:
+        print("AirPods are available. Connecting...")
+        subprocess.run(["bluetoothctl", "connect", AIRPODS_MAC])
+    else:
+        print("AirPods are not available.")
 
     time.sleep(2)  # Wait for the connection to establish
 
