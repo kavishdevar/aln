@@ -4,6 +4,7 @@ import logging
 import threading
 import time
 import sys
+import shutil
 
 class CustomFormatter(logging.Formatter):
     def format(self, record):
@@ -28,8 +29,16 @@ class ConsoleHandler(logging.StreamHandler):
 
     def display_logs(self):
         sys.stdout.write('\033[H\033[J')  # Clear the screen
-        for line in self.log_lines[-10:]:  # Display the last 10 log lines
+        terminal_height, _ = shutil.get_terminal_size()
+        log_display_lines = self.log_lines[-(terminal_height - 5):]  # Display the last terminal_height - 5 log lines
+        empty_lines = terminal_height - 5 - len(log_display_lines)
+        
+        for _ in range(empty_lines):
+            sys.stdout.write('\n')  # Fill empty space with new lines
+
+        for line in log_display_lines:
             sys.stdout.write(line + self.terminator)
+        
         sys.stdout.write('1: ANC Off\n')
         sys.stdout.write('2: Transparency\n')
         sys.stdout.write('3: Adaptive Transparency\n')

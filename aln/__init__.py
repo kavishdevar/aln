@@ -27,9 +27,7 @@ class Connection:
 
     def send(self, data: bytes):
         try:
-            logging.debug(f'Sending data to {self.mac_address}: {data.hex()}')
             self.socket.send(data)
-            logging.debug(f'Sent data to {self.mac_address}')
         except bluetooth.btcommon.BluetoothError as e:
             logging.error(f'Failed to send data to {self.mac_address}: {e}')
             return False
@@ -37,12 +35,13 @@ class Connection:
     
     def notification_callback(self, notification_type: int):
         import logging
-        logging = logging.getLogger("Notification Callback")
         if notification_type == Notifications.BATTERY_UPDATED:
+            logging = logging.getLogger("Battery Status")
             for i in self.notificationListener.BatteryNotification.getBattery():
                 logging.debug(f'{i.get_component()} - {i.get_status()}: {i.get_level()}')
             pass
         elif notification_type == Notifications.EAR_DETECTION_UPDATED:
+            logging = logging.getLogger("In-Ear Status")
             logging.debug(f'{self.notificationListener.EarDetectionNotification.getEarDetection()}')
             pass
         pass
