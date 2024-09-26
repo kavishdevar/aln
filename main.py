@@ -51,12 +51,16 @@ def input_thread(connection):
         anc_mode = input()
         if anc_mode == '1':
             connection.send(enums.SET_NOISE_CANCELLATION_OFF)
+            logging.info('ANC Off')
         elif anc_mode == '2':
             connection.send(enums.SET_NOISE_CANCELLATION_TRANSPARENCY)
+            logging.info('Transparency On')
         elif anc_mode == '3':
             connection.send(enums.SET_NOISE_CANCELLATION_ADAPTIVE)
+            logging.info('Adaptive Transparency On')
         elif anc_mode == '4':
             connection.send(enums.SET_NOISE_CANCELLATION_ON)
+            logging.info('ANC On')
         else:
             logging.error('Invalid ANC Mode')
 
