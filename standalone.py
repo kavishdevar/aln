@@ -83,7 +83,14 @@ class initL2CAP():
         
         # Interpret the status
         def interpret_status(status):
-            return "Charging" if status == 1 else "Not Charging"
+            if status == 1:
+                return "Charging"
+            elif status == 2:
+                return "Not charging"
+            elif status == 4:
+                return "Disconnected"
+            else:
+                return "Unknown"
         
         # Print the results
         print(f"Left Bud: {self.left_bud_level}% - {interpret_status(self.left_bud_status)}")
