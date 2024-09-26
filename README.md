@@ -1,7 +1,8 @@
 # ALN - AirPods like Normal (Linux Only)
 
-# Get Started!
+![Main Demo (Screenshot 2024-09-27 at 3 06 56 AM)](https://github.com/user-attachments/assets/352275c8-e143-42c3-a06a-fc3ac0c937b9)
 
+# Get Started!
 ## 1. Install the required packages
 
 ```bash
