@@ -19,8 +19,10 @@ class Connection:
             return False
         return True
     
-    def initialize_notifications(self):
-        self.notifications = Notifications(self.socket, self.notification_callback)
+    def initialize_notifications(self, callback: callable = None):
+        if callback is None:
+            callback = self.notification_callback
+        self.notifications = Notifications(self.socket, callback)
         self.notificationListener = self.notifications.notificationListener
         self.BatteryNotification = self.notifications.BatteryNotification
         self.notifications.initialize()
