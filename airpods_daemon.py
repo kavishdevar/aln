@@ -6,6 +6,9 @@ import logging
 from aln import Connection, enums
 from aln.Notifications import Notifications
 import os
+import pickle
+
+connection = None
 
 AIRPODS_MAC = '28:2D:7F:C2:05:5B'
 SOCKET_PATH = '/tmp/airpods_daemon.sock'
@@ -17,33 +20,70 @@ running = True
 
 # Configure logging to write to a file
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)s : %(message)s')
+# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s : %(message)s')
 
 def handle_client(connection, client_socket):
-    """Handle client requests by forwarding all received data to aln.Connection."""
-    while running:
-        try:
-            data = client_socket.recv(1024)  # Receive data in bytes
-            if not data:
-                break  # Client disconnected
+    """Handle client requests by forwarding all received data to aln.Connection, send data back to the client."""
 
-            # Forward the raw data to aln.Connection
-            connection.send(data)
-            logging.info(f'Forwarded data: {data}')
+    def send_status():
+        while running:
+            try:
+                data = globals().get("battery")
+                if data:
+                    if not client_socket or not isinstance(client_socket, socket.socket):
+                        logging.error("Invalid client socket")
+                        break
+                    logging.info(f'Sending battery status: {data}')
+                    client_socket.send(pickle.dumps(data))
+                    logging.info(f'Sent battery status: {data}')
+                    globals()["battery"] = None
+    
+                data = globals().get("earDetection")
+                if data:
+                    if not client_socket or not isinstance(client_socket, socket.socket):
+                        logging.error("Invalid client socket")
+                        break
+                    logging.info(f'Sending ear detection status: {data}')
+                    client_socket.send(pickle.dumps(data))
+                    logging.info(f'Sent ear detection status: {data}')
+                    globals()["earDetection"] = None
+            except socket.error as e:
+                logging.error(f"Socket error sending status: {e}")
+                break
+            except Exception as e:
+                logging.error(f"Error sending status: {e}")
+                break
 
-        except Exception as e:
-            logging.error(f"Error handling client: {e}")
-            break
+    def receive_commands():
+        while running:
+            try:
+                data = client_socket.recv(1024)
+                if not data:
+                    break
+                logging.info(f'Received command: {data}')
+                connection.send(data)
+            except Exception as e:
+                logging.error(f"Error receiving command: {e}")
+                break
+
+    # Start two threads to handle sending and receiving data
+    send_thread = threading.Thread(target=send_status)
+    send_thread.start()
+    receive_thread = threading.Thread(target=receive_commands)
+    receive_thread.start()
+
+    send_thread.join()
+    receive_thread.join()
 
     client_socket.close()
+    logging.info("Client socket closed")
 
 def start_socket_server(connection):
     """Start a UNIX domain socket server."""
     global running
-
+    
     # Set up the socket
     server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-
-    # Bind the socket to the path
     try:
         server_socket.bind(SOCKET_PATH)
     except OSError:
@@ -88,27 +128,27 @@ def stop_daemon(signum, frame):
 
 def notification_handler(notification_type: int):
     global connection
+
     logging.debug(f"Received notification: {notification_type}")
     if notification_type == Notifications.BATTERY_UPDATED:
         logger = logging.getLogger("Battery Status")
-        for i in connection.notificationListener.BatteryNotification.getBattery():
+        battery = connection.notificationListener.BatteryNotification.getBattery()
+        globals()["battery"] = battery
+        for i in battery:
             logger.debug(f'{i.get_component()} - {i.get_status()}: {i.get_level()}')
     elif notification_type == Notifications.EAR_DETECTION_UPDATED:
         logger = logging.getLogger("In-Ear Status")
-        logger.debug(f'{connection.notificationListener.EarDetectionNotification.getEarDetection()}')
+        earDetection = connection.notificationListener.EarDetectionNotification.getEarDetection()
+        globals()["earDetection"] = earDetection
+        logger.debug(earDetection)
 
 def main():
     global running
-
-    # Set up signal handlers to handle termination signals
-    signal.signal(signal.SIGINT, stop_daemon)  # Handle Ctrl+C
-    signal.signal(signal.SIGTERM, stop_daemon)  # Handle kill signal
-
     logging.info("Starting AirPods daemon")
-
-    # Initialize the connection to the AirPods
-    global connection
     connection = Connection(AIRPODS_MAC)
+    globals()['connection'] = connection
+
+    # Connect to the AirPods and send the handshake
     connection.connect()
     connection.send(enums.HANDSHAKE)
     logging.info("Handshake sent")
@@ -116,6 +156,10 @@ def main():
 
     # Start the socket server to listen for client connections
     start_socket_server(connection)
+
+    # Set up signal handlers to handle termination signals
+    signal.signal(signal.SIGINT, stop_daemon)  # Handle Ctrl+C
+    signal.signal(signal.SIGTERM, stop_daemon)  # Handle kill signal
 
 if __name__ == "__main__":
     # Daemonize the process
