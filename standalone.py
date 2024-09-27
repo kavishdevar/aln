@@ -13,7 +13,7 @@ class initL2CAP():
     earStatus = ""
     wasMusicPlayingInBoth = False
     wasMusicPlayingInSingle = False
-    
+
     def pauseMusic(self):
         subprocess.call(("playerctl", "pause", "--ignore-player", "OnePlus_7"))
 
@@ -24,7 +24,7 @@ class initL2CAP():
         return subprocess.check_output(("playerctl", "status", "--ignore-player", "OnePlus_7")).decode("utf-8").strip()
 
     # Change to MAC address of your AirPods
-    
+
     connected = False
 
     cmd_off = b"\x04\x00\x04\x00\x09\x00\x0d\x01\x00\x00\x00"

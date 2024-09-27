@@ -48,7 +48,7 @@ class ConsoleHandler(logging.StreamHandler):
         sys.stdout.write('Select ANC Mode: ')
         sys.stdout.flush()
 
-def input_thread(connection):
+def input_thread(connection: Connection):
     while True:
         anc_mode = input()
         if anc_mode == '1':
