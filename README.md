@@ -19,7 +19,7 @@ cd aln
 
 ## 3. Preprare
 Pair your AirPods with your machine before running this script!
-:warning: **Note:** DO NOT FORGET TO EDIT THE `MAC_ADDRESS` VARIABLE IN `main.py`/`standalone.py` WITH YOUR AIRPODS MAC ADDRESS!
+:warning: **Note:** DO NOT FORGET TO EDIT THE `AIRPODS_MAC` VARIABLE IN `main.py`/`standalone.py` WITH YOUR AIRPODS MAC ADDRESS!
 
 ## 4. Run!
 You can either choose the more polished version of the script, which currently only supports fetching the battery percentage, and in-ear status (but not actually controlling the media with that information), or the more experimental standalone version of the script, which supports the following features:

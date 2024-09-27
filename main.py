@@ -6,6 +6,8 @@ import time
 import sys
 import shutil
 
+
+AIRPODS_MAC = '28:2D:7F:C2:05:5B'
 class CustomFormatter(logging.Formatter):
     def format(self, record):
         # Format the log message with spaces around colons without altering the original message
@@ -82,7 +84,7 @@ def main():
     handler.setFormatter(formatter)
     logging.basicConfig(level=logging.DEBUG, handlers=[handler])
 
-    connection = Connection('28:2D:7F:C2:05:5B')
+    connection = Connection(AIRPODS_MAC)
     connection.connect()
     logging.info('Sending Handshake')
     connection.send(enums.HANDSHAKE)
