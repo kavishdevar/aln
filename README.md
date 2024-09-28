@@ -11,7 +11,7 @@ sudo apt install python3 python3-pip
 pip3 install pybluez
 ```
 
-If you want to run it as a daemon (Refer to the [Daemonizing](#Daemonizing) section), you will need to install the `python-daemon` package.
+If you want to run it as a daemon (Refer to the [Daemon Version](#as-a-daemon-using-a-unix-socket) section), you will need to install the `python-daemon` package.
 
 ```bash
 pip3 install python-daemon
@@ -31,7 +31,7 @@ Pair your AirPods with your machine before running this script!
 # Versions
 
 ## Non-Daemon based
-### This version is the most polished version of the script. It can do the following:
+This version is the most polished version of the script. It can do the following:
 - fetch the battery percentage,
 - fetch in-ear status (but not actually controlling the media with that information).
 - control ANC modes
