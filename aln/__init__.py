@@ -35,7 +35,7 @@ class Connection:
             return False
         return True
     
-    def notification_callback(self, notification_type: int):
+    def notification_callback(self, notification_type: int, data: bytes):
         import logging
         if notification_type == Notifications.BATTERY_UPDATED:
             logging = logging.getLogger("Battery Status")
@@ -45,6 +45,11 @@ class Connection:
         elif notification_type == Notifications.EAR_DETECTION_UPDATED:
             logging = logging.getLogger("In-Ear Status")
             logging.debug(f'{self.notificationListener.EarDetectionNotification.getEarDetection()}')
+            pass
+        elif notification_type == Notifications.UNKNOWN:
+            logging = logging.getLogger("Unknown Notification")
+            hex_data = ' '.join(f'{byte:02x}' for byte in data)
+            logging.debug(f'{hex_data}')
             pass
         pass
 

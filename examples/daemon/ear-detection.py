@@ -1,51 +1,56 @@
 import socket
-import pickle
+import json
 import subprocess
 from aln.Notifications import Battery
 import threading
 import time
 import os
+import logging
+
+
+# Configure logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+
+# Colorful logging
+logging.addLevelName(logging.DEBUG, "\033[1;34m%s\033[1;0m" % logging.getLevelName(logging.DEBUG))
+logging.addLevelName(logging.INFO, "\033[1;32m%s\033[1;0m" % logging.getLevelName(logging.INFO))
+logging.addLevelName(logging.WARNING, "\033[1;33m%s\033[1;0m" % logging.getLevelName(logging.WARNING))
+logging.addLevelName(logging.ERROR, "\033[1;31m%s\033[1;0m" % logging.getLevelName(logging.ERROR))
+logging.addLevelName(logging.CRITICAL, "\033[1;41m%s\033[1;0m" % logging.getLevelName(logging.CRITICAL))
+
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 
 class MediaController:
     def __init__(self):
-        self.wasMusicPlaying = False
         self.earStatus = "Both out"
-        self.status = "Stopped"
-        self.stop_thread_event = threading.Event()
         self.wasMusicPlayingInSingle = False
         self.wasMusicPlayingInBoth = False
         self.firstEarOutTime = 0
+        self.stop_thread_event = threading.Event()
 
     def playMusic(self):
-        print("Playing music")
         subprocess.call(("playerctl", "play", "--ignore-player", "OnePlus_7"))
 
     def pauseMusic(self):
-        print("Pausing music")
-        subprocess.call(("playerctl", "pause", "--player", "spotify"))
+        subprocess.call(("playerctl", "pause", "--ignore-player", "OnePlus_7"))
 
     def isPlaying(self):
-        status = subprocess.check_output(["playerctl", "status", "--player", "spotify"]).decode("utf-8").strip()
-        print(f"Music status: {status}")
-        return status == "Playing"
+        return subprocess.check_output(["playerctl", "status", "--player", "spotify"]).decode("utf-8").strip() == "Playing"
 
     def handlePlayPause(self, data):
         primary_status = data[0]
         secondary_status = data[1]
 
-        print(f"Handle play/pause called with data: {data}, previousStatus: {self.status}, wasMusicPlaying: {self.wasMusicPlaying}")
+        logging.debug(f"Handle play/pause called with data: {data}, previousStatus: {self.earStatus}, wasMusicPlaying: {self.wasMusicPlayingInSingle or self.wasMusicPlayingInBoth}")
 
         def delayed_action(s):
             if not self.stop_thread_event.is_set():
-                print("Delayed action")
                 if self.wasMusicPlayingInSingle:
                     self.playMusic()
                     self.wasMusicPlayingInBoth = False
                 elif self.wasMusicPlayingInBoth or s:
                     self.wasMusicPlayingInBoth = True
                 self.wasMusicPlayingInSingle = False
-                print(self.wasMusicPlayingInSingle, self.wasMusicPlayingInBoth)
 
         if primary_status and secondary_status:
             if self.earStatus != "Both out":
@@ -54,7 +59,6 @@ class MediaController:
                 os.system("pacmd set-card-profile bluez_card.28_2D_7F_C2_05_5B off")
                 if self.earStatus == "Only one in":
                     if self.firstEarOutTime != 0 and time.time() - self.firstEarOutTime < 0.3:
-                        print("Only one in called with both out")
                         self.wasMusicPlayingInSingle = True
                         self.wasMusicPlayingInBoth = True
                         self.stop_thread_event.set()
@@ -106,7 +110,7 @@ def read():
     try:
         # Create a socket connection to the daemon
         client_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        print("Connecting to daemon...")
+        logging.info("Connecting to daemon...")
         client_socket.connect(SOCKET_PATH)
         
         media_controller = MediaController()
@@ -116,28 +120,21 @@ def read():
             d = client_socket.recv(1024)
             if d:
                 try:
-                    data = pickle.loads(d)
-                    if isinstance(data, str):
-                        print(f"Received data: {data}")
-                    elif isinstance(data, list) and all(isinstance(b, Battery.Battery) for b in data):
-                        for b in data:
-                            print(f"Received battery status: {b.get_component()} is {b.get_status()} at {b.get_level()}%")
-                    elif isinstance(data, list) and len(data) == 2 and all(isinstance(i, int) for i in data):
-                        print(f"Received ear detection status: Is in-ear? Primary: {data[0] == 0}, Secondary: {data[1] == 0}")
-                        media_controller.handlePlayPause(data)
-                    else:
-                        print(f"Received unknown data: {data}")
-                except pickle.UnpicklingError as e:
-                    print(f"Error deserializing data: {e}")
+                    data: dict = json.loads(d.decode('utf-8'))
+                    if data["type"] == "ear_detection":
+                        logging.debug(f"Ear detection: {data['primary']} - {data['secondary']}")
+                        media_controller.handlePlayPause([data['primary'], data['secondary']])
+                except json.JSONDecodeError as e:
+                    logging.error(f"Error deserializing data: {e}")
             else:
                 break
         
     except Exception as e:
-        print(f"Error communicating with daemon: {e}")
+        logging.error(f"Error communicating with daemon: {e}")
     finally:
         if client_socket:
             client_socket.close()
-            print("Socket closed")
+            logging.warning("Socket closed")
 
 if __name__ == "__main__":
     read()

@@ -1,5 +1,5 @@
 import socket
-import pickle
+import json
 from aln.Notifications import Battery
 
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
@@ -18,18 +18,15 @@ def read():
             d = client_socket.recv(1024)
             if d:
                 try:
-                    data = pickle.loads(d)
-                    if isinstance(data, str):
-                        print(f"Received data: {data}")
-                    elif isinstance(data, list) and all(isinstance(b, Battery.Battery) for b in data):
-                        for b in data:
-                            print(f"Received battery status: {b.get_component()} is {b.get_status()} at {b.get_level()}%")
-                    elif isinstance(data, list) and len(data) == 2 and all(isinstance(i, int) for i in data):
-                        print(f"Received ear detection status: Is in-ear? Primary: {data[0] == 0}, Secondary: {data[1] == 0}")
+                    data: dict = json.loads(d.decode('utf-8'))
+                    if data["type"] == "battery":
+                        for b in data.keys():
+                            print(f"Received battery status: {b} - {data[b]}")
+                    elif data["type"] == "ear_detection":
+                        print(f"Ear detection: {data['primary']} - {data['secondary']}")
                     else:
-                        print(f"Received unknown data: {data}")
-                        all(isinstance(b, Battery.Battery) for b in data)
-                except pickle.UnpicklingError as e:
+                        print(f"Received data: {data}")
+                except json.JSONDecodeError as e:
                     print(f"Error deserializing data: {e}")
             else:
                 break

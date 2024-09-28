@@ -6,7 +6,8 @@ import logging
 from aln import Connection, enums
 from aln.Notifications import Notifications
 import os
-import pickle
+from aln.Notifications.Battery import Battery
+import bluetooth
 
 connection = None
 
@@ -22,31 +23,46 @@ running = True
 logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)s : %(message)s')
 # logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s : %(message)s')
 
+from json import JSONEncoder
+
 def handle_client(connection, client_socket):
     """Handle client requests by forwarding all received data to aln.Connection, send data back to the client."""
 
     def send_status():
         while running:
             try:
-                data = globals().get("battery")
-                if data:
-                    if not client_socket or not isinstance(client_socket, socket.socket):
-                        logging.error("Invalid client socket")
-                        break
-                    logging.info(f'Sending battery status: {data}')
-                    client_socket.send(pickle.dumps(data))
-                    logging.info(f'Sent battery status: {data}')
-                    globals()["battery"] = None
-    
-                data = globals().get("earDetection")
-                if data:
-                    if not client_socket or not isinstance(client_socket, socket.socket):
-                        logging.error("Invalid client socket")
-                        break
-                    logging.info(f'Sending ear detection status: {data}')
-                    client_socket.send(pickle.dumps(data))
-                    logging.info(f'Sent ear detection status: {data}')
-                    globals()["earDetection"] = None
+                for notif_key in list(globals().keys()):
+                    if notif_key.startswith("notif_"):
+                        data = globals().get(notif_key)
+                        if data:
+                            if notif_key == "notif_battery":
+                                data: list[Battery] = data
+                                batteryJSON = {"type": "battery"}
+                                for i in data:
+                                    batteryJSON[i.get_component()] = {
+                                        "status": i.get_status(),
+                                        "level": i.get_level()
+                                    }
+                                data: str = JSONEncoder().encode(batteryJSON)
+                            elif notif_key == "notif_ear_detection":
+                                data: list[int] = data
+                                earDetectionJSON = {
+                                    "type": "ear_detection",
+                                    "primary": data[0],
+                                    "secondary": data[1]
+                                }
+                                data: str = JSONEncoder().encode(earDetectionJSON)
+                            else:
+                                logging.warning(f"Unhandled notification type: {notif_key}")
+                                continue
+
+                            if not client_socket or not isinstance(client_socket, socket.socket):
+                                logging.error("Invalid client socket")
+                                break
+                            logging.info(f'Sending {notif_key} status: {data}')
+                            client_socket.sendall(data.encode('utf-8'))
+                            logging.info(f'Sent {notif_key} status: {data}')
+                            globals()[notif_key] = None
             except socket.error as e:
                 logging.error(f"Socket error sending status: {e}")
                 break
@@ -133,13 +149,13 @@ def notification_handler(notification_type: int):
     if notification_type == Notifications.BATTERY_UPDATED:
         logger = logging.getLogger("Battery Status")
         battery = connection.notificationListener.BatteryNotification.getBattery()
-        globals()["battery"] = battery
+        globals()["notif_battery"] = battery
         for i in battery:
             logger.debug(f'{i.get_component()} - {i.get_status()}: {i.get_level()}')
     elif notification_type == Notifications.EAR_DETECTION_UPDATED:
         logger = logging.getLogger("In-Ear Status")
         earDetection = connection.notificationListener.EarDetectionNotification.getEarDetection()
-        globals()["earDetection"] = earDetection
+        globals()["notif_ear_detection"] = earDetection
         logger.debug(earDetection)
 
 def main():
@@ -149,7 +165,12 @@ def main():
     globals()['connection'] = connection
 
     # Connect to the AirPods and send the handshake
-    connection.connect()
+    try: 
+        connection.connect()
+    except bluetooth.btcommon.BluetoothError as e:
+        logging.error(f"Failed to connect to {AIRPODS_MAC}: {e}")
+        sys.exit(1)
+    
     connection.send(enums.HANDSHAKE)
     logging.info("Handshake sent")
     connection.initialize_notifications(notification_handler)

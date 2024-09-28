@@ -6,8 +6,8 @@ import time
 import sys
 import shutil
 
-
 AIRPODS_MAC = '28:2D:7F:C2:05:5B'
+
 class CustomFormatter(logging.Formatter):
     def format(self, record):
         # Format the log message with spaces around colons without altering the original message

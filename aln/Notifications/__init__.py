@@ -11,7 +11,7 @@ class Notifications:
     BATTERY_UPDATED = NotificationListener.BATTERY_UPDATED
     ANC_UPDATED = NotificationListener.ANC_UPDATED
     EAR_DETECTION_UPDATED = NotificationListener.EAR_DETECTION_UPDATED
-    
+    UNKNOWN = NotificationListener.UNKNOWN
     def __init__(self, socket: bluetooth.BluetoothSocket, callback: callable):
         self.socket = socket
         self.notificationListener = NotificationListener(self.socket, callback)

@@ -10,6 +10,7 @@ class NotificationListener:
     BATTERY_UPDATED = 0x01
     ANC_UPDATED = 0x02
     EAR_DETECTION_UPDATED = 0x03
+    UNKNOWN = 0x00
 
     def __init__(self, socket: BluetoothSocket, callback: callable):
         self.socket = socket
@@ -25,11 +26,14 @@ class NotificationListener:
                 break
             if self.BatteryNotification.isBatteryData(data):
                 self.BatteryNotification.setBattery(data)
-                self.callback(self.BATTERY_UPDATED)
+                self.callback(self.BATTERY_UPDATED, data)
                 pass
             if self.EarDetectionNotification.isEarDetectionData(data):
                 self.EarDetectionNotification.setEarDetection(data)
-                self.callback(self.EAR_DETECTION_UPDATED)
+                self.callback(self.EAR_DETECTION_UPDATED, data)
+            else:
+                self.callback(self.UNKNOWN, data)
+                pass
             pass
         pass
     
