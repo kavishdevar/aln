@@ -142,7 +142,7 @@ def stop_daemon(signum, frame):
 
     sys.exit(0)
 
-def notification_handler(notification_type: int):
+def notification_handler(notification_type: int, data: bytes):
     global connection
 
     logging.debug(f"Received notification: {notification_type}")
@@ -157,6 +157,10 @@ def notification_handler(notification_type: int):
         earDetection = connection.notificationListener.EarDetectionNotification.getEarDetection()
         globals()["notif_ear_detection"] = earDetection
         logger.debug(earDetection)
+    elif notification_type == Notifications.UNKNOWN:
+        logger = logging.getLogger("Unknown Notification")
+        hex_data = ' '.join(f'{byte:02x}' for byte in data)
+        logger.debug(hex_data)
 
 def main():
     global running
