@@ -67,6 +67,7 @@ python3 examples/daemon/read-data.py
 ```
 
 - Controlling the media with the in-ear status (and get battery status)
+
 ![Ear Detection Screenshot](imgs/ear-detection.png)
 This script is basically the standalone script, but interacts with the UNIX socket created by the daemon instead. It can control the media with the in-ear status and remove the device as an audio sink when the AirPods are not in your ears.
 
@@ -75,6 +76,7 @@ python3 examples/daemon/ear-detection.py
 ```
 
 - App Indicator/Tray Icon
+
 ![Tray Icon Hover Screenshot](imgs/tray-icon-hover.png)
 ![Tray Icon Menu Screenshot](imgs/tray-icon-menu.png)
 This script is a simple tray icon that shows the battery percentage and set ANC modes.
