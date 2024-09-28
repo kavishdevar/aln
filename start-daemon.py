@@ -53,7 +53,9 @@ def handle_client(connection, client_socket):
                                 }
                                 data: str = JSONEncoder().encode(earDetectionJSON)
                             else:
-                                logging.warning(f"Unhandled notification type: {notif_key}")
+                                logging.debug(f"Unhandled notification type: {notif_key}")
+                                logging.debug(f"Data: {data}")
+                                data: str = JSONEncoder().encode({"type": "unknown", "data": data})
                                 continue
 
                             if not client_socket or not isinstance(client_socket, socket.socket):
@@ -160,6 +162,7 @@ def notification_handler(notification_type: int, data: bytes):
     elif notification_type == Notifications.UNKNOWN:
         logger = logging.getLogger("Unknown Notification")
         hex_data = ' '.join(f'{byte:02x}' for byte in data)
+        globals()["notif_unknown"] = hex_data
         logger.debug(hex_data)
 
 def main():
