@@ -37,7 +37,7 @@ python3 examples/logger-and-anc.py
 ```
 
 ## As a daemon (using a UNIX socket)
-![Daemon Log Screenshot](imgs/daemon-log.png | width=300)
+![Daemon Log Screenshot](imgs/daemon-log.png)
 If you want to run a deamon for multiple programs to read/write airpods data, you can use the `airpods_daemon.py` script.
 - This creates a standard UNIX socket at `/tmp/airpods_daemon.sock` and listens for commands
 - and sends battery/in-ear info
@@ -48,7 +48,7 @@ python3 airpods_daemon.py
 ```
 
 ## Interacting with the daemon
-![Set ANC Screenshot](imgs/set-anc.png | width=300)
+![Set ANC Screenshot](imgs/set-anc.png)
 - Sending data to the daemon
 You can send data to the daemon using the `set-anc.py` script. Since it's a standard UNIX socket, you can send data to it using any programming language that supports UNIX sockets.
 
@@ -59,7 +59,7 @@ python3 examples/daemon/set-anc.py
 ```
 
 - Reading data from the daemon
-![Read Data Screenshot](imgs/read-data.png | width=300)
+![Read Data Screenshot](imgs/read-data.png)
 You can listen to the daemon's output by running the `read-data.py` script. This script listens to the UNIX socket and prints the data it receives. Currenty, it recognizes the battery percentage and the in-ear status and dumps the rest of the data to the terminal.
 
 ```bash
@@ -67,7 +67,7 @@ python3 examples/daemon/read-data.py
 ```
 
 - Controlling the media with the in-ear status (and get battery status)
-![Ear Detection Screenshot](imgs/ear-detection.png | width=300)
+![Ear Detection Screenshot](imgs/ear-detection.png)
 This script is basically the standalone script, but interacts with the UNIX socket created by the daemon instead. It can control the media with the in-ear status and remove the device as an audio sink when the AirPods are not in your ears.
 
 ```bash
