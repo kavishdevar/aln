@@ -20,8 +20,12 @@ LOG_FILE = os.path.join(LOG_FOLDER, 'airpods_daemon.log')
 running = True
 
 # Configure logging to write to a file
-logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)s : %(message)s')
-# logging.basicConfig(level=logging.DEBUG, format='%(asctime)s %(levelname)s : %(message)s')
+# logging.basicConfig(filename=LOG_FILE, level=logging.DEBUG, format='%(asctime)s %(levelname)s : %(message)s')
+
+# RotatingFileHandler
+
+formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
+handler = logging.FileHandler(LOG_FILE, maxBytes=2**20, backupCount=5, delay=0)
 
 from json import JSONEncoder
 
@@ -52,11 +56,10 @@ def handle_client(connection, client_socket):
                                     "secondary": data[1]
                                 }
                                 data: str = JSONEncoder().encode(earDetectionJSON)
-                            else:
+                            elif notif_key == "notif_unknown":
                                 logging.debug(f"Unhandled notification type: {notif_key}")
                                 logging.debug(f"Data: {data}")
                                 data: str = JSONEncoder().encode({"type": "unknown", "data": data})
-                                continue
 
                             if not client_socket or not isinstance(client_socket, socket.socket):
                                 logging.error("Invalid client socket")

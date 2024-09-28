@@ -1,6 +1,5 @@
 from ..Capabilites import Capabilites
 from ..enums import enums
-import logging
 from typing import Literal
 
 class EarDetectionNotification:

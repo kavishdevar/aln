@@ -56,7 +56,7 @@ class MediaController:
             if self.earStatus != "Both out":
                 s = self.isPlaying()
                 self.pauseMusic()
-                os.system("pacmd set-card-profile bluez_card.28_2D_7F_C2_05_5B off")
+                os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B off")
                 if self.earStatus == "Only one in":
                     if self.firstEarOutTime != 0 and time.time() - self.firstEarOutTime < 0.3:
                         self.wasMusicPlayingInSingle = True
@@ -79,7 +79,7 @@ class MediaController:
         elif not primary_status and not secondary_status:
             if self.earStatus != "Both in":
                 if self.earStatus == "Both out":
-                    os.system("pacmd set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp_sink")
+                    os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp-sink")
                 elif self.earStatus == "Only one in":
                     self.stop_thread_event.set()
                     s = self.isPlaying()
@@ -100,7 +100,7 @@ class MediaController:
                 delayed_thread.start()
                 self.firstEarOutTime = time.time()
                 if self.earStatus == "Both out":
-                    os.system("pacmd set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp_sink")
+                    os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp-sink")
                 self.earStatus = "Only one in"
             return "Only one in"
 
@@ -122,7 +122,6 @@ def read():
                 try:
                     data: dict = json.loads(d.decode('utf-8'))
                     if data["type"] == "ear_detection":
-                        logging.debug(f"Ear detection: {data['primary']} - {data['secondary']}")
                         media_controller.handlePlayPause([data['primary'], data['secondary']])
                 except json.JSONDecodeError as e:
                     logging.error(f"Error deserializing data: {e}")

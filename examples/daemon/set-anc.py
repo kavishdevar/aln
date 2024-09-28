@@ -3,15 +3,33 @@ import argparse
 from aln import enums
 import logging
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
+class CustomFormatter(logging.Formatter):
+    # Define color codes for different log levels
+    COLORS = {
+        logging.DEBUG: "\033[48;5;240;38;5;15m%s\033[1;0m",  # Grey background, white bold text
+        logging.INFO: "\033[48;5;34;38;5;15m%s\033[1;0m",   # Green background, white bold text
+        logging.WARNING: "\033[1;48;5;214;38;5;0m%s\033[1;0m",  # Orange background, black bold text
+        logging.ERROR: "\033[1;48;5;202;38;5;15m%s\033[1;0m",  # Orange-red background, white bold text
+        logging.CRITICAL: "\033[1;48;5;196;38;5;15m%s\033[1;0m",  # Pure red background, white bold text
+    }
 
-# Colorful logging
-logging.addLevelName(logging.DEBUG, "\033[1;34m%s\033[1;0m" % logging.getLevelName(logging.DEBUG))
-logging.addLevelName(logging.INFO, "\033[1;32m%s\033[1;0m" % logging.getLevelName(logging.INFO))
-logging.addLevelName(logging.WARNING, "\033[1;33m%s\033[1;0m" % logging.getLevelName(logging.WARNING))
-logging.addLevelName(logging.ERROR, "\033[1;31m%s\033[1;0m" % logging.getLevelName(logging.ERROR))
-logging.addLevelName(logging.CRITICAL, "\033[1;41m%s\033[1;0m" % logging.getLevelName(logging.CRITICAL))
+    def format(self, record):
+        # Apply color to the level name
+        levelname = self.COLORS.get(record.levelno, "%s") % record.levelname.ljust(8)
+        record.levelname = levelname
+        
+        # Format the message
+        formatted_message = super().format(record)
+        
+        return formatted_message
+
+# Custom formatter with fixed width for level name
+formatter = CustomFormatter('\033[2;90m%(asctime)s\033[1;0m - %(levelname)s - %(message)s')
+
+logging.basicConfig(level=logging.DEBUG)
+
+# Set the custom formatter for the root logger
+logging.getLogger().handlers[0].setFormatter(formatter)
 
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 
