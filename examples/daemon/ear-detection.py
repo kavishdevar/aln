@@ -8,15 +8,34 @@ import os
 import logging
 
 
-# Configure logging
-logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 
-# Colorful logging
-logging.addLevelName(logging.DEBUG, "\033[1;34m%s\033[1;0m" % logging.getLevelName(logging.DEBUG))
-logging.addLevelName(logging.INFO, "\033[1;32m%s\033[1;0m" % logging.getLevelName(logging.INFO))
-logging.addLevelName(logging.WARNING, "\033[1;33m%s\033[1;0m" % logging.getLevelName(logging.WARNING))
-logging.addLevelName(logging.ERROR, "\033[1;31m%s\033[1;0m" % logging.getLevelName(logging.ERROR))
-logging.addLevelName(logging.CRITICAL, "\033[1;41m%s\033[1;0m" % logging.getLevelName(logging.CRITICAL))
+class CustomFormatter(logging.Formatter):
+    # Define color codes for different log levels
+    COLORS = {
+        logging.DEBUG: "\033[48;5;240;38;5;15m%s\033[1;0m",  # Grey background, white bold text
+        logging.INFO: "\033[48;5;34;38;5;15m%s\033[1;0m",   # Green background, white bold text
+        logging.WARNING: "\033[1;48;5;214;38;5;0m%s\033[1;0m",  # Orange background, black bold text
+        logging.ERROR: "\033[1;48;5;202;38;5;15m%s\033[1;0m",  # Orange-red background, white bold text
+        logging.CRITICAL: "\033[1;48;5;196;38;5;15m%s\033[1;0m",  # Pure red background, white bold text
+    }
+
+    def format(self, record):
+        # Apply color to the level name
+        levelname = self.COLORS.get(record.levelno, "%s") % record.levelname.ljust(8)
+        record.levelname = levelname
+        
+        # Format the message
+        formatted_message = super().format(record)
+        
+        return formatted_message
+
+# Custom formatter with fixed width for level name
+formatter = CustomFormatter('\033[2;37m%(asctime)s\033[1;0m - %(levelname)s - %(message)s')
+
+logging.basicConfig(level=logging.DEBUG)
+
+# Set the custom formatter for the root logger
+logging.getLogger().handlers[0].setFormatter(formatter)
 
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 
@@ -29,9 +48,11 @@ class MediaController:
         self.stop_thread_event = threading.Event()
 
     def playMusic(self):
+        logging.info("Playing music")
         subprocess.call(("playerctl", "play", "--ignore-player", "OnePlus_7"))
 
     def pauseMusic(self):
+        logging.info("Pausing music")
         subprocess.call(("playerctl", "pause", "--ignore-player", "OnePlus_7"))
 
     def isPlaying(self):
@@ -41,7 +62,7 @@ class MediaController:
         primary_status = data[0]
         secondary_status = data[1]
 
-        logging.debug(f"Handle play/pause called with data: {data}, previousStatus: {self.earStatus}, wasMusicPlaying: {self.wasMusicPlayingInSingle or self.wasMusicPlayingInBoth}")
+        logging.debug(f"Handling play/pause with data: {data}, previousStatus: {self.earStatus}, wasMusicPlaying: {self.wasMusicPlayingInSingle or self.wasMusicPlayingInBoth}")
 
         def delayed_action(s):
             if not self.stop_thread_event.is_set():
@@ -55,8 +76,10 @@ class MediaController:
         if primary_status and secondary_status:
             if self.earStatus != "Both out":
                 s = self.isPlaying()
-                self.pauseMusic()
+                if s:
+                    self.pauseMusic()
                 os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B off")
+                logging.info("Setting profile to off")
                 if self.earStatus == "Only one in":
                     if self.firstEarOutTime != 0 and time.time() - self.firstEarOutTime < 0.3:
                         self.wasMusicPlayingInSingle = True
@@ -80,6 +103,7 @@ class MediaController:
             if self.earStatus != "Both in":
                 if self.earStatus == "Both out":
                     os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp-sink")
+                    logging.info("Setting profile to a2dp-sink")
                 elif self.earStatus == "Only one in":
                     self.stop_thread_event.set()
                     s = self.isPlaying()
@@ -95,12 +119,14 @@ class MediaController:
             if self.earStatus != "Only one in":
                 self.stop_thread_event.clear()
                 s = self.isPlaying()
-                self.pauseMusic()
+                if s:
+                    self.pauseMusic()
                 delayed_thread = threading.Timer(0.3, delayed_action, args=[s])
                 delayed_thread.start()
                 self.firstEarOutTime = time.time()
                 if self.earStatus == "Both out":
                     os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp-sink")
+                    logging.info("Setting profile to a2dp-sink")
                 self.earStatus = "Only one in"
             return "Only one in"
 
@@ -124,7 +150,8 @@ def read():
                     if data["type"] == "ear_detection":
                         media_controller.handlePlayPause([data['primary'], data['secondary']])
                 except json.JSONDecodeError as e:
-                    logging.error(f"Error deserializing data: {e}")
+                    # logging.error(f"Error deserializing data: {e}")
+                    pass
             else:
                 break
         

@@ -5,7 +5,7 @@ import logging
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 
 import logging
-import textwrap
+
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels
     COLORS = {
@@ -27,15 +27,12 @@ class CustomFormatter(logging.Formatter):
         return formatted_message
 
 # Custom formatter with fixed width for level name
-formatter = CustomFormatter('\033[2;90m%(asctime)s\033[1;0m - %(levelname)s - %(message)s')
+formatter = CustomFormatter('\033[2;37m%(asctime)s\033[1;0m - %(levelname)s - %(message)s')
 
 logging.basicConfig(level=logging.DEBUG)
 
 # Set the custom formatter for the root logger
 logging.getLogger().handlers[0].setFormatter(formatter)
-
-# Example usage
-logging.info("This is an info message. This is a continuation of the info message. This is a continuation of the info message. This is a continuation of the info message.")
 
 def read():
     """Send a command to the daemon via UNIX domain socket."""
@@ -66,8 +63,9 @@ def read():
                     else:
                         logging.error("Received data is not a dictionary")
                 except json.JSONDecodeError as e:
-                    logging.warning(f"Error deserializing data: {e}")
-                    logging.warning(f"raw data: {d}")
+                    # logging.warning(f"Error deserializing data: {e}")
+                    # logging.warning(f"raw data: {d}")
+                    pass
                 except KeyError as e:
                     logging.error(f"KeyError: {e} in data: {data}")
                 except TypeError as e:

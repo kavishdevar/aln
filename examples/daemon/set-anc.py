@@ -24,12 +24,13 @@ class CustomFormatter(logging.Formatter):
         return formatted_message
 
 # Custom formatter with fixed width for level name
-formatter = CustomFormatter('\033[2;90m%(asctime)s\033[1;0m - %(levelname)s - %(message)s')
+formatter = CustomFormatter('\033[2;37m%(asctime)s\033[1;0m - %(levelname)s - %(message)s')
 
 logging.basicConfig(level=logging.DEBUG)
 
 # Set the custom formatter for the root logger
 logging.getLogger().handlers[0].setFormatter(formatter)
+
 
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 

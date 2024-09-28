@@ -1,3 +1,4 @@
+import logging.handlers
 import socket
 import threading
 import signal
@@ -25,7 +26,13 @@ running = True
 # RotatingFileHandler
 
 formatter = logging.Formatter('%(asctime)s - %(levelname)s - %(message)s')
-handler = logging.FileHandler(LOG_FILE, maxBytes=2**20, backupCount=5, delay=0)
+handler = logging.handlers.RotatingFileHandler(LOG_FILE, maxBytes=2**20)
+handler.setFormatter(formatter)
+handler.setLevel(logging.DEBUG)
+
+l = logging.getLogger()
+l.setLevel(logging.DEBUG)
+l.addHandler(handler)
 
 from json import JSONEncoder
 
