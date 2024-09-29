@@ -7,6 +7,9 @@ from PyQt5.QtWidgets import QApplication, QSystemTrayIcon, QMenu, QAction, QMess
 from PyQt5.QtGui import QIcon
 from PyQt5.QtCore import QObject, pyqtSignal
 import logging
+import subprocess
+import time
+import os
 
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 
@@ -20,8 +23,103 @@ battery_status = {
 # Define a lock
 battery_status_lock = threading.Lock()
 
+class MediaController:
+    def __init__(self):
+        self.earStatus = "Both out"
+        self.wasMusicPlayingInSingle = False
+        self.wasMusicPlayingInBoth = False
+        self.firstEarOutTime = 0
+        self.stop_thread_event = threading.Event()
+
+    def playMusic(self):
+        logging.info("Playing music")
+        subprocess.call(("playerctl", "play", "--ignore-player", "OnePlus_7"))
+
+    def pauseMusic(self):
+        logging.info("Pausing music")
+        subprocess.call(("playerctl", "pause", "--ignore-player", "OnePlus_7"))
+
+    def isPlaying(self):
+        return subprocess.check_output(["playerctl", "status", "--player", "spotify"]).decode("utf-8").strip() == "Playing"
+
+    def handlePlayPause(self, data):
+        primary_status = data[0]
+        secondary_status = data[1]
+
+        logging.debug(f"Handling play/pause with data: {data}, previousStatus: {self.earStatus}, wasMusicPlaying: {self.wasMusicPlayingInSingle or self.wasMusicPlayingInBoth}")
+
+        def delayed_action(s):
+            if not self.stop_thread_event.is_set():
+                if self.wasMusicPlayingInSingle:
+                    self.playMusic()
+                    self.wasMusicPlayingInBoth = False
+                elif self.wasMusicPlayingInBoth or s:
+                    self.wasMusicPlayingInBoth = True
+                self.wasMusicPlayingInSingle = False
+
+        if primary_status and secondary_status:
+            if self.earStatus != "Both out":
+                s = self.isPlaying()
+                if s:
+                    self.pauseMusic()
+                os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B off")
+                logging.info("Setting profile to off")
+                if self.earStatus == "Only one in":
+                    if self.firstEarOutTime != 0 and time.time() - self.firstEarOutTime < 0.3:
+                        self.wasMusicPlayingInSingle = True
+                        self.wasMusicPlayingInBoth = True
+                        self.stop_thread_event.set()
+                    else:
+                        if s:
+                            self.wasMusicPlayingInSingle = True
+                        else:
+                            self.wasMusicPlayingInSingle = False
+                elif self.earStatus == "Both in":
+                    s = self.isPlaying()
+                    if s:
+                        self.wasMusicPlayingInBoth = True
+                        self.wasMusicPlayingInSingle = False
+                    else:
+                        self.wasMusicPlayingInSingle = False
+                self.earStatus = "Both out"
+            return "Both out"
+        elif not primary_status and not secondary_status:
+            if self.earStatus != "Both in":
+                if self.earStatus == "Both out":
+                    os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp-sink")
+                    logging.info("Setting profile to a2dp-sink")
+                elif self.earStatus == "Only one in":
+                    self.stop_thread_event.set()
+                    s = self.isPlaying()
+                    if s:
+                        self.wasMusicPlayingInBoth = True
+                if self.wasMusicPlayingInSingle or self.wasMusicPlayingInBoth:
+                    self.playMusic()
+                    self.wasMusicPlayingInBoth = True
+                self.wasMusicPlayingInSingle = False
+                self.earStatus = "Both in"
+            return "Both in"
+        elif (primary_status and not secondary_status) or (not primary_status and secondary_status):
+            if self.earStatus != "Only one in":
+                self.stop_thread_event.clear()
+                s = self.isPlaying()
+                if s:
+                    self.pauseMusic()
+                delayed_thread = threading.Timer(0.3, delayed_action, args=[s])
+                delayed_thread.start()
+                self.firstEarOutTime = time.time()
+                if self.earStatus == "Both out":
+                    os.system("pactl set-card-profile bluez_card.28_2D_7F_C2_05_5B a2dp-sink")
+                    logging.info("Setting profile to a2dp-sink")
+                self.earStatus = "Only one in"
+            return "Only one in"
+
 class BatteryStatusUpdater(QObject):
     battery_status_updated = pyqtSignal()
+
+    def __init__(self):
+        super().__init__()
+        self.media_controller = MediaController()
 
     def listen_for_battery_updates(self):
         global battery_status
@@ -33,10 +131,11 @@ class BatteryStatusUpdater(QObject):
                     try:
                         response = json.loads(data.decode('utf-8'))
                         if response["type"] == "battery":
-                            print(response)
                             with battery_status_lock:
                                 battery_status = response
                             self.battery_status_updated.emit()
+                        elif response["type"] == "ear_detection":
+                            self.media_controller.handlePlayPause([response['primary'], response['secondary']])
                     except json.JSONDecodeError as e:
                         logging.warning(f"Error deserializing data: {e}")
                     except KeyError as e:
@@ -50,7 +149,6 @@ def get_battery_status():
         right = battery_status["RIGHT"]
         case = battery_status["CASE"]
         return f"Left: {left['level']}% - {left['status'].title().replace('_', ' ')} | Right: {right['level']}% - {right['status'].title().replace('_', ' ')} | Case: {case['level']}% - {case['status'].title().replace('_', ' ')}"
-
 
 from aln import enums
 def set_anc_mode(mode):
@@ -68,7 +166,6 @@ def set_anc_mode(mode):
         client.sendall(command)
         response = client.recv(1024)
         return json.loads(response.decode())
-
 
 def control_anc(action):
     response = set_anc_mode(action)

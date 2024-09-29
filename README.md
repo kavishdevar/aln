@@ -1,7 +1,9 @@
 # ALN - AirPods like Normal (Linux Only)
-# Get Started!
 
-## 1. Install the required packages
+## Currently supported device(s)
+- AirPods Pro 2
+
+### 1. Install the required packages
 
 ```bash
 sudo apt install python3 python3-pip
@@ -14,16 +16,16 @@ If you want to run it as a daemon (Refer to the [Daemon Version](#as-a-daemon-us
 pip3 install python-daemon
 ```
 
-## 2. Clone the repository
+### 2. Clone the repository
 
 ```bash
 git clone https://github.com/kavishdevar/aln.git
 cd aln
 ```
 
-## 3. Preprare
+### 3. Preprare
 Pair your AirPods with your machine before running this script!
-:warning: **Note:** DO NOT FORGET TO EDIT THE `AIRPODS_MAC` VARIABLE IN `main.py`/`standalone.py` WITH YOUR AIRPODS MAC ADDRESS!
+> **Note:** DO NOT FORGET TO EDIT THE `AIRPODS_MAC` VARIABLE IN EXAMPLE SCRIPTS  WITH YOUR AIRPODS MAC ADDRESS BEFORE RUNNING THEM!
 
 # Versions
 
@@ -79,7 +81,7 @@ python3 examples/daemon/ear-detection.py
 
 ![Tray Icon Hover Screenshot](imgs/tray-icon-hover.png)
 ![Tray Icon Menu Screenshot](imgs/tray-icon-menu.png)
-This script is a simple tray icon that shows the battery percentage and set ANC modes.
+This script is a simple tray icon that shows the battery percentage and set ANC modes. It can also control the media with the in-ear status.
 > Note: This script uses QT.
 
 ```bash
