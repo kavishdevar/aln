@@ -7,8 +7,6 @@ import time
 import os
 import logging
 
-
-
 class CustomFormatter(logging.Formatter):
     # Define color codes for different log levels
     COLORS = {
@@ -23,10 +21,10 @@ class CustomFormatter(logging.Formatter):
         # Apply color to the level name
         levelname = self.COLORS.get(record.levelno, "%s") % record.levelname.ljust(8)
         record.levelname = levelname
-        
+
         # Format the message
         formatted_message = super().format(record)
-        
+
         return formatted_message
 
 # Custom formatter with fixed width for level name
@@ -49,14 +47,14 @@ class MediaController:
 
     def playMusic(self):
         logging.info("Playing music")
-        subprocess.call(("playerctl", "play", "--ignore-player", "OnePlus_7"))
+        subprocess.call(("playerctl", "play"))
 
     def pauseMusic(self):
         logging.info("Pausing music")
-        subprocess.call(("playerctl", "pause", "--ignore-player", "OnePlus_7"))
+        subprocess.call(("playerctl", "--all-players", "pause"))
 
     def isPlaying(self):
-        return subprocess.check_output(["playerctl", "status", "--player", "spotify"]).decode("utf-8").strip() == "Playing"
+        return "Playing" in subprocess.getoutput("playerctl --all-players status").strip()
 
     def handlePlayPause(self, data):
         primary_status = data[0]

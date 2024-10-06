@@ -21,7 +21,7 @@ class initL2CAP():
         subprocess.call(("playerctl", "play", "--ignore-player", "OnePlus_7"))
 
     def getMusicStatus(self):
-        return subprocess.check_output(("playerctl", "status", "--ignore-player", "OnePlus_7")).decode("utf-8").strip()
+        return subprocess.getoutput("playerctl status --ignore-player OnePlus_7").strip()
 
     # Change to MAC address of your AirPods
 

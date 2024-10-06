@@ -2,6 +2,7 @@ from bluetooth import BluetoothSocket
 import threading
 from .Battery import BatteryNotification
 from .EarDetection import EarDetectionNotification
+from .ANC import ANCNotification
 import logging
 
 logging = logging.getLogger(__name__)
@@ -16,6 +17,7 @@ class NotificationListener:
         self.socket = socket
         self.BatteryNotification = BatteryNotification()
         self.EarDetectionNotification = EarDetectionNotification()
+        self.ANCNotification = ANCNotification()
         self.callback = callback
         pass
     
@@ -31,6 +33,9 @@ class NotificationListener:
             if self.EarDetectionNotification.isEarDetectionData(data):
                 self.EarDetectionNotification.setEarDetection(data)
                 self.callback(self.EAR_DETECTION_UPDATED, data)
+            if self.ANCNotification.isANCData(data):
+                self.ANCNotification.setANC(data)
+                self.callback(self.ANC_UPDATED, data)
             else:
                 self.callback(self.UNKNOWN, data)
                 pass

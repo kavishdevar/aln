@@ -1,8 +1,8 @@
 class NoiseCancellation:
-    Off = b"\x01"
-    On = b"\x02"
-    Transparency = b"\x03"
-    Adaptive = b"\x04"
+    OFF = b"\x01"
+    ON = b"\x02"
+    TRANSPARENCY = b"\x03"
+    ADAPTIVE = b"\x04"
 
 class ConversationAwareness:
     Off = b"\x02"

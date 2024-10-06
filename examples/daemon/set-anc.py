@@ -62,12 +62,12 @@ if __name__ == "__main__":
     args = parse_arguments()
     
     if args.mode == "off" or args.mode == "1":
-        command = enums.SET_NOISE_CANCELLATION_OFF
+        command = enums.NOISE_CANCELLATION_OFF
     elif args.mode == "on" or args.mode == "2":
-        command = enums.SET_NOISE_CANCELLATION_ON
+        command = enums.NOISE_CANCELLATION_ON
     elif args.mode == "transparency" or args.mode == "3":
-        command = enums.SET_NOISE_CANCELLATION_TRANSPARENCY
+        command = enums.NOISE_CANCELLATION_TRANSPARENCY
     elif args.mode == "adaptive" or args.mode == "4":
-        command = enums.SET_NOISE_CANCELLATION_ADAPTIVE
+        command = enums.NOISE_CANCELLATION_ADAPTIVE
     
     send_command(command)

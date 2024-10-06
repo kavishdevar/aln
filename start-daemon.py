@@ -6,10 +6,10 @@ import sys
 import logging
 from aln import Connection, enums
 from aln.Notifications import Notifications
-import os
 from aln.Notifications.Battery import Battery
+import os
 import bluetooth
-
+from aln.enums import enums
 connection = None
 
 AIRPODS_MAC = '28:2D:7F:C2:05:5B'
@@ -55,7 +55,9 @@ def handle_client(connection, client_socket):
                                         "level": i.get_level()
                                     }
                                 data: str = JSONEncoder().encode(batteryJSON)
+
                             elif notif_key == "notif_ear_detection":
+                                # noinspection PyTypeChecker
                                 data: list[int] = data
                                 earDetectionJSON = {
                                     "type": "ear_detection",
@@ -63,6 +65,13 @@ def handle_client(connection, client_socket):
                                     "secondary": data[1]
                                 }
                                 data: str = JSONEncoder().encode(earDetectionJSON)
+                            elif notif_key == "notif_anc":
+                                data: int = data
+                                ancJSON = {
+                                    "type": "anc",
+                                    "status": data,
+                                }
+                                data: str = JSONEncoder().encode(ancJSON)
                             elif notif_key == "notif_unknown":
                                 logging.debug(f"Unhandled notification type: {notif_key}")
                                 logging.debug(f"Data: {data}")
@@ -136,7 +145,7 @@ def start_socket_server(connection):
     server_socket.close()
     logging.info("Socket server stopped")
 
-def stop_daemon(signum, frame):
+def stop_daemon(_, __):
     """Signal handler to stop the daemon."""
     global running
     logging.info("Received termination signal. Stopping daemon...")
@@ -169,6 +178,11 @@ def notification_handler(notification_type: int, data: bytes):
         earDetection = connection.notificationListener.EarDetectionNotification.getEarDetection()
         globals()["notif_ear_detection"] = earDetection
         logger.debug(earDetection)
+    elif notification_type == Notifications.ANC_UPDATED:
+        logger = logging.getLogger("ANC Status")
+        anc = connection.notificationListener.ANCNotification.status
+        globals()["notif_anc"] = anc
+        logger.debug(anc)
     elif notification_type == Notifications.UNKNOWN:
         logger = logging.getLogger("Unknown Notification")
         hex_data = ' '.join(f'{byte:02x}' for byte in data)
@@ -190,6 +204,7 @@ def main():
     
     connection.send(enums.HANDSHAKE)
     logging.info("Handshake sent")
+    
     connection.initialize_notifications(notification_handler)
 
     # Start the socket server to listen for client connections

@@ -1,7 +1,7 @@
 import socket
 import json
 import logging
-
+from aln.Notifications.ANC import ANCNotification
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 
 import logging
@@ -56,6 +56,8 @@ def read():
                                     logging.info(f"\033[1;33mReceived battery status: {b} - {battery_data['status']} - {battery_data['level']}\033[1;0m")
                         elif data["type"] == "ear_detection":
                             logging.info(f"\033[1;33mReceived ear detection status: {data['primary']} - {data['secondary']}\033[1;0m")
+                        elif data["type"] == "anc":
+                            logging.info(f"\033[1;33mReceived ANC status: {data['status']}\033[1;0m")
                         elif data["type"] == "unknown":
                             logging.info(f"Received data: {data['data']}")
                         else:

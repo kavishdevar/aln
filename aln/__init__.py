@@ -1,7 +1,4 @@
 from .Notifications import Notifications
-from .Capabilites import Capabilites
-from .enums import enums
-
 import bluetooth
 import logging
 
@@ -25,6 +22,7 @@ class Connection:
         self.notifications = Notifications(self.socket, callback)
         self.notificationListener = self.notifications.notificationListener
         self.BatteryNotification = self.notifications.BatteryNotification
+        self.ANCNotification = self.notifications.ANCNotification
         self.notifications.initialize()
 
     def send(self, data: bytes):
@@ -45,6 +43,10 @@ class Connection:
         elif notification_type == Notifications.EAR_DETECTION_UPDATED:
             logging = logging.getLogger("In-Ear Status")
             logging.debug(f'{self.notificationListener.EarDetectionNotification.getEarDetection()}')
+            pass
+        elif notification_type == Notifications.ANC_UPDATED:
+            logging = logging.getLogger("ANC Status")
+            logging.debug(f'{self.notificationListener.ANCNotification.getANC()}')
             pass
         elif notification_type == Notifications.UNKNOWN:
             logging = logging.getLogger("Unknown Notification")

@@ -17,11 +17,13 @@ class Notifications:
         self.notificationListener = NotificationListener(self.socket, callback)
         self.BatteryNotification = self.notificationListener.BatteryNotification
         self.EarDetectionNotification = self.notificationListener.EarDetectionNotification
+        self.ANCNotification = self.notificationListener.ANCNotification
         pass
 
     def initialize(self):
         try:
             self.socket.send(enums.REQUEST_NOTIFICATIONS)
+            self.socket.send(enums.SET_SPECIFIC_FEATURES)
             self.notificationListener.start()
             
         except bluetooth.btcommon.BluetoothError as e:

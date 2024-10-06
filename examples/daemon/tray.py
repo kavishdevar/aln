@@ -11,6 +11,35 @@ import subprocess
 import time
 import os
 
+
+class CustomFormatter(logging.Formatter):
+    # Define color codes for different log levels
+    COLORS = {
+        logging.DEBUG: "\033[48;5;240;38;5;15m%s\033[1;0m",  # Grey background, white bold text
+        logging.INFO: "\033[48;5;34;38;5;15m%s\033[1;0m",   # Green background, white bold text
+        logging.WARNING: "\033[1;48;5;214;38;5;0m%s\033[1;0m",  # Orange background, black bold text
+        logging.ERROR: "\033[1;48;5;202;38;5;15m%s\033[1;0m",  # Orange-red background, white bold text
+        logging.CRITICAL: "\033[1;48;5;196;38;5;15m%s\033[1;0m",  # Pure red background, white bold text
+    }
+
+    def format(self, record):
+        # Apply color to the level name
+        levelname = self.COLORS.get(record.levelno, "%s") % record.levelname.ljust(8)
+        record.levelname = levelname
+
+        # Format the message
+        formatted_message = super().format(record)
+
+        return formatted_message
+
+# Custom formatter with fixed width for level name
+formatter = CustomFormatter('\033[2;37m%(asctime)s\033[1;0m - %(levelname)s - %(message)s')
+
+logging.basicConfig(level=logging.DEBUG)
+
+# Set the custom formatter for the root logger
+logging.getLogger().handlers[0].setFormatter(formatter)
+
 SOCKET_PATH = "/tmp/airpods_daemon.sock"
 
 # Initialize battery_status at the module level
@@ -33,14 +62,15 @@ class MediaController:
 
     def playMusic(self):
         logging.info("Playing music")
-        subprocess.call(("playerctl", "play", "--ignore-player", "OnePlus_7"))
+        subprocess.call(("playerctl", "play"))
 
     def pauseMusic(self):
         logging.info("Pausing music")
-        subprocess.call(("playerctl", "pause", "--ignore-player", "OnePlus_7"))
+        subprocess.call(("playerctl", "--all-players", "pause"))
 
     def isPlaying(self):
-        return subprocess.check_output(["playerctl", "status", "--player", "spotify"]).decode("utf-8").strip() == "Playing"
+        return "Playing" in subprocess.getoutput("playerctl --all-players status").strip() 
+
 
     def handlePlayPause(self, data):
         primary_status = data[0]
@@ -121,7 +151,7 @@ class BatteryStatusUpdater(QObject):
         super().__init__()
         self.media_controller = MediaController()
 
-    def listen_for_battery_updates(self):
+    def listen_to_socket(self):
         global battery_status
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
             client.connect(SOCKET_PATH)
@@ -133,9 +163,11 @@ class BatteryStatusUpdater(QObject):
                         if response["type"] == "battery":
                             with battery_status_lock:
                                 battery_status = response
+                            logging.debug(f"Received battery status: {response}")
                             self.battery_status_updated.emit()
                         elif response["type"] == "ear_detection":
                             self.media_controller.handlePlayPause([response['primary'], response['secondary']])
+                            logging.debug(f"Received ear detection status: {response}")
                     except json.JSONDecodeError as e:
                         logging.warning(f"Error deserializing data: {e}")
                     except KeyError as e:
@@ -148,21 +180,24 @@ def get_battery_status():
         left = battery_status["LEFT"]
         right = battery_status["RIGHT"]
         case = battery_status["CASE"]
-        return f"Left: {left['level']}% - {left['status'].title().replace('_', ' ')} | Right: {right['level']}% - {right['status'].title().replace('_', ' ')} | Case: {case['level']}% - {case['status'].title().replace('_', ' ')}"
-
+        left_status = (left['status'] or 'Unknown').title().replace('_', ' ')
+        right_status = (right['status'] or 'Unknown').title().replace('_', ' ')
+        case_status = (case['status'] or 'Unknown').title().replace('_', ' ')
+        return f"Left: {left['level']}% - {left_status} | Right: {right['level']}% - {right_status} | Case: {case['level']}% - {case_status}"
+    
 from aln import enums
 def set_anc_mode(mode):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.connect(SOCKET_PATH)
-        command = enums.SET_NOISE_CANCELLATION_OFF
+        command = enums.NOISE_CANCELLATION_OFF
         if mode == "on":
-            command = enums.SET_NOISE_CANCELLATION_ON
+            command = enums.NOISE_CANCELLATION_ON
         elif mode == "off":
-            command = enums.SET_NOISE_CANCELLATION_OFF
+            command = enums.NOISE_CANCELLATION_OFF
         elif mode == "transparency":
-            command = enums.SET_NOISE_CANCELLATION_TRANSPARENCY
+            command = enums.NOISE_CANCELLATION_TRANSPARENCY
         elif mode == "adaptive":
-            command = enums.SET_NOISE_CANCELLATION_ADAPTIVE
+            command = enums.NOISE_CANCELLATION_ADAPTIVE
         client.sendall(command)
         response = client.recv(1024)
         return json.loads(response.decode())
@@ -172,7 +207,7 @@ def control_anc(action):
     logging.info(f"ANC action: {action}, Response: {response}")
 
 def signal_handler(sig, frame):
-    print("Exiting...")
+    logging.info("Exiting...")
     QApplication.quit()
     sys.exit(0)
 
@@ -222,7 +257,7 @@ battery_status_updater = BatteryStatusUpdater()
 battery_status_updater.battery_status_updated.connect(lambda: tray_icon.setToolTip(get_battery_status()))
 
 # Start the battery status listener thread
-listener_thread = threading.Thread(target=battery_status_updater.listen_for_battery_updates, daemon=True)
+listener_thread = threading.Thread(target=battery_status_updater.listen_to_socket, daemon=True)
 listener_thread.start()
 
 # Run the application
