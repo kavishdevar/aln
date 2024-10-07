@@ -99,3 +99,7 @@ python3 examples/daemon/tray.py
 ```bash
 python3 examples/standalone.py
 ```
+
+# License
+
+See [README](/README.md).
