@@ -1,5 +1,7 @@
 # ALN - AirPods like Normal (Linux Only)
 
+### Check out the packet definitions at [AAP Definitions](/AAP%20Definitions.md)
+
 ## Currently supported device(s)
 - AirPods Pro 2
 

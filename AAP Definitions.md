@@ -215,7 +215,11 @@ The level can be any value between 0 and 100, 0 to allow maximum noise (i.e. min
 
 ## Configure Stem Long Press
 
-I have noted all the packets sent to configure what the press and hold of the steam should do
+I have noted all the packets sent to configure what the press and hold of the steam should do. The packets sent are specific to the current state. And are probably overwritten everytime the AirPods are connected to a new (apple) device that is not synced with icloud (i think)... So, for non-Apple device too, the configuration needs to be stored and overwritten everytime the AirPods are connected to the device. That is the only way to keep the configuration.
+
+This is also the only way to control the configuration as the previous state needs to be known, and then the new state can be set. 
+
+The packets sent (based on the previous states) are as follows:
 
 <details>
 <summary>Toggling Adaptive</summary>
@@ -276,6 +280,8 @@ I have noted all the packets sent to configure what the press and hold of the st
 <code>04 00 04 00 09 00 1A 0E 00 00 00</code> - Turns off O from Transparency, and Adaptive, and ANC (and O)  
 
 </details>
+
+> *i do hate apple for not hardcoding these, like there are literally only 4^2 - ${\binom{4}{1}}$ - $\binom{4}{2}$*
 
 ## Request something (Probably Head Positions)
 
