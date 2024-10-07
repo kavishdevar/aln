@@ -69,14 +69,20 @@ def handle_client(connection, client_socket):
                                 data: int = data
                                 ancJSON = {
                                     "type": "anc",
-                                    "status": data,
+                                    "mode": data,
                                 }
                                 data: str = JSONEncoder().encode(ancJSON)
+                            elif notif_key == "notif_ca":
+                                data: int = data
+                                caJSON = {
+                                    "type": "ca",
+                                    "status": data,
+                                }
+                                data: str = JSONEncoder().encode(caJSON)
                             elif notif_key == "notif_unknown":
                                 logging.debug(f"Unhandled notification type: {notif_key}")
                                 logging.debug(f"Data: {data}")
                                 data: str = JSONEncoder().encode({"type": "unknown", "data": data})
-
                             if not client_socket or not isinstance(client_socket, socket.socket):
                                 logging.error("Invalid client socket")
                                 break
@@ -183,6 +189,11 @@ def notification_handler(notification_type: int, data: bytes):
         anc = connection.notificationListener.ANCNotification.status
         globals()["notif_anc"] = anc
         logger.debug(anc)
+    elif notification_type == Notifications.CA_UPDATED:
+        logger = logging.getLogger("Conversational Awareness Status")
+        ca = connection.notificationListener.ConversationalAwarenessNotification.status
+        globals()["notif_ca"] = ca
+        logger.debug(ca)
     elif notification_type == Notifications.UNKNOWN:
         logger = logging.getLogger("Unknown Notification")
         hex_data = ' '.join(f'{byte:02x}' for byte in data)

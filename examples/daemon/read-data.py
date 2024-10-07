@@ -57,7 +57,9 @@ def read():
                         elif data["type"] == "ear_detection":
                             logging.info(f"\033[1;33mReceived ear detection status: {data['primary']} - {data['secondary']}\033[1;0m")
                         elif data["type"] == "anc":
-                            logging.info(f"\033[1;33mReceived ANC status: {data['status']}\033[1;0m")
+                            logging.info(f"\033[1;33mReceived ANC status: {data['mode']}\033[1;0m")
+                        elif data["type"] == "ca":
+                            logging.info(f"\033[1;33mReceived Conversational Awareness status: {data['status']}\033[1;0m")
                         elif data["type"] == "unknown":
                             logging.info(f"Received data: {data['data']}")
                         else:

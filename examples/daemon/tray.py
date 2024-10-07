@@ -48,7 +48,7 @@ battery_status = {
     "RIGHT": {"status": "Unknown", "level": 0},
     "CASE": {"status": "Unknown", "level": 0}
 }
-
+anc_mode = 0
 # Define a lock
 battery_status_lock = threading.Lock()
 
@@ -70,7 +70,6 @@ class MediaController:
 
     def isPlaying(self):
         return "Playing" in subprocess.getoutput("playerctl --all-players status").strip() 
-
 
     def handlePlayPause(self, data):
         primary_status = data[0]
@@ -144,15 +143,56 @@ class MediaController:
                 self.earStatus = "Only one in"
             return "Only one in"
 
+# Function to get current sink volume
+def get_current_volume():
+    result = subprocess.run(["pactl", "get-sink-volume", "@DEFAULT_SINK@"], capture_output=True, text=True)
+    volume_line = result.stdout.splitlines()[0]
+    volume_percent = int(volume_line.split()[4].strip('%'))
+    return volume_percent
+
+# Function to set sink volume
+def set_volume(percent):
+    subprocess.run(["pactl", "set-sink-volume", "@DEFAULT_SINK@", f"{percent}%"])
+
+initial_volume = get_current_volume()
+
+# Handle conversational awareness
+def handle_conversational_awareness(status):
+    if status < 1 or status > 9:
+        logging.error(f"Invalid status: {status}")
+        pass
+    
+    global initial_volume
+    
+    # Volume adjustment logic
+    if status == 1 or status == 2:
+        globals()["initial_volume"] = get_current_volume()
+        new_volume = max(0, min(int(initial_volume * 0.1), 100))  # Reduce to 10% for initial speaking
+    elif status == 3:
+        new_volume = max(0, min(int(initial_volume * 0.4), 100))  # Slightly increase to 40%
+    elif status == 6:
+        new_volume = max(0, min(int(initial_volume * 0.5), 100))  # Set volume to 50%
+    elif status >= 8:
+        new_volume = initial_volume  # Fully restore volume
+
+    set_volume(new_volume)
+    logging.getLogger("Conversational Awareness").info(f"Volume set to {new_volume}% based on conversational awareness status: {status}")
+
+    # If status is 9, print conversation end message
+    if status == 9:
+        logging.getLogger("Conversational Awareness").info("Conversation ended. Restored volume to original level.")
+
 class BatteryStatusUpdater(QObject):
     battery_status_updated = pyqtSignal()
-
+    anc_mode_updated = pyqtSignal()
+    
     def __init__(self):
         super().__init__()
         self.media_controller = MediaController()
 
     def listen_to_socket(self):
         global battery_status
+        global anc_mode
         with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
             client.connect(SOCKET_PATH)
             while True:
@@ -168,6 +208,14 @@ class BatteryStatusUpdater(QObject):
                         elif response["type"] == "ear_detection":
                             self.media_controller.handlePlayPause([response['primary'], response['secondary']])
                             logging.debug(f"Received ear detection status: {response}")
+                        elif response["type"] == "anc":
+                            anc_mode = response["mode"]
+                            self.anc_mode_updated.emit()
+                            logging.debug(f"Received ANC status: {anc_mode}")
+                        elif response["type"] == "ca":
+                            ca_status = response["status"]
+                            handle_conversational_awareness(ca_status)
+                            logging.debug(f"Received CA status: {ca_status}")
                     except json.JSONDecodeError as e:
                         logging.warning(f"Error deserializing data: {e}")
                     except KeyError as e:

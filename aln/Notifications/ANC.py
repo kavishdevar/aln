@@ -20,31 +20,6 @@ class ANCNotification:
         else:
             return False
         
-    def setANC(self, data: bytes):
+    def setData(self, data: bytes):
         self.status = data[7]
         pass
-    
-    def getANC(self, returnString: bool = False, fromInt: int = None):
-        if fromInt is not None:
-            fromInt = bytes([fromInt])
-            if fromInt == self.OFF:
-                return "Off"
-            elif fromInt == self.ON:
-                return "On"
-            elif fromInt == self.TRANSPARENCY:
-                return "Transparency"
-            elif fromInt == self.ADAPTIVE:
-                return "Adaptive"
-            pass
-        if returnString:
-            return self.status
-        else:
-            if self.status == self.OFF:
-                return "Off"
-            elif self.status == self.ON:
-                return "On"
-            elif self.status == self.TRANSPARENCY:
-                return "Transparency"
-            elif self.status == self.ADAPTIVE:
-                return "Adaptive"
-            pass

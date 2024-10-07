@@ -23,6 +23,8 @@ class Connection:
         self.notificationListener = self.notifications.notificationListener
         self.BatteryNotification = self.notifications.BatteryNotification
         self.ANCNotification = self.notifications.ANCNotification
+        self.EarDetectionNotification = self.notifications.EarDetectionNotification
+        self.ConversationalAwarenessNotification = self.notifications.ConversationalAwarenessNotification
         self.notifications.initialize()
 
     def send(self, data: bytes):
@@ -46,7 +48,11 @@ class Connection:
             pass
         elif notification_type == Notifications.ANC_UPDATED:
             logging = logging.getLogger("ANC Status")
-            logging.debug(f'{self.notificationListener.ANCNotification.getANC()}')
+            logging.debug(f'{self.notificationListener.ANCNotification.status}')
+            pass
+        elif notification_type == Notifications.CA_UPDATED:
+            logging = logging.getLogger("Conversational Awareness Status")
+            logging.debug(f'{self.notificationListener.ConversationalAwarenessNotification.status}')
             pass
         elif notification_type == Notifications.UNKNOWN:
             logging = logging.getLogger("Unknown Notification")

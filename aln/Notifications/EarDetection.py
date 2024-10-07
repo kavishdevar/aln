@@ -4,7 +4,7 @@ from typing import Literal
 
 class EarDetectionNotification:
     NOTIFICATION_BIT = Capabilites.EAR_DETECTION
-    NOTIFICATION_PREFIX = enums.SEND_PREFIX + NOTIFICATION_BIT
+    NOTIFICATION_PREFIX = enums.PREFIX + NOTIFICATION_BIT
     IN_EAR = 0x00
     OUT_OF_EAR = 0x01
     def __init__(self):
