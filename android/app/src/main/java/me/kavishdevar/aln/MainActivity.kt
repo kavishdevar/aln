@@ -6,6 +6,7 @@ import android.bluetooth.BluetoothManager
 import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -221,7 +222,7 @@ fun BatteryIndicator(batteryPercentage: Int) {
                     .padding(start = 1.dp)
                     .background(
                         batteryOutlineColor,
-                            RoundedCornerShape(
+                        RoundedCornerShape(
                             topStart = 0.dp,
                             topEnd = 5.dp,
                             bottomStart = 5.dp,
@@ -240,10 +241,41 @@ fun BatteryIndicator(batteryPercentage: Int) {
     }
 }
 
-@SuppressLint("MissingPermission")
+@SuppressLint("MissingPermission", "NewApi")
 @Composable
 fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?) {
-    var deviceName by remember { mutableStateOf(TextFieldValue(device?.name ?: "Kavish's AirPods Pro")) }
+    var deviceName by remember { mutableStateOf(TextFieldValue(device?.name ?: "Kavish's AirPods Pro (Fallback)")) }
+    val channel = device?.createL2capChannel(0x1001)
+    val connected = remember { mutableStateOf(false) }
+    try {
+        channel?.connect()
+        channel?.let { it ->
+            var message = "00 00 04 00 01 00 02 00 00 00 00 00 00 00 00 00"
+            var bytes = message.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+            it.outputStream.write(bytes)
+            Log.d("AirPodsSettingsScreen", "Message sent: $message")
+
+            message = "04 00 04 00 4d 00 ff 00 00 00 00 00 00 00"
+            bytes = message.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+            it.outputStream.write(bytes)
+            Log.d("AirPodsSettingsScreen", "Message sent: $message")
+
+            message = "04 00 04 00 0F 00 FF FF FE FF"
+            bytes = message.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+            it.outputStream.write(bytes)
+            Log.d("AirPodsSettingsScreen", "Message sent: $message")
+            connected.value = true
+            it.outputStream.flush()
+        }
+    }
+    catch (e: Exception) {
+        Log.e("AirPodsSettingsScreen", "Error connecting to device: ${e.message}")
+    }
+    finally {
+        channel?.close()
+    }
+    
+    Text(text = "Connected ${connected.value}")
 
     Column(
         modifier = Modifier
@@ -371,7 +403,10 @@ fun AudioSettings() {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(shape = RoundedCornerShape(12.dp), color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent)
+                .background(
+                    shape = RoundedCornerShape(12.dp),
+                    color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
+                )
                 .padding(horizontal = 12.dp, vertical = 12.dp)
                 .pointerInput(Unit) { // Detect press state for iOS-like effect
                     detectTapGestures(
@@ -612,7 +647,10 @@ fun NoiseControlButton(
             .fillMaxHeight()
             .padding(horizontal = 4.dp, vertical = 4.dp)
             .background(color = backgroundColor, shape = RoundedCornerShape(6.dp))
-            .clickable(onClick = onClick, indication = null, interactionSource = remember { MutableInteractionSource() }),
+            .clickable(
+                onClick = onClick,
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
