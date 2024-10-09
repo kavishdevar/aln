@@ -3,14 +3,21 @@ package me.kavishdevar.aln
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
-import android.content.res.Configuration
+import android.bluetooth.BluetoothProfile
+import android.content.BroadcastReceiver
+import android.content.ComponentName
+import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
+import android.content.ServiceConnection
 import android.os.Build
 import android.os.Bundle
+import android.os.IBinder
+import android.os.ParcelUuid
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -37,6 +44,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -45,6 +53,7 @@ import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,43 +62,49 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.ContextCompat.getSystemService
+import com.google.accompanist.permissions.ExperimentalPermissionsApi
+import com.google.accompanist.permissions.isGranted
+import com.google.accompanist.permissions.rememberPermissionState
+import com.google.accompanist.permissions.shouldShowRationale
 import me.kavishdevar.aln.ui.theme.ALNTheme
 
 class MainActivity : ComponentActivity() {
-    @SuppressLint("MissingPermission")
-    @RequiresApi(Build.VERSION_CODES.M)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        val address = mutableStateOf("28:2D:7F:C2:05:5B")
-        val bluetoothManager: BluetoothManager = getSystemService(BluetoothManager::class.java)
-        val bluetoothAdapter = bluetoothManager.adapter
-        val device = bluetoothAdapter.getRemoteDevice(address.value)
 
         setContent {
             ALNTheme {
-                Scaffold { innerPadding ->
-                    AirPodsSettingsScreen(innerPadding, device)
+                Scaffold (
+                    containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF000000) else Color(0xFFFFFFFF)
+                ) { innerPadding ->
+                    Main(innerPadding)
                 }
             }
         }
     }
 }
 
+@SuppressLint("UseOfNonLambdaOffsetOverload")
 @Composable
 fun StyledSwitch(
     checked: Boolean,
@@ -131,7 +146,7 @@ fun StyledTextField(
 ) {
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
 
-    val backgroundColor = if (isDarkTheme) Color(0xFF0E0E0E) else Color(0xFFFFFFFF)
+    val backgroundColor = if (isDarkTheme) Color(0xFF252525) else Color(0xFFFFFFFF)
     val textColor = if (isDarkTheme) Color.White else Color.Black
     val cursorColor = if (isDarkTheme) Color.White else Color.Black
 
@@ -178,7 +193,7 @@ fun StyledTextField(
 }
 
 @Composable
-fun BatteryIndicator(batteryPercentage: Int) {
+fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
     val batteryOutlineColor = Color(0xFFBFBFBF) // Light gray outline
     val batteryFillColor = if (batteryPercentage > 30) Color(0xFF30D158) else Color(0xFFFC3C3C)
     val batteryTextColor = MaterialTheme.colorScheme.onSurface
@@ -187,7 +202,7 @@ fun BatteryIndicator(batteryPercentage: Int) {
     val batteryWidth = 30.dp
     val batteryHeight = 15.dp
     val batteryCornerRadius = 4.dp
-    val tipWidth = 3.dp
+    val tipWidth = 5.dp
     val tipHeight = batteryHeight * 0.3f
 
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
@@ -204,7 +219,6 @@ fun BatteryIndicator(batteryPercentage: Int) {
                     .height(batteryHeight)
                     .border(1.dp, batteryOutlineColor, RoundedCornerShape(batteryCornerRadius))
             ) {
-                // Battery Fill
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
@@ -212,6 +226,21 @@ fun BatteryIndicator(batteryPercentage: Int) {
                         .width(batteryWidth * (batteryPercentage / 100f))
                         .background(batteryFillColor, RoundedCornerShape(2.dp))
                 )
+                if (charging) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize(), // Take up the entire size of the outer Box
+                        contentAlignment = Alignment.Center // Center the charging bolt within the Box
+                    ) {
+                        Text(
+                            text = "\uDBC0\uDEE6",
+                            fontSize = 12.sp,
+                            fontFamily = FontFamily(Font(R.font.sf_pro)),
+                            color = Color.White,
+                            modifier = Modifier.align(Alignment.Center)
+                        )
+                    }
+                }
             }
 
             // Battery Tip (Protrusion)
@@ -224,9 +253,9 @@ fun BatteryIndicator(batteryPercentage: Int) {
                         batteryOutlineColor,
                         RoundedCornerShape(
                             topStart = 0.dp,
-                            topEnd = 5.dp,
-                            bottomStart = 5.dp,
-                            bottomEnd = 4.dp
+                            topEnd = 12.dp,
+                            bottomStart = 0.dp,
+                            bottomEnd = 12.dp
                         )
                     )
             )
@@ -241,41 +270,165 @@ fun BatteryIndicator(batteryPercentage: Int) {
     }
 }
 
-@SuppressLint("MissingPermission", "NewApi")
+@SuppressLint("MissingPermission")
+@OptIn(ExperimentalPermissionsApi::class)
 @Composable
-fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?) {
-    var deviceName by remember { mutableStateOf(TextFieldValue(device?.name ?: "Kavish's AirPods Pro (Fallback)")) }
-    val channel = device?.createL2capChannel(0x1001)
-    val connected = remember { mutableStateOf(false) }
-    try {
-        channel?.connect()
-        channel?.let { it ->
-            var message = "00 00 04 00 01 00 02 00 00 00 00 00 00 00 00 00"
-            var bytes = message.split(" ").map { it.toInt(16).toByte() }.toByteArray()
-            it.outputStream.write(bytes)
-            Log.d("AirPodsSettingsScreen", "Message sent: $message")
+fun Main(paddingValues: PaddingValues) {
+    val bluetoothConnectPermissionState = rememberPermissionState(
+        permission = "android.permission.BLUETOOTH_CONNECT"
+    )
 
-            message = "04 00 04 00 4d 00 ff 00 00 00 00 00 00 00"
-            bytes = message.split(" ").map { it.toInt(16).toByte() }.toByteArray()
-            it.outputStream.write(bytes)
-            Log.d("AirPodsSettingsScreen", "Message sent: $message")
+    if (bluetoothConnectPermissionState.status.isGranted) {
+        val context = LocalContext.current
+        val uuid: ParcelUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
+        val bluetoothManager = getSystemService(context, BluetoothManager::class.java)
+        val bluetoothAdapter = bluetoothManager?.adapter
+        val devices = bluetoothAdapter?.bondedDevices
+        val airpodsDevice = remember { mutableStateOf<BluetoothDevice?>(null) }
+        if (devices != null) {
+            for (device in devices) {
+                if (device.uuids.contains(uuid)) {
+                    bluetoothAdapter.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
+                        override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                            if (profile == BluetoothProfile.A2DP) {
+                                val connectedDevices = proxy.connectedDevices
+                                if (connectedDevices.isNotEmpty()) {
+                                    airpodsDevice.value = device
+                                    if (context.getSystemService(AirPodsService::class.java) == null || context.getSystemService(AirPodsService::class.java)?.isRunning != true) {
+                                        context.startService(Intent(context, AirPodsService::class.java).apply {
+                                            putExtra("device", device)
+                                        })
+                                    }
+                                }
+                            }
+                            bluetoothAdapter.closeProfileProxy(profile, proxy)
+                        }
 
-            message = "04 00 04 00 0F 00 FF FF FE FF"
-            bytes = message.split(" ").map { it.toInt(16).toByte() }.toByteArray()
-            it.outputStream.write(bytes)
-            Log.d("AirPodsSettingsScreen", "Message sent: $message")
-            connected.value = true
-            it.outputStream.flush()
+                        override fun onServiceDisconnected(profile: Int) { }
+                    }, BluetoothProfile.A2DP)
+                }
+            }
+        }
+
+        val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
+
+        val serviceConnection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName, service: IBinder) {
+                val binder = service as AirPodsService.LocalBinder
+                airPodsService.value = binder.getService()
+                Log.d("AirPodsService", "Service connected")
+            }
+
+            override fun onServiceDisconnected(name: ComponentName) {
+                airPodsService.value = null
+            }
+        }
+        val intent = Intent(context, AirPodsService::class.java)
+        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+
+        if (airpodsDevice.value != null)
+        {
+            AirPodsSettingsScreen(
+                paddingValues,
+                airpodsDevice.value,
+                service = airPodsService.value
+            )
+        }
+        else {
+            Text("No AirPods connected")
+        }
+        return
+    } else {
+        // Permission is not granted, request it
+        Column (
+            modifier = Modifier.padding(24.dp),
+        ){
+            val textToShow = if (bluetoothConnectPermissionState.status.shouldShowRationale) {
+                // If the user has denied the permission but not permanently, explain why it's needed.
+                "The BLUETOOTH_CONNECT permission is important for this app. Please grant it to proceed."
+            } else {
+                // If the user has permanently denied the permission, inform them to enable it in settings.
+                "BLUETOOTH_CONNECT permission required for this feature. Please enable it in settings."
+            }
+            Text(textToShow)
+            Button(onClick = { bluetoothConnectPermissionState.launchPermissionRequest() }) {
+                Text("Request permission")
+            }
         }
     }
-    catch (e: Exception) {
-        Log.e("AirPodsSettingsScreen", "Error connecting to device: ${e.message}")
+}
+
+@Composable
+fun BatteryView() {
+    val batteryStatus = remember { mutableStateOf<List<Battery>>(listOf()) }
+
+    @Suppress("DEPRECATION") val batteryReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                batteryStatus.value = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { intent.getParcelableArrayListExtra("data", Battery::class.java) } else { intent.getParcelableArrayListExtra("data") }?.toList() ?: listOf()
+            }
+        }
     }
-    finally {
-        channel?.close()
+    val context = LocalContext.current
+
+    LaunchedEffect(context) {
+        val batteryIntentFilter = IntentFilter(Notifications.BATTERY_DATA)
+        context.registerReceiver(batteryReceiver, batteryIntentFilter, Context.RECEIVER_EXPORTED)
     }
-    
-    Text(text = "Connected ${connected.value}")
+
+    Row {
+        Column (
+            modifier = Modifier
+                .fillMaxWidth(0.5f),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Image (
+                bitmap = ImageBitmap.imageResource(R.drawable.pro_2_buds),
+                contentDescription = "Buds",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .scale(0.50f)
+            )
+            val left = batteryStatus.value.find { it.component == BatteryComponent.LEFT }
+            val right = batteryStatus.value.find { it.component == BatteryComponent.RIGHT }
+            if ((right?.status == BatteryStatus.CHARGING && left?.status == BatteryStatus.CHARGING) || (left?.status == BatteryStatus.NOT_CHARGING && right?.status == BatteryStatus.NOT_CHARGING))
+            {
+                BatteryIndicator(right.level.let { left.level.coerceAtMost(it) }, left.status == BatteryStatus.CHARGING)
+            }
+            else {
+                Row {
+                    Text(text = "\uDBC6\uDCE5", fontFamily = FontFamily(Font(R.font.sf_pro)))
+                    BatteryIndicator(left?.level ?: 0, left?.status == BatteryStatus.CHARGING)
+                    Spacer(modifier = Modifier.width(16.dp))
+                    Text(text = "\uDBC6\uDCE8", fontFamily = FontFamily(Font(R.font.sf_pro)))
+                    BatteryIndicator(right?.level ?: 0, right?.status == BatteryStatus.CHARGING)
+                }
+            }
+        }
+
+        Column (
+            modifier = Modifier
+                .fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            val case = batteryStatus.value.find { it.component == BatteryComponent.CASE }
+
+            Image(
+                bitmap = ImageBitmap.imageResource(R.drawable.pro_2_case),
+                contentDescription = "Case",
+                modifier = Modifier
+                    .fillMaxWidth()
+            )
+            BatteryIndicator(case?.level ?: 0)
+
+        }
+    }
+}
+
+@SuppressLint("MissingPermission", "NewApi")
+@Composable
+fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?, service: AirPodsService?) {
+    var deviceName by remember { mutableStateOf(TextFieldValue(device?.name ?: "AirPods Pro (fallback, should never show up)")) }
 
     Column(
         modifier = Modifier
@@ -283,44 +436,26 @@ fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?
             .padding(paddingValues)
             .padding(vertical = 24.dp, horizontal = 12.dp)
     ) {
-        Row {
-            Column (
-                horizontalAlignment = Alignment.CenterHorizontally
-            ){
-//              using this temporarily until i can find an image of only the buds
-                Image(
-                    bitmap = ImageBitmap.imageResource(R.drawable.pro_2),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth(0.5f)
-                )
-                BatteryIndicator(batteryPercentage = 10)
-            }
-            Column (
-                horizontalAlignment = Alignment.CenterHorizontally
-            ){
-                Image(
-                    bitmap = ImageBitmap.imageResource(R.drawable.pro_2),
-                    contentDescription = null,
-                    modifier = Modifier.fillMaxWidth()
-                )
-                BatteryIndicator(batteryPercentage = 100)
-            }
-        }
-        StyledTextField(
-            name = "Name",
-            value = deviceName.text,
-            onValueChange = { deviceName = TextFieldValue(it) }
-        )
+        BatteryView()
+        if (service != null) {
+            StyledTextField(
+                name = "Name",
+                value = deviceName.text,
+                onValueChange = { deviceName = TextFieldValue(it) }
+            )
 
-        Spacer(modifier = Modifier.height(16.dp))
-        NoiseControlSettings()
-        Spacer(modifier = Modifier.height(16.dp))
-        AudioSettings()
+            Spacer(modifier = Modifier.height(16.dp))
+
+            NoiseControlSettings(service = service)
+
+            Spacer(modifier = Modifier.height(16.dp))
+            AudioSettings(service = service)
+        }
     }
 }
 
 @Composable
-fun NoiseControlSlider() {
+fun NoiseControlSlider(service: AirPodsService) {
     val sliderValue = remember { mutableStateOf(0f) }
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
 
@@ -338,7 +473,10 @@ fun NoiseControlSlider() {
         // Slider
         Slider(
             value = sliderValue.value,
-            onValueChange = { sliderValue.value = it },
+            onValueChange = {
+                sliderValue.value = it
+                service.setAdaptiveStrength(it.toInt())
+            },
             valueRange = 0f..100f,
             steps = 99,
             modifier = Modifier
@@ -378,7 +516,7 @@ fun NoiseControlSlider() {
 }
 
 @Composable
-fun AudioSettings() {
+fun AudioSettings(service: AirPodsService) {
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
     val textColor = if (isDarkTheme) Color.White else Color.Black
     var conversationalAwarenessEnabled by remember { mutableStateOf(true) }
@@ -392,7 +530,7 @@ fun AudioSettings() {
         ),
         modifier = Modifier.padding(8.dp, bottom = 2.dp)
     )
-    val backgroundColor = if (isDarkTheme) Color(0xFF0E0E0E) else Color(0xFFFFFFFF)
+    val backgroundColor = if (isDarkTheme) Color(0xFF252525) else Color(0xFFFFFFFF)
     val isPressed = remember { mutableStateOf(false) }
     Column (
         modifier = Modifier
@@ -425,10 +563,14 @@ fun AudioSettings() {
                 },
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(text = "Conversational Awareness", modifier = Modifier.weight(1f), fontSize = 16.sp)
+            Text(text = "Conversational Awareness", modifier = Modifier.weight(1f), fontSize = 16.sp, color = textColor)
+
             StyledSwitch(
                 checked = conversationalAwarenessEnabled,
-                onCheckedChange = { conversationalAwarenessEnabled = it },
+                onCheckedChange = {
+                    conversationalAwarenessEnabled = it
+                    service.setCAEnabled(it)
+                    },
             )
         }
         Column (
@@ -457,21 +599,33 @@ fun AudioSettings() {
                     color = textColor.copy(alpha = 0.6f)
                 )
             )
-            NoiseControlSlider()
+            NoiseControlSlider(service = service)
         }
     }
 }
 
 @Composable
-fun NoiseControlSettings() {
+fun NoiseControlSettings(service: AirPodsService) {
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-
     val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFF2F2F7)
     val textColor = if (isDarkTheme) Color.White else Color.Black
     val textColorSelected = if (isDarkTheme) Color.White else Color.Black
     val selectedBackground = if (isDarkTheme) Color(0xFF090909) else Color(0xFFFFFFFF)
 
     val noiseControlMode = remember { mutableStateOf(NoiseControlMode.OFF) }
+
+    val noiseControlReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                noiseControlMode.value = NoiseControlMode.entries.toTypedArray()[intent.getIntExtra("data", 3) - 1]
+            }
+        }
+    }
+    val context = LocalContext.current
+    LaunchedEffect(context) {
+        val noiseControlIntentFilter = IntentFilter(Notifications.ANC_DATA)
+        context.registerReceiver(noiseControlReceiver, noiseControlIntentFilter, Context.RECEIVER_EXPORTED)
+    }
 
 //    val paddingAnim by animateDpAsState(
 //        targetValue = when (noiseControlMode.value) {
@@ -488,6 +642,7 @@ fun NoiseControlSettings() {
 
     fun onModeSelected(mode: NoiseControlMode) {
         noiseControlMode.value = mode
+        service.setANCMode(mode.ordinal+1)
         when (mode) {
             NoiseControlMode.NOISE_CANCELLATION -> {
                 d1a.value = 1f
@@ -664,14 +819,11 @@ fun NoiseControlButton(
 }
 
 enum class NoiseControlMode {
-    OFF, TRANSPARENCY, ADAPTIVE, NOISE_CANCELLATION
+    OFF,  NOISE_CANCELLATION, TRANSPARENCY, ADAPTIVE
 }
 
-@Preview(showBackground = true, name = "AirPods Settings",
-    uiMode = Configuration.UI_MODE_NIGHT_YES, showSystemUi = true,
-    device = "spec:width=411dp,height=891dp"
-)
+@Preview
 @Composable
 fun PreviewAirPodsSettingsScreen() {
-    AirPodsSettingsScreen(PaddingValues(8.dp), null)
+    BatteryIndicator(100, true)
 }

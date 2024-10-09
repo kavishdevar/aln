@@ -20,10 +20,16 @@
             android:theme="@style/Theme.ALN">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+        <service
+            android:name=".AirPodsService"
+            android:enabled="true"
+            android:exported="true"
+            android:foregroundServiceType="connectedDevice"
+            android:permission="android.permission.BLUETOOTH_CONNECT">
+        </service>
     </application>
 
 </manifest>
