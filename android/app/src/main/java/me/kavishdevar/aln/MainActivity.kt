@@ -478,7 +478,7 @@ fun NoiseControlSlider(service: AirPodsService) {
                 service.setAdaptiveStrength(it.toInt())
             },
             valueRange = 0f..100f,
-            steps = 99,
+            steps = 3,
             modifier = Modifier
                 .fillMaxWidth(),
             colors = SliderDefaults.colors(
