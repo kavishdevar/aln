@@ -10,6 +10,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -45,12 +46,14 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material3.Button
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -63,6 +66,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
@@ -86,6 +90,7 @@ import com.google.accompanist.permissions.isGranted
 import com.google.accompanist.permissions.rememberPermissionState
 import com.google.accompanist.permissions.shouldShowRationale
 import me.kavishdevar.aln.ui.theme.ALNTheme
+import kotlin.math.roundToInt
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -397,11 +402,15 @@ fun BatteryView() {
             }
             else {
                 Row {
-                    Text(text = "\uDBC6\uDCE5", fontFamily = FontFamily(Font(R.font.sf_pro)))
-                    BatteryIndicator(left?.level ?: 0, left?.status == BatteryStatus.CHARGING)
-                    Spacer(modifier = Modifier.width(16.dp))
-                    Text(text = "\uDBC6\uDCE8", fontFamily = FontFamily(Font(R.font.sf_pro)))
-                    BatteryIndicator(right?.level ?: 0, right?.status == BatteryStatus.CHARGING)
+                    if (left?.status != BatteryStatus.DISCONNECTED) {
+                        Text(text = "\uDBC6\uDCE5", fontFamily = FontFamily(Font(R.font.sf_pro)))
+                        BatteryIndicator(left?.level ?: 0, left?.status == BatteryStatus.CHARGING)
+                        Spacer(modifier = Modifier.width(16.dp))
+                    }
+                    if (right?.status != BatteryStatus.DISCONNECTED) {
+                        Text(text = "\uDBC6\uDCE8", fontFamily = FontFamily(Font(R.font.sf_pro)))
+                        BatteryIndicator(right?.level ?: 0, right?.status == BatteryStatus.CHARGING)
+                    }
                 }
             }
         }
@@ -420,7 +429,6 @@ fun BatteryView() {
                     .fillMaxWidth()
             )
             BatteryIndicator(case?.level ?: 0)
-
         }
     }
 }
@@ -454,6 +462,7 @@ fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun NoiseControlSlider(service: AirPodsService) {
     val sliderValue = remember { mutableStateOf(0f) }
@@ -475,17 +484,37 @@ fun NoiseControlSlider(service: AirPodsService) {
             value = sliderValue.value,
             onValueChange = {
                 sliderValue.value = it
-                service.setAdaptiveStrength(it.toInt())
+                service.setAdaptiveStrength(100 - it.toInt())
             },
             valueRange = 0f..100f,
-            steps = 3,
+            onValueChangeFinished = {
+                // Round the value when the user stops sliding
+                sliderValue.value = sliderValue.value.roundToInt().toFloat()
+            },
             modifier = Modifier
-                .fillMaxWidth(),
+                .fillMaxWidth()
+                .height(36.dp),  // Adjust height to ensure thumb fits well
             colors = SliderDefaults.colors(
                 thumbColor = thumbColor,
                 activeTrackColor = activeTrackColor,
                 inactiveTrackColor = trackColor
-            )
+            ),
+            thumb = {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)  // Circular thumb size
+                        .shadow(4.dp, CircleShape)  // Apply shadow to the thumb
+                        .background(thumbColor, CircleShape)  // Circular thumb
+                )
+            },
+            track = {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(12.dp)
+                        .background(trackColor, RoundedCornerShape(6.dp))
+                )
+            }
         )
 
         // Labels
@@ -599,7 +628,30 @@ fun AudioSettings(service: AirPodsService) {
                     color = textColor.copy(alpha = 0.6f)
                 )
             )
+
             NoiseControlSlider(service = service)
+            val packet = remember { mutableStateOf ("") }
+
+            Row (
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                TextField(
+                    value = packet.value,
+                    onValueChange = { packet.value = it },
+                    modifier = Modifier.fillMaxWidth(0.75f),
+                )
+                Button(onClick = {
+                    service.sendPacket(packet.value)
+                },
+                    modifier = Modifier
+                        .padding(start = 8.dp)
+                        .fillMaxWidth()
+                ) {
+                    Text(text = "Send")
+                }
+            }
         }
     }
 }

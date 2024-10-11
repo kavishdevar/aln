@@ -1,16 +1,16 @@
 [versions]
 accompanistPermissions = "0.36.0"
-agp = "8.7.0-rc01"
+agp = "8.7.0"
 hiddenapibypass = "4.3"
 kotlin = "2.0.0"
 coreKtx = "1.13.1"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
-lifecycleRuntimeKtx = "2.8.5"
+lifecycleRuntimeKtx = "2.8.6"
 activityCompose = "1.9.2"
-composeBom = "2024.04.01"
-annotations = "15.0"
+composeBom = "2024.09.03"
+annotations = "26.0.0"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }

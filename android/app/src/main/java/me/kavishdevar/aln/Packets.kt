@@ -135,7 +135,11 @@ class Notifications {
         fun setBattery(data: ByteArray) {
             first = Battery(data[7].toInt(), data[9].toInt(), data[10].toInt())
             second = Battery(data[12].toInt(), data[14].toInt(), data[15].toInt())
-            case = Battery(data[17].toInt(), data[19].toInt(), data[20].toInt())
+            case = if (data[20].toInt() == BatteryStatus.DISCONNECTED && case.status != BatteryStatus.DISCONNECTED) {
+                Battery(data[17].toInt(), case.level, data[20].toInt())
+            } else {
+                Battery(data[17].toInt(), data[19].toInt(), data[20].toInt())
+            }
         }
 
         fun getBattery(): List<Battery> {
