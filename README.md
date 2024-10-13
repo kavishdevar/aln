@@ -5,12 +5,37 @@
 ## Currently supported device(s)
 - AirPods Pro 2
 
+## Implemented Features
+
+| Feature | Linux | Android |
+| --- | --- | --- |
+| Ear Detection | ✅ | ✅ |
+| Conversational Awareness | ✅ | ✅ |
+| Setting Noise Control | ✅ | ✅ |
+| Battery Level | ✅ | ✅ |
+| Rename AirPods | ✅ | ❌ |
+| Adjust Adaptive Audio | ❌ | ✅ |
+
+
 ## Linux
 Check out the README file in [linux](/linux) folder for more info.
 
+This tray app communicates with a daemon with the help of a UNIX socket. The daemon is responsible for the actual communication with the AirPods. The tray app is just a frontend for the daemon, that does ear-detection, conversational awareness, setting the noise-cancellation mode, and more.
+![Linux](/linux/imgs/tray-icon-hover.png)
+![Linux](/linux/imgs/tray-icon-menu.png)
+
 ## Android
 
-Download the APK, and you're off!
+> Currently, there's a [bug on android](https://issuetracker.google.com/issues/371713238) that prevents this from working (psst, go upvote!)
+
+But once that's fixed, or you have fixed the issue using root, download the APK, and you're off!
+
+I don't know how to write READMEs for android apps, because they're just that, apps. So, here's a screenshot of the app:
+
+![Settings Screen](/android/imgs/settings.png)
+![Debug Screen](/android/imgs/debug.png)
+
+> Quick Tile to toggle Conversational Awareness and to switch Noise Control modes, and Battery Widget (App and AndroidSystemIntelligence)/Notification coming soon!!
 
 # License
 
