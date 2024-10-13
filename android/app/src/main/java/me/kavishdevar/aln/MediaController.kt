@@ -1,9 +1,19 @@
 package me.kavishdevar.aln
 
 import android.media.AudioManager
+import android.util.Log
 import android.view.KeyEvent
 
-class MediaController (private val audioManager: AudioManager){
+object MediaController {
+    private var initialVolume: Int? = null  // Nullable to track the unset state
+    private lateinit var audioManager: AudioManager  // Declare AudioManager
+
+    // Initialize the singleton with the AudioManager instance
+    fun initialize(audioManager: AudioManager) {
+        this.audioManager = audioManager
+    }
+
+    @Synchronized
     fun sendPause() {
         if (audioManager.isMusicActive) {
             audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE))
@@ -11,26 +21,35 @@ class MediaController (private val audioManager: AudioManager){
         }
     }
 
+    @Synchronized
     fun sendPlay() {
         if (!audioManager.isMusicActive) {
             audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY))
             audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY))
         }
     }
-    var initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+
+    @Synchronized
     fun startSpeaking() {
-        if (!audioManager.isMusicActive) {
-            // reduce volume to 10% of initial volume
+        Log.d("MediaController", "Starting speaking")
+        if (initialVolume == null) {
             initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (initialVolume * 0.1).toInt(), 0)
+            Log.d("MediaController", "Initial Volume Set: $initialVolume")
+            audioManager.setStreamVolume(
+                AudioManager.STREAM_MUSIC,
+                1,  // Set to a lower volume when speaking starts
+                0
+            )
         }
+        Log.d("MediaController", "Initial Volume: $initialVolume")
     }
 
+    @Synchronized
     fun stopSpeaking() {
-        if (!audioManager.isMusicActive) {
-            // restore initial volume
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, initialVolume, 0)
+        Log.d("MediaController", "Stopping speaking, initialVolume: $initialVolume")
+        initialVolume?.let { volume ->
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
+            initialVolume = null  // Reset to null after restoring the volume
         }
-
     }
 }

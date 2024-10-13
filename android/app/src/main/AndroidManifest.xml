@@ -3,6 +3,9 @@
     xmlns:tools="http://schemas.android.com/tools">
 
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_CONNECTED_DEVICE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -13,7 +16,10 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.ALN"
-        tools:targetApi="31">
+        android:enableOnBackInvokedCallback="true"
+        tools:targetApi="31"
+        tools:ignore="UnusedAttribute">
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -23,13 +29,13 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <service
             android:name=".AirPodsService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="connectedDevice"
-            android:permission="android.permission.BLUETOOTH_CONNECT">
-        </service>
+            android:permission="android.permission.BLUETOOTH_CONNECT" />
     </application>
 
 </manifest>

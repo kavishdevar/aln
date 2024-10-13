@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">ALN</string>
+    <string name="title_activity_debug">DebugActivity</string>
 </resources>

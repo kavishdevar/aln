@@ -1,6 +1,9 @@
 package me.kavishdevar.aln
 
 import android.annotation.SuppressLint
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothSocket
@@ -14,12 +17,11 @@ import android.os.Build
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
-import androidx.compose.runtime.mutableStateOf
+import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.lsposed.hiddenapibypass.HiddenApiBypass
-import kotlin.experimental.or
 
 class AirPodsService : Service() {
     inner class LocalBinder : Binder() {
@@ -67,8 +69,61 @@ class AirPodsService : Service() {
         socket?.outputStream?.flush()
     }
 
+    val earDetectionNotification = AirPodsNotifications.EarDetection()
+    val ancNotification = AirPodsNotifications.ANC()
+    val batteryNotification = AirPodsNotifications.BatteryNotification()
+    val conversationAwarenessNotification = AirPodsNotifications.ConversationalAwarenessNotification()
+
+    var earDetectionEnabled = true
+
+    fun setCaseChargingSounds(enabled: Boolean) {
+        val bytes = byteArrayOf(0x12, 0x3a, 0x00, 0x01, 0x00, 0x08, if (enabled) 0x00 else 0x01)
+        socket?.outputStream?.write(bytes)
+        socket?.outputStream?.flush()
+    }
+
+    fun setEarDetection(enabled: Boolean) {
+        earDetectionEnabled = enabled
+    }
+
+    fun getBattery(): List<Battery> {
+        return batteryNotification.getBattery()
+    }
+
+    fun getANC(): Int {
+        return ancNotification.status
+    }
+
+//    private fun buildBatteryText(battery: List<Battery>): String {
+//        val left = battery[0]
+//        val right = battery[1]
+//        val case = battery[2]
+//
+//        return "Left: ${left.level}% ${left.getStatusName()}, Right: ${right.level}% ${right.getStatusName()}, Case: ${case.level}% ${case.getStatusName()}"
+//    }
+
+    private fun createNotification(): Notification {
+        val channelId = "battery"
+        val notificationBuilder = NotificationCompat.Builder(this, channelId)
+            .setSmallIcon(R.drawable.pro_2_buds)
+            .setContentTitle("AirPods Connected")
+            .setOngoing(true)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+
+        val channel =
+            NotificationChannel(channelId, "Battery Notification", NotificationManager.IMPORTANCE_LOW)
+
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        notificationManager.createNotificationChannel(channel)
+        return notificationBuilder.build()
+    }
+
     @SuppressLint("MissingPermission", "InlinedApi")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+
+        val notification = createNotification()
+        startForeground(1, notification)
+
         if (isRunning) {
             return START_STICKY
         }
@@ -85,22 +140,19 @@ class AirPodsService : Service() {
                 it.outputStream.write(Enums.HANDSHAKE.value)
                 it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
                 it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
-                sendBroadcast(Intent(Notifications.AIRPODS_CONNECTED))
+                sendBroadcast(Intent(AirPodsNotifications.AIRPODS_CONNECTED))
                 it.outputStream.flush()
 
                 CoroutineScope(Dispatchers.IO).launch {
-                    val earDetectionNotification = Notifications.EarDetection()
-                    val ancNotification = Notifications.ANC()
-                    val batteryNotification = Notifications.BatteryNotification()
-                    val conversationAwarenessNotification = Notifications.ConversationalAwarenessNotification()
-
                     while (socket?.isConnected == true) {
                         socket?.let {
+                            val audioManager = this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
+                            MediaController.initialize(audioManager)
                             val buffer = ByteArray(1024)
                             val bytesRead = it.inputStream.read(buffer)
                             val data = buffer.copyOfRange(0, bytesRead)
                             if (bytesRead > 0) {
-                                sendBroadcast(Intent(Notifications.AIRPODS_DATA).apply {
+                                sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DATA).apply {
                                     putExtra("data", buffer.copyOfRange(0, bytesRead))
                                 })
                                 val bytes = buffer.copyOfRange(0, bytesRead)
@@ -109,7 +161,7 @@ class AirPodsService : Service() {
                             }
                             if (earDetectionNotification.isEarDetectionData(data)) {
                                 earDetectionNotification.setStatus(data)
-                                sendBroadcast(Intent(Notifications.EAR_DETECTION_DATA).apply {
+                                sendBroadcast(Intent(AirPodsNotifications.EAR_DETECTION_DATA).apply {
                                     val list = earDetectionNotification.status
                                     val bytes = ByteArray(2)
                                     bytes[0] = list[0]
@@ -117,44 +169,41 @@ class AirPodsService : Service() {
                                     putExtra("data", bytes)
                                 })
                                 Log.d("AirPods Parser", "Ear Detection: ${earDetectionNotification.status[0]} ${earDetectionNotification.status[1]}")
-                                val audioManager = this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
-                                val mediaController = MediaController(audioManager)
                                 var inEar = false
                                 val earReceiver = object : BroadcastReceiver() {
                                         override fun onReceive(context: Context, intent: Intent) {
                                             val data = intent.getByteArrayExtra("data")
-                                            if (data != null) {
+                                            if (data != null && earDetectionEnabled) {
                                                 inEar = if (data.find { it == 0x02.toByte() } != null || data.find { it == 0x03.toByte() } != null) {
                                                     data[0] == 0x00.toByte() || data[1] == 0x00.toByte()
                                                 } else {
                                                     data[0] == 0x00.toByte() && data[1] == 0x00.toByte()
                                                 }
-                                                Log.d("AirPods Parser", "In Ear: $inEar")
                                                 if (inEar) {
-                                                    mediaController.sendPlay()
+                                                    MediaController.sendPlay()
                                                 }
                                                 else {
-                                                    mediaController.sendPause()
+                                                    MediaController.sendPause()
                                                 }
                                             }
                                         }
                                     }
 
-                                val earIntentFilter = IntentFilter(Notifications.EAR_DETECTION_DATA)
+                                val earIntentFilter = IntentFilter(AirPodsNotifications.EAR_DETECTION_DATA)
                                 this@AirPodsService.registerReceiver(earReceiver, earIntentFilter,
                                     RECEIVER_EXPORTED
                                 )
                             }
                             else if (ancNotification.isANCData(data)) {
                                 ancNotification.setStatus(data)
-                                sendBroadcast(Intent(Notifications.ANC_DATA).apply {
+                                sendBroadcast(Intent(AirPodsNotifications.ANC_DATA).apply {
                                     putExtra("data", ancNotification.status)
                                 })
                                 Log.d("AirPods Parser", "ANC: ${ancNotification.status}")
                             }
                             else if (batteryNotification.isBatteryData(data)) {
                                 batteryNotification.setBattery(data)
-                                sendBroadcast(Intent(Notifications.BATTERY_DATA).apply {
+                                sendBroadcast(Intent(AirPodsNotifications.BATTERY_DATA).apply {
                                     putParcelableArrayListExtra("data", ArrayList(batteryNotification.getBattery()))
                                 })
                                 for (battery in batteryNotification.getBattery()) {
@@ -163,18 +212,14 @@ class AirPodsService : Service() {
                             }
                             else if (conversationAwarenessNotification.isConversationalAwarenessData(data)) {
                                 conversationAwarenessNotification.setData(data)
-                                sendBroadcast(Intent(Notifications.CA_DATA).apply {
+                                sendBroadcast(Intent(AirPodsNotifications.CA_DATA).apply {
                                     putExtra("data", conversationAwarenessNotification.status)
                                 })
-                                if (conversationAwarenessNotification.status == 1.toByte() or 2.toByte()) {
-                                    val audioManager = this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
-                                    val mediaController = MediaController(audioManager)
-                                    mediaController.startSpeaking()
+                                if (conversationAwarenessNotification.status == 1.toByte() || conversationAwarenessNotification.status == 2.toByte()) {
+                                    MediaController.startSpeaking()
                                 }
-                                else if (conversationAwarenessNotification.status == 9.toByte() or 8.toByte()) {
-                                    val audioManager = this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
-                                    val mediaController = MediaController(audioManager)
-                                    mediaController.stopSpeaking()
+                                else if (conversationAwarenessNotification.status == 8.toByte() || conversationAwarenessNotification.status == 9.toByte()) {
+                                    MediaController.stopSpeaking()
                                 }
                                 Log.d("AirPods Parser", "Conversation Awareness: ${conversationAwarenessNotification.status}")
                             }

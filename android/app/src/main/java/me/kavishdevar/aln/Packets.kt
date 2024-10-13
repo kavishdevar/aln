@@ -59,7 +59,7 @@ data class Battery(val component: Int, val level: Int, val status: Int) : Parcel
     }
 }
 
-class Notifications {
+class AirPodsNotifications {
     companion object {
         const val AIRPODS_CONNECTED = "me.kavishdevar.aln.AIRPODS_CONNECTED"
         const val AIRPODS_DATA = "me.kavishdevar.aln.AIRPODS_DATA"
