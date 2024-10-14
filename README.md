@@ -22,8 +22,8 @@ Check out the README file in [linux](/linux) folder for more info.
 
 This tray app communicates with a daemon with the help of a UNIX socket. The daemon is responsible for the actual communication with the AirPods. The tray app is just a frontend for the daemon, that does ear-detection, conversational awareness, setting the noise-cancellation mode, and more.
 
-![Tray Battery App](/linux/imgs/tray.png)
-![Tray Noise Control Mode Menu](/linux/imgs/menu.png)
+![Tray Battery App](/linux/imgs/tray-icon-hover.png)
+![Tray Noise Control Mode Menu](/linux/imgs/tray-icon-menu.png)
 
 ## Android
 
