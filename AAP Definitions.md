@@ -162,7 +162,7 @@ The airpods will respond with the same packet after the mode has been changed.
 We can send a packet to rename the AirPods. The packet format is as follows:
 
 ```plaintext
-04 00 04 00 1A 01 [size] 00 [name]
+04 00 04 00 1A 00 01 [size] 00 [name]
 ```
 
 ## Toggle case charging sounds
