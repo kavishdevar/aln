@@ -59,6 +59,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
@@ -153,8 +154,9 @@ fun BatteryView() {
 @Composable
 fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?, service: AirPodsService?,
                           navController: NavController) {
-    var deviceName by remember { mutableStateOf(TextFieldValue(device?.name ?: "AirPods Pro (fallback, should never show up)")) }
-
+    val sharedPreferences = LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    var deviceName by remember { mutableStateOf(TextFieldValue(sharedPreferences.getString("name", device?.name ?: "") ?: "")) }
+//  4B 61 76 69 73 68 E2 80 99 73 20 41 69 72 50 6F 64 73 20 50 72 6F
     val verticalScrollState  = rememberScrollState()
     Column(
         modifier = Modifier
@@ -176,25 +178,29 @@ fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?
                 })
             }
         }
-        BatteryView()
         val sharedPreferences = LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
         if (service != null) {
+            BatteryView()
+
+            Spacer(modifier = Modifier.height(32.dp))
             StyledTextField(
                 name = "Name",
                 value = deviceName.text,
-                onValueChange = { deviceName = TextFieldValue(it) }
+                onValueChange = {
+                    deviceName = TextFieldValue(it)
+                    sharedPreferences.edit().putString("name", it).apply()
+                    service.setName(it)
+                }
             )
 
             Spacer(modifier = Modifier.height(32.dp))
-
             NoiseControlSettings(service = service)
 
             Spacer(modifier = Modifier.height(16.dp))
             AudioSettings(service = service, sharedPreferences = sharedPreferences)
 
             Spacer(modifier = Modifier.height(16.dp))
-
             IndependentToggle(name = "Automatic Ear Detection", service = service, functionName = "setEarDetection", sharedPreferences = sharedPreferences, true)
 
 //            Spacer(modifier = Modifier.height(16.dp))
@@ -217,7 +223,6 @@ fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?
 //            }
 
             Spacer(modifier = Modifier.height(16.dp))
-
             Row (
                 modifier = Modifier
                     .background(if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF1C1B20) else Color(0xFFFFFFFF), RoundedCornerShape(14.dp))
@@ -767,11 +772,17 @@ fun StyledTextField(
     value: String,
     onValueChange: (String) -> Unit
 ) {
+    var isFocused by remember { mutableStateOf(false) }
+
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
 
     val backgroundColor = if (isDarkTheme) Color(0xFF1C1B20) else Color(0xFFFFFFFF)
     val textColor = if (isDarkTheme) Color.White else Color.Black
-    val cursorColor = if (isDarkTheme) Color.White else Color.Black
+    val cursorColor = if (isFocused) { // Show cursor only when focused
+        if (isDarkTheme) Color.White else Color.Black
+    } else {
+        Color.Transparent // Hide cursor when not focused
+    }
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -781,14 +792,14 @@ fun StyledTextField(
             .background(
                 backgroundColor,
                 RoundedCornerShape(14.dp)
-            ) // Dynamic background based on theme
+            )
             .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
         Text(
             text = name,
             style = TextStyle(
                 fontSize = 16.sp,
-                color = textColor // Text color based on theme
+                color = textColor
             )
         )
 
@@ -796,10 +807,10 @@ fun StyledTextField(
             value = value,
             onValueChange = onValueChange,
             textStyle = TextStyle(
-                color = textColor, // Dynamic text color
+                color = textColor,
                 fontSize = 16.sp,
             ),
-            cursorBrush = SolidColor(cursorColor), // Dynamic cursor color
+            cursorBrush = SolidColor(cursorColor), // Dynamic cursor color based on focus
             decorationBox = { innerTextField ->
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -809,8 +820,11 @@ fun StyledTextField(
                 }
             },
             modifier = Modifier
-                .fillMaxWidth() // Ensures text field takes remaining available space
-                .padding(start = 8.dp), // Padding to adjust spacing between text field and icon,
+                .fillMaxWidth()
+                .padding(start = 8.dp)
+                .onFocusChanged { focusState ->
+                    isFocused = focusState.isFocused // Update focus state
+                }
         )
     }
 }

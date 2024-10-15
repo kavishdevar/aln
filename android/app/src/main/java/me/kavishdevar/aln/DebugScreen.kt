@@ -167,7 +167,7 @@ fun DebugScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(Color(0xFF1C1B20)),
+                    .background(if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF1C1B20) else Color(0xFFF2F2F7)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val packet = remember { mutableStateOf(TextFieldValue("")) }
