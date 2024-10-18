@@ -29,6 +29,27 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 > Currently, there's a [bug on android](https://issuetracker.google.com/issues/371713238) that prevents this from working (psst, go upvote!)
 
+### Workaround
+
+- Create a folder structure like this:
+
+```
+/data/local/tmp/overlay:
+upper  work
+/data/local/tmp/overlay/upper:
+libbluetooth_jni.so
+```
+- Copy the overlay and name it overlay2.
+- Place `bt.sh` in `/data/adb/post-fs-data.d/`
+- create a folder in /data/adb/modules/
+```
+/data/adb/modules/btl2capfix:
+module.prop
+/data/adb/modules/btl2capfix/system/lib64:
+libbluetooth_jni.so
+```
+- Now, you have the bug in android's bluetooth stack fixed.
+  
 But once that's fixed, or you have fixed the issue using root, download the APK, and you're off!
 
 I don't know how to write READMEs for android apps, because they're just that, apps. So, here are two screenshots of the app:
