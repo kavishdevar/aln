@@ -36,6 +36,19 @@ private const val ACTION_ASI_UPDATE_BLUETOOTH_DATA = "batterywidget.impl.action.
 //private const val COMPANION_TYPE_NONE = "COMPANION_NONE"
 //const val VENDOR_RESULT_CODE_COMMAND_ANDROID = "+ANDROID"
 
+
+object ServiceManager {
+    private var service: AirPodsService? = null
+    @Synchronized
+    fun getService(): AirPodsService? {
+        return service
+    }
+    @Synchronized
+    fun setService(service: AirPodsService?) {
+        this.service = service
+    }
+}
+
 class AirPodsService : Service() {
     inner class LocalBinder : Binder() {
         fun getService(): AirPodsService = this@AirPodsService
@@ -45,7 +58,8 @@ class AirPodsService : Service() {
         return LocalBinder()
     }
 
-    var isRunning: Boolean = false
+
+    var isConnected: Boolean = false
     private var socket: BluetoothSocket? = null
 
     fun sendPacket(packet: String) {
@@ -211,7 +225,7 @@ class AirPodsService : Service() {
         var batteryUnified = 0
         var batteryUnifiedArg = 0
 
-            // Handle each Battery object from batteryList
+        // Handle each Battery object from batteryList
 //            batteryList.forEach { battery ->
 //                when (battery.getComponentName()) {
 //                    "LEFT" -> {
@@ -296,10 +310,12 @@ class AirPodsService : Service() {
         val notification = createNotification()
         startForeground(1, notification)
 
-        if (isRunning) {
+        ServiceManager.setService(this)
+
+        if (isConnected) {
             return START_STICKY
         }
-        isRunning = true
+        isConnected = true
 
         @Suppress("DEPRECATION") val device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) intent?.getParcelableExtra("device", BluetoothDevice::class.java) else intent?.getParcelableExtra("device")
 
@@ -354,65 +370,65 @@ class AirPodsService : Service() {
                                 Log.d("AirPods Parser", "Ear Detection: ${earDetectionNotification.status[0]} ${earDetectionNotification.status[1]}")
                                 var justEnabledA2dp = false
                                 val earReceiver = object : BroadcastReceiver() {
-                                        override fun onReceive(context: Context, intent: Intent) {
-                                            val data = intent.getByteArrayExtra("data")
-                                            if (data != null && earDetectionEnabled) {
-                                                inEar = if (data.find { it == 0x02.toByte() } != null || data.find { it == 0x03.toByte() } != null) {
-                                                    data[0] == 0x00.toByte() || data[1] == 0x00.toByte()
-                                                } else {
-                                                    data[0] == 0x00.toByte() && data[1] == 0x00.toByte()
-                                                }
+                                    override fun onReceive(context: Context, intent: Intent) {
+                                        val data = intent.getByteArrayExtra("data")
+                                        if (data != null && earDetectionEnabled) {
+                                            inEar = if (data.find { it == 0x02.toByte() } != null || data.find { it == 0x03.toByte() } != null) {
+                                                data[0] == 0x00.toByte() || data[1] == 0x00.toByte()
+                                            } else {
+                                                data[0] == 0x00.toByte() && data[1] == 0x00.toByte()
+                                            }
 
-                                                val newInEarData = listOf(data[0] == 0x00.toByte(), data[1] == 0x00.toByte())
-                                                if (newInEarData.contains(true) && inEarData == listOf(false, false)) {
-                                                    connectAudio(this@AirPodsService, device)
-                                                    justEnabledA2dp = true
-                                                    val bluetoothAdapter = this@AirPodsService.getSystemService(BluetoothManager::class.java).adapter
-                                                    bluetoothAdapter.getProfileProxy(
-                                                        this@AirPodsService, object : BluetoothProfile.ServiceListener {
-                                                            override fun onServiceConnected(
-                                                                profile: Int,
-                                                                proxy: BluetoothProfile
-                                                            ) {
-                                                                if (profile == BluetoothProfile.A2DP) {
-                                                                    val connectedDevices =
-                                                                        proxy.connectedDevices
-                                                                    if (connectedDevices.isNotEmpty()) {
-                                                                        MediaController.sendPlay()
-                                                                    }
+                                            val newInEarData = listOf(data[0] == 0x00.toByte(), data[1] == 0x00.toByte())
+                                            if (newInEarData.contains(true) && inEarData == listOf(false, false)) {
+                                                connectAudio(this@AirPodsService, device)
+                                                justEnabledA2dp = true
+                                                val bluetoothAdapter = this@AirPodsService.getSystemService(BluetoothManager::class.java).adapter
+                                                bluetoothAdapter.getProfileProxy(
+                                                    this@AirPodsService, object : BluetoothProfile.ServiceListener {
+                                                        override fun onServiceConnected(
+                                                            profile: Int,
+                                                            proxy: BluetoothProfile
+                                                        ) {
+                                                            if (profile == BluetoothProfile.A2DP) {
+                                                                val connectedDevices =
+                                                                    proxy.connectedDevices
+                                                                if (connectedDevices.isNotEmpty()) {
+                                                                    MediaController.sendPlay()
                                                                 }
-                                                                bluetoothAdapter.closeProfileProxy(
-                                                                    profile,
-                                                                    proxy
-                                                                )
                                                             }
-
-                                                            override fun onServiceDisconnected(
-                                                                profile: Int
-                                                            ) {
-                                                            }
+                                                            bluetoothAdapter.closeProfileProxy(
+                                                                profile,
+                                                                proxy
+                                                            )
                                                         }
-                                                        ,BluetoothProfile.A2DP
-                                                    )
 
-                                                }
-                                                else if (newInEarData == listOf(false, false)){
-                                                    disconnectAudio(this@AirPodsService, device)
-                                                }
-
-                                                inEarData = newInEarData
-
-                                                if (inEar == true) {
-                                                    if (!justEnabledA2dp) {
-                                                        justEnabledA2dp = false
-                                                        MediaController.sendPlay()
+                                                        override fun onServiceDisconnected(
+                                                            profile: Int
+                                                        ) {
+                                                        }
                                                     }
-                                                } else {
-                                                    MediaController.sendPause()
+                                                    ,BluetoothProfile.A2DP
+                                                )
+
+                                            }
+                                            else if (newInEarData == listOf(false, false)){
+                                                disconnectAudio(this@AirPodsService, device)
+                                            }
+
+                                            inEarData = newInEarData
+
+                                            if (inEar == true) {
+                                                if (!justEnabledA2dp) {
+                                                    justEnabledA2dp = false
+                                                    MediaController.sendPlay()
                                                 }
+                                            } else {
+                                                MediaController.sendPause()
                                             }
                                         }
                                     }
+                                }
 
                                 val earIntentFilter = IntentFilter(AirPodsNotifications.EAR_DETECTION_DATA)
                                 this@AirPodsService.registerReceiver(earReceiver, earIntentFilter,
@@ -455,7 +471,7 @@ class AirPodsService : Service() {
                         }
                     }
                     Log.d("AirPods Service", "Socket closed")
-                    isRunning = false
+                    isConnected = false
                     this@AirPodsService.stopForeground(STOP_FOREGROUND_REMOVE)
                     socket?.close()
                     sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
@@ -471,6 +487,7 @@ class AirPodsService : Service() {
     override fun onDestroy() {
         super.onDestroy()
         socket?.close()
-        isRunning = false
+        isConnected = false
+        ServiceManager.setService(null)
     }
 }

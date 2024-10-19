@@ -146,7 +146,7 @@ fun Main(paddingValues: PaddingValues, topAppBarTitle: MutableState<String>) {
                                     val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
                                     topAppBarTitle.value = sharedPreferences.getString("name", device.name) ?: device.name
                                     // Start AirPods service if not running
-                                    if (context.getSystemService(AirPodsService::class.java)?.isRunning != true) {
+                                    if (context.getSystemService(AirPodsService::class.java)?.isConnected != true) {
                                         context.startService(Intent(context, AirPodsService::class.java).apply {
                                             putExtra("device", device)
                                         })

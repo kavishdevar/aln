@@ -729,10 +729,6 @@ fun NoiseControlButton(
     }
 }
 
-enum class NoiseControlMode {
-    OFF,  NOISE_CANCELLATION, TRANSPARENCY, ADAPTIVE
-}
-
 @Composable
 fun StyledSwitch(
     checked: Boolean,
@@ -802,7 +798,6 @@ fun StyledTextField(
                 color = textColor
             )
         )
-
         BasicTextField(
             value = value,
             onValueChange = onValueChange,
@@ -810,6 +805,7 @@ fun StyledTextField(
                 color = textColor,
                 fontSize = 16.sp,
             ),
+            singleLine = true,
             cursorBrush = SolidColor(cursorColor), // Dynamic cursor color based on focus
             decorationBox = { innerTextField ->
                 Row(
