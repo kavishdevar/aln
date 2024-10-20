@@ -13,7 +13,7 @@
 | Conversational Awareness | ✅ | ✅ |
 | Setting Noise Control | ✅ | ✅ |
 | Battery Level | ✅ | ✅ |
-| Rename AirPods | ✅ | ❌ |
+| Rename AirPods | ✅ | ✅ |
 | Adjust Adaptive Audio | ❌ | ✅ |
 
 
