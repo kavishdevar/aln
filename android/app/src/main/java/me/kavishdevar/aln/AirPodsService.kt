@@ -490,4 +490,19 @@ class AirPodsService : Service() {
         isConnected = false
         ServiceManager.setService(null)
     }
+
+    fun setPVEnabled(enabled: Boolean) {
+        var hex = "04 00 04 00 09 00 26 ${if (enabled) "01" else "02"} 00 00 00"
+        var bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+        socket?.outputStream?.write(bytes)
+        hex = "04 00 04 00 17 00 00 00 10 00 12 00 08 E${if (enabled) "6" else "5"} 05 10 02 42 0B 08 50 10 02 1A 05 02 ${if (enabled) "32" else "00"} 00 00 00"
+        bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+        socket?.outputStream?.write(bytes)
+    }
+
+    fun setLoudSoundReduction(enabled: Boolean) {
+        val hex = "52 1B 00 0${if (enabled) "1" else "0"}"
+        val bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
+        socket?.outputStream?.write(bytes)
+    }
 }

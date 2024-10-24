@@ -214,7 +214,7 @@ fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?
 //                modifier = Modifier
 //                    .padding(vertical = 8.dp)
 //                    .background(
-//                        if (isDarkTheme) Color(0xFF1C1B20) else Color(0xFFFFFFFF),
+//                        if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF),
 //                        RoundedCornerShape(14.dp)
 //                    )
 //            )
@@ -225,7 +225,7 @@ fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?
             Spacer(modifier = Modifier.height(16.dp))
             Row (
                 modifier = Modifier
-                    .background(if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF1C1B20) else Color(0xFFFFFFFF), RoundedCornerShape(14.dp))
+                    .background(if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF1C1C1E) else Color(0xFFFFFFFF), RoundedCornerShape(14.dp))
                     .height(55.dp)
                     .clickable {
                         navController.navigate("debug")
@@ -364,7 +364,7 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
         modifier = Modifier
             .padding(vertical = 8.dp)
             .background(
-                if (isDarkTheme) Color(0xFF1C1B20) else Color(0xFFFFFFFF),
+                if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF),
                 RoundedCornerShape(14.dp)
             )
     )
@@ -405,11 +405,7 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
 }
 
 @Composable
-fun AudioSettings(service: AirPodsService, sharedPreferences: SharedPreferences) {
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-    val textColor = if (isDarkTheme) Color.White else Color.Black
-
-    // Load the conversational awareness state from sharedPreferences
+fun ConversationalAwarenessSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
     var conversationalAwarenessEnabled by remember {
         mutableStateOf(
             sharedPreferences.getBoolean("conversational_awareness", true)
@@ -423,6 +419,216 @@ fun AudioSettings(service: AirPodsService, sharedPreferences: SharedPreferences)
         service.setCAEnabled(enabled)
     }
 
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+
+    val isPressed = remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                shape = RoundedCornerShape(14.dp),
+                color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
+            )
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .pointerInput(Unit) { // Detect press state for iOS-like effect
+                detectTapGestures(
+                    onPress = {
+                        isPressed.value = true
+                        tryAwaitRelease() // Wait until release
+                        isPressed.value = false
+                    }
+                )
+            }
+            .clickable(
+                indication = null, // Disable ripple effect
+                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+            ) {
+                // Toggle the conversational awareness value
+                updateConversationalAwareness(!conversationalAwarenessEnabled)
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 4.dp)
+        ) {
+            Text(
+                text = "Conversational Awareness",
+                fontSize = 16.sp,
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+            Text(
+                text = "Lowers media volume and reduces background noise when you start speaking to other people.",
+                fontSize = 12.sp,
+                color = textColor.copy(0.6f),
+                lineHeight = 14.sp,
+            )
+        }
+        StyledSwitch(
+            checked = conversationalAwarenessEnabled,
+            onCheckedChange = {
+                updateConversationalAwareness(it)
+            },
+        )
+    }
+}
+
+@Composable
+fun PersonalizedVolumeSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
+    var personalizedVolumeEnabled by remember {
+        mutableStateOf(
+            sharedPreferences.getBoolean("personalized_volume", true)
+        )
+    }
+
+    // Update the service when the toggle is changed
+    fun updatePersonalizedVolume(enabled: Boolean) {
+        personalizedVolumeEnabled = enabled
+        sharedPreferences.edit().putBoolean("personalized_volume", enabled).apply()
+        service.setPVEnabled(enabled)
+    }
+
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+
+    val isPressed = remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                shape = RoundedCornerShape(14.dp),
+                color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
+            )
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .pointerInput(Unit) { // Detect press state for iOS-like effect
+                detectTapGestures(
+                    onPress = {
+                        isPressed.value = true
+                        tryAwaitRelease() // Wait until release
+                        isPressed.value = false
+                    }
+                )
+            }
+            .clickable(
+                indication = null, // Disable ripple effect
+                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+            ) {
+                // Toggle the conversational awareness value
+                updatePersonalizedVolume(!personalizedVolumeEnabled)
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 4.dp)
+        ) {
+            Text(
+                text = "Personalized Volume",
+                fontSize = 16.sp,
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+            Text(
+                text = "Adjusts the volume of media in response to your environment.",
+                fontSize = 12.sp,
+                color = textColor.copy(0.6f),
+                lineHeight = 14.sp,
+            )
+        }
+
+        StyledSwitch(
+            checked = personalizedVolumeEnabled,
+            onCheckedChange = {
+                updatePersonalizedVolume(it)
+            },
+        )
+    }
+}
+
+@Composable
+fun LoudSoundReductionSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
+    var loudSoundReductionEnabled by remember {
+        mutableStateOf(
+            sharedPreferences.getBoolean("loud_sound_reduction", true)
+        )
+    }
+
+    // Update the service when the toggle is changed
+    fun updateLoudSoundReduction(enabled: Boolean) {
+        loudSoundReductionEnabled = enabled
+        sharedPreferences.edit().putBoolean("loud_sound_reduction", enabled).apply()
+        service.setLoudSoundReduction(enabled)
+    }
+
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+
+    val isPressed = remember { mutableStateOf(false) }
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(
+                shape = RoundedCornerShape(14.dp),
+                color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
+            )
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .pointerInput(Unit) { // Detect press state for iOS-like effect
+                detectTapGestures(
+                    onPress = {
+                        isPressed.value = true
+                        tryAwaitRelease() // Wait until release
+                        isPressed.value = false
+                    }
+                )
+            }
+            .clickable(
+                indication = null, // Disable ripple effect
+                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+            ) {
+                // Toggle the conversational awareness value
+                updateLoudSoundReduction(!loudSoundReductionEnabled)
+            },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .padding(end = 4.dp)
+        ) {
+            Text(
+                text = "Loud Sound Reduction",
+                fontSize = 16.sp,
+                color = textColor
+            )
+            Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+            Text(
+                text = "Reduces loud sounds you are exposed to.",
+                fontSize = 12.sp,
+                color = textColor.copy(0.6f),
+                lineHeight = 14.sp,
+            )
+        }
+
+        StyledSwitch(
+            checked = loudSoundReductionEnabled,
+            onCheckedChange = {
+                updateLoudSoundReduction(it)
+            },
+        )
+    }
+}
+@Composable
+fun AudioSettings(service: AirPodsService, sharedPreferences: SharedPreferences) {
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+
     Text(
         text = "AUDIO",
         style = TextStyle(
@@ -433,8 +639,7 @@ fun AudioSettings(service: AirPodsService, sharedPreferences: SharedPreferences)
         modifier = Modifier.padding(8.dp, bottom = 2.dp)
     )
 
-    val backgroundColor = if (isDarkTheme) Color(0xFF1C1B20) else Color(0xFFFFFFFF)
-    val isPressed = remember { mutableStateOf(false) }
+    val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
 
     Column(
         modifier = Modifier
@@ -442,46 +647,10 @@ fun AudioSettings(service: AirPodsService, sharedPreferences: SharedPreferences)
             .background(backgroundColor, RoundedCornerShape(14.dp))
             .padding(top = 2.dp)
     ) {
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(
-                    shape = RoundedCornerShape(14.dp),
-                    color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
-                )
-                .padding(horizontal = 12.dp, vertical = 12.dp)
-                .pointerInput(Unit) { // Detect press state for iOS-like effect
-                    detectTapGestures(
-                        onPress = {
-                            isPressed.value = true
-                            tryAwaitRelease() // Wait until release
-                            isPressed.value = false
-                        }
-                    )
-                }
-                .clickable(
-                    indication = null, // Disable ripple effect
-                    interactionSource = remember { MutableInteractionSource() } // Required for clickable
-                ) {
-                    // Toggle the conversational awareness value
-                    updateConversationalAwareness(!conversationalAwarenessEnabled)
-                },
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Conversational Awareness",
-                modifier = Modifier.weight(1f),
-                fontSize = 16.sp,
-                color = textColor
-            )
 
-            StyledSwitch(
-                checked = conversationalAwarenessEnabled,
-                onCheckedChange = {
-                    updateConversationalAwareness(it)
-                },
-            )
-        }
+        PersonalizedVolumeSwitch(service = service, sharedPreferences = sharedPreferences)
+        ConversationalAwarenessSwitch(service = service, sharedPreferences = sharedPreferences)
+        LoudSoundReductionSwitch(service = service, sharedPreferences = sharedPreferences)
 
         Column(
             modifier = Modifier
@@ -519,7 +688,7 @@ fun AudioSettings(service: AirPodsService, sharedPreferences: SharedPreferences)
 @Composable
 fun NoiseControlSettings(service: AirPodsService) {
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-    val backgroundColor = if (isDarkTheme) Color(0xFF1C1B20) else Color(0xFFE3E3E8)
+    val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFE3E3E8)
     val textColor = if (isDarkTheme) Color.White else Color.Black
     val textColorSelected = if (isDarkTheme) Color.White else Color.Black
     val selectedBackground = if (isDarkTheme) Color(0xFF5C5A5F) else Color(0xFFFFFFFF)
@@ -772,7 +941,7 @@ fun StyledTextField(
 
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
 
-    val backgroundColor = if (isDarkTheme) Color(0xFF1C1B20) else Color(0xFFFFFFFF)
+    val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
     val textColor = if (isDarkTheme) Color.White else Color.Black
     val cursorColor = if (isFocused) { // Show cursor only when focused
         if (isDarkTheme) Color.White else Color.Black
