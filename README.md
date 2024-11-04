@@ -1,5 +1,5 @@
 # ALN - AirPods like Normal
-*Bringing Apple-only features to Linux and Android for seamless AirPods functionality!*
+*Access AirPods' Apple-exclusive features on linux and android!*
 ### Check out the packet definitions at [AAP Definitions](/AAP%20Definitions.md)
 
 ## Currently supported device(s)
