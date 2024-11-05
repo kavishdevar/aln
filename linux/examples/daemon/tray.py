@@ -250,6 +250,9 @@ def get_battery_status():
         return f"Left: {left['level']}% - {left_status} | Right: {right['level']}% - {right_status} | Case: {case['level']}% - {case_status}"
     
 from aln import enums
+
+enums=enums.enums
+
 def set_anc_mode(mode):
     with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as client:
         client.connect(SOCKET_PATH)
