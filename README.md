@@ -2,8 +2,10 @@
 *Access AirPods' Apple-exclusive features on linux and android!*
 ### Check out the packet definitions at [AAP Definitions](/AAP%20Definitions.md)
 
-## Currently supported device(s)
+## Tested device(s)
 - AirPods Pro 2
+
+Other devices might work too! Features like ear detection and battery should be available for any AirPods! Although the app will show unsupported features/settings! I will not be able test any other devices than the ones I already have (i.e. the AirPods Pro 2).
 
 ## Implemented Features
 
@@ -15,7 +17,7 @@
 | Battery Level | ✅ | ✅ |
 | Rename AirPods | ✅ | ✅ |
 | Adjust Adaptive Audio | ❌ | ✅ |
-
+| Loud Sound Reduction | ❌ | ✅ |
 
 ## Linux
 Check out the README file in [linux](/linux) folder for more info.
