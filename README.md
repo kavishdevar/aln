@@ -32,6 +32,7 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 > Currently, there's a [bug on android](https://issuetracker.google.com/issues/371713238) that prevents this from working (psst, go upvote!)
 
 ### Workaround
+Download the required files from Releases. Donload the required based on your Android’s version. Currently, I have only built patched libraries for Android 14, and 15, and have tested on stock android. I am not sure if the same libraries would work for other android skins. Try at your own risk!! 
 
 - Create a folder structure like this:
 
@@ -50,9 +51,9 @@ module.prop
 /data/adb/modules/btl2capfix/system/lib64:
 libbluetooth_jni.so
 ```
-- Now, you have the bug in android's bluetooth stack fixed.
+- Now, you have the bug in android's bluetooth stack fixed!
   
-But once that's fixed, or you have fixed the issue using root, download the APK, and you're off!
+But once that's fixed hy Google devs, or you have fixed the issue using root, download the APK, and you're off!
 
 I don't know how to write READMEs for android apps, because they're just that, apps. So, here are two screenshots of the app:
 
