@@ -1,7 +1,6 @@
 package me.kavishdevar.aln
 
 import android.annotation.SuppressLint
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
@@ -43,6 +42,7 @@ import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.PreviewLightDark
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.core.content.ContextCompat.getSystemService
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -61,6 +61,43 @@ class MainActivity : ComponentActivity() {
         setContent {
             val topAppBarTitle = remember { mutableStateOf("AirPods Pro") }
             ALNTheme {
+                val navController = rememberNavController()
+                registerReceiver(object: BroadcastReceiver() {
+                    override fun onReceive(context: Context?, intent: Intent) {
+                        val bluetoothDevice =
+                            intent.getParcelableExtra("android.bluetooth.device.extra.DEVICE", BluetoothDevice::class.java)
+                        val action = intent.action
+
+                        // Airpods filter
+                        if (bluetoothDevice != null && action != null && !action.isEmpty()) {
+                            Log.d("BluetoothReceiver", "Received broadcast")
+                            // Airpods connected, show notification.
+                            if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
+                                val uuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
+                                if (bluetoothDevice.uuids.contains(uuid)) {
+                                    topAppBarTitle.value = bluetoothDevice.name
+                                }
+                                // start service
+                                startService(Intent(context, AirPodsService::class.java).apply {
+                                    putExtra("device", bluetoothDevice)
+                                })
+                                Log.d("AirPodsService", "Service started")
+                                context?.sendBroadcast(Intent(AirPodsNotifications.AIRPODS_CONNECTED))
+                            }
+
+                            // Airpods disconnected, remove notification but leave the scanner going.
+                            if (BluetoothDevice.ACTION_ACL_DISCONNECTED == action
+                                || BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED == action
+                            ) {
+                                topAppBarTitle.value = "AirPods Pro"
+                                // stop service
+                                stopService(Intent(context, AirPodsService::class.java))
+                                Log.d("AirPodsService", "Service stopped")
+                            }
+                        }
+                    }
+                }, BluetoothReceiver.buildFilter())
+
                 Scaffold (
                     containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(
                         0xFF000000
@@ -108,6 +145,7 @@ fun Main(paddingValues: PaddingValues, topAppBarTitle: MutableState<String>) {
         val airpodsDevice = remember { mutableStateOf<BluetoothDevice?>(null) }
         val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
         val navController = rememberNavController()
+
 
         val disconnectReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -165,42 +203,8 @@ fun Main(paddingValues: PaddingValues, topAppBarTitle: MutableState<String>) {
             }
         }
 
-        // BroadcastReceiver to listen for connection state changes
-        val bluetoothReceiver = remember {
-            object : BroadcastReceiver() {
-                override fun onReceive(context: Context?, intent: Intent?) {
-                    val action = intent?.action
-                    val device = intent?.getParcelableExtra<BluetoothDevice>(BluetoothDevice.EXTRA_DEVICE)
-                    if (action == BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED) {
-                        when (intent.getIntExtra(BluetoothAdapter.EXTRA_CONNECTION_STATE, -1)) {
-                            BluetoothAdapter.STATE_CONNECTED -> {
-                                if (device?.uuids?.contains(uuid) == true) {
-                                    airpodsDevice.value = device
-                                    checkIfAirPodsConnected()
-                                }
-                            }
-                            BluetoothAdapter.STATE_DISCONNECTED -> {
-                                if (device?.uuids?.contains(uuid) == true) {
-                                    airpodsDevice.value = null
-                                    // Show not connected screen when AirPods disconnect
-                                    navController.navigate("notConnected")
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         // Register the receiver in LaunchedEffect
         LaunchedEffect(Unit) {
-            val filter = IntentFilter().apply {
-                addAction(BluetoothAdapter.ACTION_CONNECTION_STATE_CHANGED)
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(bluetoothReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
-            }
-
             // Initial check for AirPods connection
             checkIfAirPodsConnected()
         }
@@ -229,6 +233,21 @@ fun Main(paddingValues: PaddingValues, topAppBarTitle: MutableState<String>) {
                 DebugScreen(navController = navController)
             }
         }
+
+        ContextCompat.registerReceiver(
+            context,
+            object : BroadcastReceiver() {
+                @SuppressLint("UnspecifiedRegisterReceiverFlag")
+                override fun onReceive(context: Context?, intent: Intent) {
+                    Log.d("PLEASE NAVIGATE", "TO SETTINGS")
+                    navController.navigate("settings") {
+                        popUpTo("notConnected") { inclusive = true }
+                    }
+                }
+            },
+            IntentFilter(AirPodsNotifications.AIRPODS_CONNECTED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
 
         // Automatically navigate to settings screen if AirPods are connected
         if (airpodsDevice.value != null) {

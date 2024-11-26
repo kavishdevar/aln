@@ -10,8 +10,8 @@ import android.service.quicksettings.TileService
 import android.util.Log
 
 class AirPodsQSService: TileService() {
-    private val ancModes = listOf(NoiseControlMode.OFF.name, NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)
-    private var currentModeIndex = 3
+    private val ancModes = listOf(NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)
+    private var currentModeIndex = 2
     private lateinit var ancStatusReceiver: BroadcastReceiver
     private lateinit var availabilityReceiver: BroadcastReceiver
 
@@ -63,8 +63,24 @@ class AirPodsQSService: TileService() {
 
     override fun onStopListening() {
         super.onStopListening()
-        unregisterReceiver(ancStatusReceiver)
-        unregisterReceiver(availabilityReceiver)
+        try {
+            unregisterReceiver(ancStatusReceiver)
+        }
+        catch (
+            e: IllegalArgumentException
+        )
+        {
+            Log.e("QuickSettingTileService", "Receiver not registered")
+        }
+        try {
+            unregisterReceiver(availabilityReceiver)
+        }
+        catch (
+            e: IllegalArgumentException
+        )
+        {
+            Log.e("QuickSettingTileService", "Receiver not registered")
+        }
     }
 
     override fun onClick() {

@@ -150,6 +150,33 @@ fun BatteryView() {
     }
 }
 
+@Composable
+fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPreferences) {
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+
+    Text(
+        text = "ACCESSIBILITY",
+        style = TextStyle(
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Light,
+            color = textColor.copy(alpha = 0.6f)
+        ),
+        modifier = Modifier.padding(8.dp, bottom = 2.dp)
+    )
+
+    val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor, RoundedCornerShape(14.dp))
+            .padding(top = 2.dp)
+    ) {
+        //
+    }
+}
+
 @SuppressLint("MissingPermission", "NewApi")
 @Composable
 fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?, service: AirPodsService?,
@@ -203,6 +230,11 @@ fun AirPodsSettingsScreen(paddingValues: PaddingValues, device: BluetoothDevice?
             Spacer(modifier = Modifier.height(16.dp))
             IndependentToggle(name = "Automatic Ear Detection", service = service, functionName = "setEarDetection", sharedPreferences = sharedPreferences, true)
 
+            Spacer(modifier = Modifier.height(16.dp))
+            IndependentToggle(name = "Off Listening Mode", service = service, functionName = "setOffListeningMode", sharedPreferences = sharedPreferences, false)
+
+            Spacer(modifier = Modifier.height(16.dp))
+            AccessibilitySettings(service = service, sharedPreferences = sharedPreferences)
 //            Spacer(modifier = Modifier.height(16.dp))
 
 //            val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5

@@ -1,3 +1,5 @@
+@file:Suppress("unused")
+
 package me.kavishdevar.aln
 
 import android.annotation.SuppressLint
@@ -88,6 +90,10 @@ class AirPodsService : Service() {
 
     fun setCAEnabled(enabled: Boolean) {
         socket?.outputStream?.write(if (enabled) Enums.SET_CONVERSATION_AWARENESS_ON.value else Enums.SET_CONVERSATION_AWARENESS_OFF.value)
+    }
+
+    fun setOffListeningMode(enabled: Boolean) {
+        socket?.outputStream?.write(byteArrayOf(0x04, 0x00 ,0x04, 0x00, 0x09, 0x00, 0x34, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00))
     }
 
     fun setAdaptiveStrength(strength: Int) {
