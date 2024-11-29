@@ -72,6 +72,7 @@ class AirPodsNotifications {
         const val BATTERY_DATA = "me.kavishdevar.aln.BATTERY_DATA"
         const val CA_DATA = "me.kavishdevar.aln.CA_DATA"
         const val AIRPODS_DISCONNECTED = "me.kavishdevar.aln.AIRPODS_DISCONNECTED"
+        const val AIRPODS_CONNECTION_DETECTED = "me.kavishdevar.aln.AIRPODS_CONNECTION_DETECTED"
     }
 
     class EarDetection {

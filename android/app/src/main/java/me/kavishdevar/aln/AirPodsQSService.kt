@@ -10,17 +10,20 @@ import android.service.quicksettings.TileService
 import android.util.Log
 
 class AirPodsQSService: TileService() {
-    private val ancModes = listOf(NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)
-    private var currentModeIndex = 2
+    private val sharedPreferences = ServiceManager.getService()?.getSharedPreferences("me.kavishdevar.aln", Context.MODE_PRIVATE)
+    private val offListeningModeEnabled = sharedPreferences?.getBoolean("off_listening_mode", false) == true
+    private val ancModes = if (offListeningModeEnabled) listOf(NoiseControlMode.OFF.name, NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name) else listOf(NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)
+    private var currentModeIndex = if (offListeningModeEnabled) 3 else 2
     private lateinit var ancStatusReceiver: BroadcastReceiver
     private lateinit var availabilityReceiver: BroadcastReceiver
 
     @SuppressLint("InlinedApi")
     override fun onStartListening() {
+        Log.d("AirPodsQSService", "off mode: $offListeningModeEnabled")
         super.onStartListening()
-        currentModeIndex = (ServiceManager.getService()?.getANC()?.minus(1)) ?: 3
+        currentModeIndex = (ServiceManager.getService()?.getANC()?.minus(if (offListeningModeEnabled) 1 else 2)) ?: if (offListeningModeEnabled) 3 else 2
         if (currentModeIndex == -1) {
-            currentModeIndex = 3
+            currentModeIndex = if (offListeningModeEnabled) 3 else 2
         }
 
         if (ServiceManager.getService() == null) {
@@ -39,7 +42,7 @@ class AirPodsQSService: TileService() {
         ancStatusReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val ancStatus = intent.getIntExtra("data", 4)
-                currentModeIndex = ancStatus - 1
+                currentModeIndex = ancStatus - if (offListeningModeEnabled) 1 else 2
                 updateTile()
             }
         }
@@ -67,7 +70,7 @@ class AirPodsQSService: TileService() {
             unregisterReceiver(ancStatusReceiver)
         }
         catch (
-            e: IllegalArgumentException
+            _: IllegalArgumentException
         )
         {
             Log.e("QuickSettingTileService", "Receiver not registered")
@@ -76,7 +79,7 @@ class AirPodsQSService: TileService() {
             unregisterReceiver(availabilityReceiver)
         }
         catch (
-            e: IllegalArgumentException
+            _: IllegalArgumentException
         )
         {
             Log.e("QuickSettingTileService", "Receiver not registered")
@@ -86,21 +89,23 @@ class AirPodsQSService: TileService() {
     override fun onClick() {
         super.onClick()
         Log.d("QuickSettingTileService", "ANC tile clicked")
+        Log.d("QuickSettingTileService", "Current mode index: $currentModeIndex, ancModes size: ${ancModes.size}")
         currentModeIndex = (currentModeIndex + 1) % ancModes.size
-        switchAncMode(currentModeIndex)
+        Log.d("QuickSettingTileService", "New mode index: $currentModeIndex")
+        switchAncMode(if (offListeningModeEnabled) currentModeIndex + 1 else currentModeIndex + 2)
     }
 
     private fun updateTile() {
-        val currentMode = ancModes[currentModeIndex]
+        val currentMode = ancModes[currentModeIndex % ancModes.size]
         qsTile.label = currentMode.replace("_", " ").lowercase().replaceFirstChar { it.uppercase() }
         qsTile.state = Tile.STATE_ACTIVE
         qsTile.updateTile()
     }
 
     private fun switchAncMode(modeIndex: Int) {
-        currentModeIndex = modeIndex
+        currentModeIndex = if (offListeningModeEnabled) modeIndex else modeIndex - 1
         val airPodsService = ServiceManager.getService()
-        airPodsService?.setANCMode(currentModeIndex + 1)
+        airPodsService?.setANCMode(if (offListeningModeEnabled) modeIndex + 1 else modeIndex)
         updateTile()
     }
 }

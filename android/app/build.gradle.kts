@@ -7,7 +7,7 @@ plugins {
 
 android {
     namespace = "me.kavishdevar.aln"
-    compileSdk = 34
+    compileSdk = 35
 
     defaultConfig {
         applicationId = "me.kavishdevar.aln"
@@ -53,6 +53,7 @@ dependencies {
     implementation(libs.androidx.material3)
     implementation(libs.annotations)
     implementation(libs.androidx.navigation.compose)
+    implementation(libs.androidx.constraintlayout)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -60,4 +61,5 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+    implementation("com.github.prime-zs.toolkit:core-ktx:2.1.0")
 }
