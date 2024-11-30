@@ -4,10 +4,7 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.Context
-import android.content.Intent
-import android.content.IntentFilter
 import android.graphics.PixelFormat
 import android.util.Log
 import android.view.Gravity
@@ -56,9 +53,8 @@ class Window @SuppressLint("InflateParams") constructor(
         mWindowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     }
 
-    @SuppressLint("InlinedApi")
-    fun open(name: String = "AirPods Pro") {
-
+    @SuppressLint("InlinedApi", "SetTextI18n")
+    fun open(name: String = "AirPods Pro", batteryNotification: AirPodsNotifications.BatteryNotification) {
         try {
             if (mView.windowToken == null) {
                 if (mView.parent == null) {
@@ -75,15 +71,8 @@ class Window @SuppressLint("InflateParams") constructor(
                     
 //                    receive battery broadcast and set to R.id.battery
                     val batteryText = mView.findViewById<TextView>(R.id.battery)
-                    val batteryIntentFilter = IntentFilter(AirPodsNotifications.BATTERY_DATA)
-                    mView.context.registerReceiver(object : BroadcastReceiver() {
-                        @SuppressLint("SetTextI18n")
-                        override fun onReceive(context: Context, intent: Intent) {
-                            val batteryList = intent.getParcelableArrayListExtra("data", Battery::class.java)
-                            batteryText.text = batteryList?.get(0)?.level.toString() + "%" + " " + batteryList?.get(0)?.status + " " + batteryList?.get(1)?.level.toString() + "%" + " " + batteryList?.get(1)?.status + " " + batteryList?.get(2)?.level.toString() + "%" + " " + batteryList?.get(2)?.status
-                        }
-                    }, batteryIntentFilter, Context.RECEIVER_NOT_EXPORTED)
-
+                    val batteryList = batteryNotification.getBattery()
+                    batteryText.text = "Why are the battery levels zero :( " + batteryList[0].level.toString() + "%" + " " + batteryList[0].status + " " + batteryList[1].level.toString() + "%" + " " + batteryList[1].status + " " + batteryList[2].level.toString() + "%" + " " + batteryList[2].status
 
                     // Slide-up animation
                     val displayMetrics = mView.context.resources.displayMetrics

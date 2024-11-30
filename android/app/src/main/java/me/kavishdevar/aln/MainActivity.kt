@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
-import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -70,13 +69,14 @@ fun Main() {
 
         val disconnectReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
+                Log.d("MainActivity", "Received DISCONNECTED broadcast")
                 navController.navigate("notConnected")
             }
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(disconnectReceiver, IntentFilter(AirPodsNotifications.AIRPODS_DISCONNECTED),
-                Context.RECEIVER_NOT_EXPORTED)
-        }
+
+        context.registerReceiver(disconnectReceiver, IntentFilter(AirPodsNotifications.AIRPODS_DISCONNECTED),
+            Context.RECEIVER_NOT_EXPORTED)
+
 
         // UI logic
         NavHost(

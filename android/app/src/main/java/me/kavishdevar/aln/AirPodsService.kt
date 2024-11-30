@@ -37,7 +37,7 @@ class AirPodsService: Service() {
 
     fun showPopup(context: Context, name: String) {
         val window = Window(context)
-        window.open(name)
+        window.open(name, batteryNotification)
     }
 
     private object Receiver: BroadcastReceiver() {
@@ -217,7 +217,6 @@ class AirPodsService: Service() {
                             }
                             else if (bytesRead == -1) {
                                 Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
-                                this@AirPodsService.stopForeground(STOP_FOREGROUND_REMOVE)
                                 socket.close()
                                 sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
                                 return@launch
