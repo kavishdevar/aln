@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
@@ -82,6 +83,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.primex.core.ExperimentalToolkitApi
 import com.primex.core.blur.newBackgroundBlur
+import me.kavishdevar.aln.AirPodsService
 import kotlin.math.roundToInt
 
 @Composable
@@ -90,7 +92,12 @@ fun BatteryView() {
     @Suppress("DEPRECATION") val batteryReceiver = remember {
         object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                batteryStatus.value = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) { intent.getParcelableArrayListExtra("data", Battery::class.java) } else { intent.getParcelableArrayListExtra("data") }?.toList() ?: listOf()
+                batteryStatus.value =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                        intent.getParcelableArrayListExtra("data", Battery::class.java)
+                    } else {
+                        intent.getParcelableArrayListExtra("data")
+                    }?.toList() ?: listOf()
             }
         }
     }
@@ -99,7 +106,11 @@ fun BatteryView() {
     LaunchedEffect(context) {
         val batteryIntentFilter = IntentFilter(AirPodsNotifications.BATTERY_DATA)
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(batteryReceiver, batteryIntentFilter, Context.RECEIVER_EXPORTED)
+            context.registerReceiver(
+                batteryReceiver,
+                batteryIntentFilter,
+                Context.RECEIVER_EXPORTED
+            )
         }
     }
 
@@ -482,7 +493,7 @@ fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService?,
             CenterAlignedTopAppBar(
                 title = {
                     Text(
-                        text = if (device != null) device.name else "",
+                        text = if (device != null) LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE).getString("name", device.name).toString() else "",
                         color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black,
                     )
                 },

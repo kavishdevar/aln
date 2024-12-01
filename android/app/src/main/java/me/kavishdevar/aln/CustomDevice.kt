@@ -53,9 +53,10 @@ class CustomDevice : ComponentActivity() {
                     HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
                     val manager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
 //                    val device: BluetoothDevice = manager.adapter.getRemoteDevice("EC:D6:F4:3D:89:B8")
-                    val device: BluetoothDevice = manager.adapter.getRemoteDevice("E0:90:8F:D9:94:73")
+                    val device: BluetoothDevice = manager.adapter.getRemoteDevice("DE:F4:C6:A3:CD:7A")
 //                    val socket = device.createInsecureL2capChannel(31)
 
+                    val batteryLevel = remember { mutableStateOf("") }
 //                    socket.outputStream.write(byteArrayOf(0x12,0x3B,0x00,0x02, 0x00))
 //                    socket.outputStream.write(byteArrayOf(0x12, 0x3A, 0x00, 0x01, 0x00, 0x08,0x01))
 
@@ -66,9 +67,12 @@ class CustomDevice : ComponentActivity() {
                                 gatt.services.forEach { service ->
                                     Log.d("GATT", "Service UUID: ${service.uuid}")
                                     service.characteristics.forEach { characteristic ->
-                                        Log.d("GATT", "         Characteristic UUID: ${characteristic.uuid}")
+                                        characteristic.descriptors.forEach { descriptor ->
+                                            Log.d("GATT", "         Descriptor UUID: ${descriptor.uuid}: ${gatt.readDescriptor(descriptor)}")
+                                        }
                                     }
                                 }
+
                             }
                         }
 
@@ -115,12 +119,13 @@ class CustomDevice : ComponentActivity() {
                         }
 
                         Button(onClick = {
-                            val characteristicUuid = "4f860002-943b-49ef-bed4-2f730304427a"
-                            val value = byteArrayOf(0x01, 0x00, 0x02)
+//                            val characteristicUuid = "4f860002-943b-49ef-bed4-2f730304427a"
+//                            val value = byteArrayOf(0x01, 0x00, 0x02)
 
-                            sendWriteRequest(gatt, characteristicUuid, value)
+//                            sendWriteRequest(gatt, characteristicUuid, value)
+
                         }) {
-                            Text("Play Sound")
+                            Text("batteryLevel.value")
                         }
                     }
                 }

@@ -77,7 +77,6 @@ fun Main() {
         context.registerReceiver(disconnectReceiver, IntentFilter(AirPodsNotifications.AIRPODS_DISCONNECTED),
             Context.RECEIVER_NOT_EXPORTED)
 
-
         // UI logic
         NavHost(
             navController = navController,
@@ -127,7 +126,8 @@ fun Main() {
 
         context.bindService(Intent(context, AirPodsService::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
 
-        if (airPodsService.value?.isConnected == true) {
+        val alreadyConnected = remember { mutableStateOf(false) }
+        if (airPodsService.value?.isConnected == true && !alreadyConnected.value) {
             Log.d("ALN", "Connected")
             navController.navigate("settings")
         } else {

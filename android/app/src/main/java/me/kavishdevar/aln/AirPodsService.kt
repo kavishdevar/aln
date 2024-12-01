@@ -22,6 +22,7 @@ import android.util.Log
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
@@ -35,8 +36,8 @@ class AirPodsService: Service() {
         return LocalBinder()
     }
 
-    fun showPopup(context: Context, name: String) {
-        val window = Window(context)
+    fun showPopup(service: Service, name: String) {
+        val window = Window(service.applicationContext)
         window.open(name, batteryNotification)
     }
 
@@ -47,6 +48,7 @@ class AirPodsService: Service() {
                 intent.getParcelableExtra("android.bluetooth.device.extra.DEVICE", BluetoothDevice::class.java)
             val action = intent.action
             val context = context?.applicationContext
+            val name = context?.getSharedPreferences("settings", MODE_PRIVATE)?.getString("name", bluetoothDevice?.name)
             if (bluetoothDevice != null && action != null && !action.isEmpty()) {
                 Log.d("BluetoothReceiver", "Received broadcast")
                 if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
@@ -54,7 +56,7 @@ class AirPodsService: Service() {
                     if (bluetoothDevice.uuids.contains(uuid)) {
                         Log.d("AirPodsService", "Service started")
                         val intent = Intent(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
-                        intent.putExtra("name", bluetoothDevice.name)
+                        intent.putExtra("name", name)
                         intent.putExtra("device", bluetoothDevice)
                         context?.sendBroadcast(intent)
                     }
@@ -104,8 +106,9 @@ class AirPodsService: Service() {
 
         registerReceiver(object: BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                showPopup(context!!, intent!!.getStringExtra("name")!!)
-                device = intent.getParcelableExtra("device", BluetoothDevice::class.java)!!
+                val name = this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).getString("name", device?.name)
+                device = intent?.getParcelableExtra("device", BluetoothDevice::class.java)!!
+                showPopup(this@AirPodsService, name.toString())
                 connectToSocket(device!!)
                 sendBroadcast(Intent(AirPodsNotifications.AIRPODS_CONNECTED).apply {
                     putExtra("device", device)
@@ -188,12 +191,18 @@ class AirPodsService: Service() {
             this@AirPodsService.device = device
             isConnected = true
             socket.let { it ->
-                it.outputStream.write(Enums.HANDSHAKE.value)
-                it.outputStream.flush()
-                it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
-                it.outputStream.flush()
-                it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
-                it.outputStream.flush()
+                CoroutineScope(Dispatchers.IO).launch {
+                    it.outputStream.write(Enums.HANDSHAKE.value)
+                    it.outputStream.flush()
+                    delay(500)
+                    it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
+                    it.outputStream.flush()
+                    delay(500)
+                    it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
+                    it.outputStream.flush()
+                    Log.d("AirPodsService","This should run first")
+                }
+                Log.d("AirPodsService","This should run later")
                 sendBroadcast(
                     Intent(AirPodsNotifications.AIRPODS_CONNECTED)
                         .putExtra("device", device)

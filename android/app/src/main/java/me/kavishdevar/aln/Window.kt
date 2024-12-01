@@ -14,17 +14,19 @@ import android.view.WindowManager
 import android.view.animation.AccelerateInterpolator
 import android.view.animation.DecelerateInterpolator
 import android.widget.ImageButton
+import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.VideoView
+import androidx.lifecycle.findViewTreeLifecycleOwner
+import androidx.lifecycle.setViewTreeLifecycleOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.lang.Exception
 
-class Window @SuppressLint("InflateParams") constructor(
-    context: Context
-) {
+@SuppressLint("InflateParams")
+class Window (context: Context) {
     private val mView: View
     private val mParams: WindowManager.LayoutParams = WindowManager.LayoutParams(
         (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
@@ -50,6 +52,11 @@ class Window @SuppressLint("InflateParams") constructor(
                 close()
             }
 
+        val ll = mView.findViewById<LinearLayout>(R.id.linear_layout)
+        ll.setOnClickListener {
+            close()
+        }
+        ll.setViewTreeLifecycleOwner(mView.findViewTreeLifecycleOwner())
         mWindowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     }
 
@@ -62,17 +69,81 @@ class Window @SuppressLint("InflateParams") constructor(
                     mWindowManager.addView(mView, mParams)
                     mView.findViewById<TextView>(R.id.name).text = name
                     val vid = mView.findViewById<VideoView>(R.id.video)
+
                     vid.setVideoPath("android.resource://me.kavishdevar.aln/" + R.raw.connected)
                     vid.resolveAdjustedSize(vid.width, vid.height)
                     vid.start()
                     vid.setOnCompletionListener {
                         vid.start()
                     }
-                    
-//                    receive battery broadcast and set to R.id.battery
-                    val batteryText = mView.findViewById<TextView>(R.id.battery)
-                    val batteryList = batteryNotification.getBattery()
-                    batteryText.text = "Why are the battery levels zero :( " + batteryList[0].level.toString() + "%" + " " + batteryList[0].status + " " + batteryList[1].level.toString() + "%" + " " + batteryList[1].status + " " + batteryList[2].level.toString() + "%" + " " + batteryList[2].status
+
+                    val batteryStatus = batteryNotification.getBattery()
+                    val batteryLeftText = mView.findViewById<TextView>(R.id.left_battery)
+                    val batteryRightText = mView.findViewById<TextView>(R.id.right_battery)
+                    val batteryCaseText = mView.findViewById<TextView>(R.id.case_battery)
+
+                    batteryLeftText.text = batteryStatus.find { it.component == BatteryComponent.LEFT }?.let {
+                        "\uDBC3\uDC8E    ${it.level}%"
+                    } ?: ""
+                    batteryRightText.text = batteryStatus.find { it.component == BatteryComponent.RIGHT }?.let {
+                        "\uDBC3\uDC8D    ${it.level}%"
+                    } ?: ""
+                    batteryCaseText.text = batteryStatus.find { it.component == BatteryComponent.CASE }?.let {
+                        "\uDBC3\uDE6C    ${it.level}%"
+                    } ?: ""
+//                    bText.text =
+//                        batteryStatus.joinToString(separator = "") {
+//                            when (it.component) {
+//                                BatteryComponent.LEFT -> "\uDBC6\uDCE5 ${it.level}%"
+//                                BatteryComponent.RIGHT -> "\uDBC6\uDCE8 ${it.level}%"
+//                                BatteryComponent.CASE -> "\uDBC6\uDCE6 ${it.level}%"
+//                                else -> ""
+//                            }
+//                        }
+
+//                    composeView.setContent {
+//                        Row (
+//                            modifier = Modifier
+//                                .fillMaxWidth(),
+//                            horizontalArrangement = Arrangement.Center,
+//                            verticalAlignment = Alignment.CenterVertically
+//                        ) {
+//                            Row (
+//                                modifier = Modifier
+//                                    .fillMaxWidth(0.5f),
+//                                horizontalArrangement = Arrangement.SpaceBetween
+//                            ){
+//                                val left = batteryStatus.find { it.component == BatteryComponent.LEFT }
+//                                val right = batteryStatus.find { it.component == BatteryComponent.RIGHT }
+//                                if ((right?.status == BatteryStatus.CHARGING && left?.status == BatteryStatus.CHARGING) || (left?.status == BatteryStatus.NOT_CHARGING && right?.status == BatteryStatus.NOT_CHARGING))
+//                                {
+//                                    BatteryIndicator(right.level.let { left.level.coerceAtMost(it) }, left.status == BatteryStatus.CHARGING)
+//                                }
+//                                else {
+//                                    Row {
+//                                        if (left?.status != BatteryStatus.DISCONNECTED) {
+//                                            Text(text = "\uDBC6\uDCE5", fontFamily = FontFamily(Font(R.font.sf_pro)))
+//                                            BatteryIndicator(left?.level ?: 0, left?.status == BatteryStatus.CHARGING)
+//                                            Spacer(modifier = Modifier.width(16.dp))
+//                                        }
+//                                        if (right?.status != BatteryStatus.DISCONNECTED) {
+//                                            Text(text = "\uDBC6\uDCE8", fontFamily = FontFamily(Font(R.font.sf_pro)))
+//                                            BatteryIndicator(right?.level ?: 0, right?.status == BatteryStatus.CHARGING)
+//                                        }
+//                                    }
+//                                }
+//                            }
+//                            Row (
+//                                modifier = Modifier
+//                                    .fillMaxWidth(),
+//                                horizontalArrangement = Arrangement.Center
+//                            ) {
+//                                val case =
+//                                    batteryStatus.find { it.component == BatteryComponent.CASE }
+//                                BatteryIndicator(case?.level ?: 0)
+//                            }
+//                        }
+//                    }
 
                     // Slide-up animation
                     val displayMetrics = mView.context.resources.displayMetrics

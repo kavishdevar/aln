@@ -5,6 +5,7 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="16.dp"
+    android:id="@+id/linear_layout"
     android:orientation="vertical"
     android:background="@drawable/shape">
 
@@ -12,6 +13,7 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:gravity="end"
+        android:id="@+id/constraint_layout"
         android:paddingBottom="48dp"
         android:orientation="horizontal">
 
@@ -49,15 +51,59 @@
         android:contentDescription="AirPods"
         android:src="@raw/connected"
         tools:ignore="HardcodedText" />
-    <TextView
-        android:id="@+id/battery"
+
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:fontFamily="@font/sf_pro"
-        android:gravity="center"
-        android:text=""
-        android:textColor="@color/white"
-        android:textSize="16sp"
-        tools:ignore="HardcodedText" />
+        android:orientation="horizontal">
+
+        <!-- Left Half -->
+        <LinearLayout
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:orientation="horizontal">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:textAlignment="center"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/sf_pro"
+                android:text=""
+                android:textColor="@color/white"
+                android:textSize="20sp"
+                android:id="@+id/left_battery"
+                android:gravity="center"
+                tools:ignore="NestedWeights" />
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="match_parent"
+                android:layout_weight="1"
+                android:textAlignment="center"
+                android:layout_marginTop="16dp"
+                android:fontFamily="@font/sf_pro"
+                android:gravity="center"
+                android:text=""
+                android:id="@+id/right_battery"
+                android:textColor="@color/white"
+                android:textSize="20sp" />
+        </LinearLayout>
+
+        <!-- Right Half -->
+        <TextView
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:textAlignment="center"
+            android:id="@+id/case_battery"
+            android:layout_marginTop="16dp"
+            android:fontFamily="@font/sf_pro"
+            android:gravity="center"
+            android:text=""
+            android:textColor="@color/white"
+            android:textSize="20sp" />
+    </LinearLayout>
 </LinearLayout>
