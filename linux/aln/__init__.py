@@ -45,6 +45,7 @@ class Connection:
 
     def send(self, data: bytes):
         try:
+            logging.info(f"Sending data to {self.mac_address}: {data}")
             self.socket.send(data)
         except bluetooth.btcommon.BluetoothError as e:
             logging.error(f'Failed to send data to {self.mac_address}: {e}')

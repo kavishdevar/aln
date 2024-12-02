@@ -19,10 +19,8 @@ import threading
 
 sock = bluetooth.BluetoothSocket(bluetooth.L2CAP)
 
-bt_addr = "28:2D:7F:C2:05:5B" # sys.argv[1]
-psm = 0x1001  # AAP
-
-print(f"Trying to connect to {bt_addr} on PSM 0x{psm:04X}...")
+bt_addr = "28:2D:7F:C2:05:5B"
+psm = 0x1001
 
 sock.connect((bt_addr, psm))
 running = threading.Event()
@@ -31,12 +29,12 @@ def listen():
     global running
     while not running.is_set():
         res = sock.recv(1024)
-        print(f"Response: {res.hex()}")
+        if len(res.hex()) == 162:
+            print(" ".join(res.hex()[i:i+2].upper() for i in range(0, len(res.hex()), 2)))
 
 t = threading.Thread(target=listen)
 t.start()
 
-print("Connected. Type something...")
 try:
     byts = bytes(int(b, 16) for b in "00 00 04 00 01 00 02 00 00 00 00 00 00 00 00 00".split(" "))
     sock.send(byts)
