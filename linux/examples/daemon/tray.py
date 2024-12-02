@@ -190,8 +190,10 @@ def handle_conversational_awareness(status):
         new_volume = max(0, min(int(initial_volume * 0.5), 100))  # Set volume to 50%
     elif status >= 8:
         new_volume = initial_volume  # Fully restore volume
-
-    set_volume(new_volume)
+    try:
+        set_volume(new_volume)
+    except Exception as e:
+        logging.error(f"Error setting volume: {e}")
     logging.getLogger("Conversational Awareness").info(f"Volume set to {new_volume}% based on conversational awareness status: {status}")
 
     # If status is 9, print conversation end message
