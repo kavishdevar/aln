@@ -313,7 +313,8 @@ The packets sent (based on the previous states) are as follows:
 ## Request something (Probably Head Positions)
 
 ```plaintext
-04 00 04 00 17 00 00 00 10 00 11 00 08 7C 10 02 42 0B 08 4E 10 02 1A 05 01 40 9C 00 00
+<!-- 04 00 04 00 17 00 00 00 10 00 11 00 08 7C 10 02 42 0B 08 4E 10 02 1A 05 01 40 9C 00 00 -->
+04 00 04 00 17 00 00 00 10 00 10 00 08 A1 02 42 0B 08 0E 10 02 1A 05 01 40 9C 00 00
 ```
 
 Example packet
