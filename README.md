@@ -29,7 +29,9 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ## Android
 
-Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working `(upvote the issue - click the '+1 I am impacted' in the top right corner of the IssueTracker)`. This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). This workaround requires root access to implement and it might not work on other android OEM skins. Try at your own risk!!
+Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working `(upvote the issue - click the '+1' icon on the top right corner of IssueTracker)`. This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). 
+
+**This workaround requires root access** to implement and it might not work on other android OEM skins. Try at your own risk!!
 
 ### Workaround
 
@@ -39,7 +41,7 @@ Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.g
 
 #### Step 2: Set Up the Directory Structure
 
-- Use a file manager with root access (eg. Solid FIle Explorer or MT manager) and create a folder structure like this:
+- Use a file manager with root access (eg. Solid FIle Explorer or MT manager) and create a folder structure like this (`upper` and `work` are also folders):
 
 ```
 /data/local/tmp/overlay:
@@ -55,7 +57,7 @@ libbluetooth_jni.so
 
 #### Step 3: Add the Boot Script
 
-- Place the bt.sh script in `/data/adb/post-fs-data.d/`.
+- Place the `bt.sh` script in `/data/adb/post-fs-data.d/`.
 - This script ensures the fix is applied during system startup.
 
 #### Step 4: Create a Magisk Module
@@ -74,7 +76,7 @@ libbluetooth_jni.so
 - Reboot your device.
 - The Bluetooth bug should now be resolved.
   
-Once the issue is resolved by Google developers or you've addressed itthrough the above root-based method, download and install the `app-release.apk` in the releases, and you're good to go!
+Once the issue is resolved by Google developers or you've addressed it through the above root-based method, download and install the `app-release.apk` from the releases, and you're good to go!
 
 ### Features
 
