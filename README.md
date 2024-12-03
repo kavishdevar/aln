@@ -29,38 +29,80 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ## Android
 
-> Currently, there's a [bug on android](https://issuetracker.google.com/issues/371713238) that prevents this from working (psst, go upvote!)
+Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working `(upvote the issue - click the '+1' icon on the top right corner of IssueTracker)`. This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). 
+
+**This workaround requires root access** to implement and it might not work on other android OEM skins. Try at your own risk!!
 
 ### Workaround
-Download the required files from Releases. Donload the required based on your Android’s version. Currently, I have only built patched libraries for Android 14, and 15, and have tested on stock android. I am not sure if the same libraries would work for other android skins. Try at your own risk!! 
 
-- Create a folder structure like this:
+#### Step 1: Download the Required Files
+- Go to the [Releases](https://github.com/kavishdevar/aln/releases) section.
+- Download the required files depending upon your Android version - `bt.sh`, `module.prop`, and `libbluetooth_jni-a14.so` (for android 14) or `libbluetooth_jni-a15.so` (for android 15).
+
+#### Step 2: Set Up the Directory Structure
+
+- Use a file manager with root access (eg. Solid FIle Explorer or MT manager) and create a folder structure like this (`upper` and `work` are also folders):
 
 ```
 /data/local/tmp/overlay:
-upper  work
+upper
+work
+```
+- Rename the appropriate file to `libbluetooth_jni.so` and place it in the `upper` folder
+```
 /data/local/tmp/overlay/upper:
 libbluetooth_jni.so
 ```
-- Copy the overlay and name it overlay2.
-- Place `bt.sh` in `/data/adb/post-fs-data.d/`
-- create a folder in /data/adb/modules/
+- Create a duplicate of the overlay folder inside tmp  and name it overlay2.
+
+#### Step 3: Add the Boot Script
+
+- Place the `bt.sh` script in `/data/adb/post-fs-data.d/`.
+- This script ensures the fix is applied during system startup.
+
+#### Step 4: Create a Magisk Module
+- Create a `btl2capfix` folder in `/data/adb/modules/` and copy the `module.prop`into the folder.
 ```
 /data/adb/modules/btl2capfix:
 module.prop
+```
+- Create `system/lib64` under `btl2capfix` and copy the `libbluetooth_jni.so` into `lib64`
+```
 /data/adb/modules/btl2capfix/system/lib64:
 libbluetooth_jni.so
 ```
-- Now, you have the bug in android's bluetooth stack fixed!
-  
-But once that's fixed hy Google devs, or you have fixed the issue using root, download the APK, and you're off!
 
-I don't know how to write READMEs for android apps, because they're just that, apps. So, here are two screenshots of the app:
+#### Step 5: Verify the Fix
+- Reboot your device.
+- The Bluetooth bug should now be resolved.
+  
+Once the issue is resolved by Google developers or you've addressed it through the above root-based method, download and install the `app-release.apk` from the releases, and you're good to go!
+
+### Features
+
+#### Renaming the Airpods
+When you rename the Airpods using the app, you'll need to re-pair it with your phone. Currently, user-level apps cannot directly rename a Bluetooth device. After re-pairing, your phone will display the updated name!
+
+#### Noise Control Modes
+- Active Noise Cancellation (ANC): Blocks external sounds using microphones and advanced algorithms for an immersive audio experience; ideal for noisy environments.
+- Transparency Mode: Allows external sounds to blend with audio for situational awareness; best for environments where you need to stay alert.
+- Off Mode: Disables noise control for a natural listening experience, conserving battery in quiet settings.
+- Adaptive Transparency: Dynamically reduces sudden loud noises while maintaining environmental awareness, adjusting seamlessly to fluctuating noise levels.
+
+#### Conversational Awareness
+Automatically lowers audio volume and enhances voices when you start speaking, making it easier to engage in conversations without removing your AirPods.
+
+#### Automatic Ear Detection
+ Recognizes when the AirPods are in your ears to automatically play or pause audio and adjust functionality accordingly.
+
+#### Planned Features
+Quick Tile to toggle Conversational Awareness and to switch Noise Control modes, and Battery Widget (App and AndroidSystemIntelligence)/Notification coming soon!!
+
+
+### Screenshots of the app
 
 ![AirPods Settings](/android/imgs/settings.png)
 ![Debugging View](/android/imgs/debug.png)
-
-> Quick Tile to toggle Conversational Awareness and to switch Noise Control modes, and Battery Widget (App and AndroidSystemIntelligence)/Notification coming soon!!
 
 # License
 
