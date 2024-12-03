@@ -15,7 +15,7 @@ Other devices might work too! Features like ear detection and battery should be 
 | Conversational Awareness | ✅ | ✅ |
 | Setting Noise Control | ✅ | ✅ |
 | Battery Level | ✅ | ✅ |
-| Rename AirPods | ✅ | ✅ |
+| Rename AirPods | ❌ | ✅ |
 | Adjust Adaptive Audio | ❌ | ✅ |
 | Loud Sound Reduction | ❌ | ✅ |
 
@@ -41,7 +41,7 @@ Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.g
 
 #### Step 2: Set Up the Directory Structure
 
-- Use a file manager with root access (eg. Solid FIle Explorer or MT manager) and create a folder structure like this (`upper` and `work` are also folders):
+- Use a file manager with root access (eg. Solid FIle Explorer or MT manager) or a shell (using adb, or a terminal app like Termux) and create a folder structure like this (`upper` and `work` are also folders):
 
 ```
 /data/local/tmp/overlay:
