@@ -29,7 +29,7 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ## Android
 
-Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1 I am impacted' in the top right corner). This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). This workaround requires root access to implemen and it might not work on other android OEM skins. Try at your own risk!!
+Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working `(upvote the issue - click the '+1 I am impacted' in the top right corner of the IssueTracker)`. This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). This workaround requires root access to implement and it might not work on other android OEM skins. Try at your own risk!!
 
 ### Workaround
 
