@@ -91,16 +91,6 @@ class Window (context: Context) {
                     batteryCaseText.text = batteryStatus.find { it.component == BatteryComponent.CASE }?.let {
                         "\uDBC3\uDE6C    ${it.level}%"
                     } ?: ""
-//                    bText.text =
-//                        batteryStatus.joinToString(separator = "") {
-//                            when (it.component) {
-//                                BatteryComponent.LEFT -> "\uDBC6\uDCE5 ${it.level}%"
-//                                BatteryComponent.RIGHT -> "\uDBC6\uDCE8 ${it.level}%"
-//                                BatteryComponent.CASE -> "\uDBC6\uDCE6 ${it.level}%"
-//                                else -> ""
-//                            }
-//                        }
-
 //                    composeView.setContent {
 //                        Row (
 //                            modifier = Modifier

@@ -39,7 +39,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -61,9 +60,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
@@ -83,11 +84,17 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.primex.core.ExperimentalToolkitApi
 import com.primex.core.blur.newBackgroundBlur
-import me.kavishdevar.aln.AirPodsService
 import kotlin.math.roundToInt
 
+
+@Preview
 @Composable
-fun BatteryView() {
+fun BatteryViewPreview() {
+    BatteryView(AirPodsService(), true)
+}
+
+@Composable
+fun BatteryView(service: AirPodsService, preview: Boolean = false) {
     val batteryStatus = remember { mutableStateOf<List<Battery>>(listOf()) }
     @Suppress("DEPRECATION") val batteryReceiver = remember {
         object : BroadcastReceiver() {
@@ -114,6 +121,16 @@ fun BatteryView() {
         }
     }
 
+    batteryStatus.value = service.getBattery()
+
+    if (preview) {
+        batteryStatus.value = listOf<Battery>(
+            Battery(BatteryComponent.LEFT, 100, BatteryStatus.CHARGING),
+            Battery(BatteryComponent.RIGHT, 50, BatteryStatus.NOT_CHARGING),
+            Battery(BatteryComponent.CASE, 5, BatteryStatus.CHARGING)
+        )
+    }
+
     Row {
         Column (
             modifier = Modifier
@@ -125,7 +142,7 @@ fun BatteryView() {
                 contentDescription = "Buds",
                 modifier = Modifier
                     .fillMaxWidth()
-                    .scale(0.50f)
+                    .scale(0.80f)
             )
             val left = batteryStatus.value.find { it.component == BatteryComponent.LEFT }
             val right = batteryStatus.value.find { it.component == BatteryComponent.RIGHT }
@@ -134,15 +151,44 @@ fun BatteryView() {
                 BatteryIndicator(right.level.let { left.level.coerceAtMost(it) }, left.status == BatteryStatus.CHARGING)
             }
             else {
-                Row {
+                Row (
+                    modifier = Modifier
+                        .fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
                     if (left?.status != BatteryStatus.DISCONNECTED) {
-                        Text(text = "\uDBC6\uDCE5", fontFamily = FontFamily(Font(R.font.sf_pro)))
-                        BatteryIndicator(left?.level ?: 0, left?.status == BatteryStatus.CHARGING)
-                        Spacer(modifier = Modifier.width(16.dp))
+                        Row (
+                            horizontalArrangement = Arrangement.SpaceEvenly,
+                            modifier = Modifier
+                                .weight(1f)
+                        ) {
+                            Text(
+                                text = "\uDBC6\uDCE5",
+                                fontFamily = FontFamily(Font(R.font.sf_pro)),
+                            )
+                            BatteryIndicator(
+                                left?.level ?: 0,
+                                left?.status == BatteryStatus.CHARGING
+                            )
+                        }
                     }
                     if (right?.status != BatteryStatus.DISCONNECTED) {
-                        Text(text = "\uDBC6\uDCE8", fontFamily = FontFamily(Font(R.font.sf_pro)))
-                        BatteryIndicator(right?.level ?: 0, right?.status == BatteryStatus.CHARGING)
+                        Row (
+                            horizontalArrangement = Arrangement.Center,
+                            modifier = Modifier
+                                .weight(1f)
+                        ) {
+                            Text(
+                                text = "\uDBC6\uDCE8",
+                                fontFamily = FontFamily(Font(R.font.sf_pro)),
+                                modifier = Modifier
+                                    .fillMaxWidth(0.5f)
+                            )
+                            BatteryIndicator(
+                                right?.level ?: 0,
+                                right?.status == BatteryStatus.CHARGING
+                            )
+                        }
                     }
                 }
             }
@@ -160,6 +206,7 @@ fun BatteryView() {
                 contentDescription = "Case",
                 modifier = Modifier
                     .fillMaxWidth()
+                    .scale(1.25f)
             )
             BatteryIndicator(case?.level ?: 0)
         }
@@ -210,12 +257,11 @@ fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferenc
             },
             valueRange = 0f..100f,
             onValueChangeFinished = {
-                // Round the value when the user stops sliding
                 sliderValue.floatValue = sliderValue.floatValue.roundToInt().toFloat()
             },
             modifier = Modifier
                 .weight(1f)
-                .height(36.dp),  // Adjust height to ensure thumb fits well
+                .height(36.dp),
             colors = SliderDefaults.colors(
                 thumbColor = thumbColor,
                 activeTrackColor = activeTrackColor,
@@ -224,9 +270,9 @@ fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferenc
             thumb = {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)  // Circular thumb size
-                        .shadow(4.dp, CircleShape)  // Apply shadow to the thumb
-                        .background(thumbColor, CircleShape)  // Circular thumb
+                        .size(24.dp)
+                        .shadow(4.dp, CircleShape)
+                        .background(thumbColor, CircleShape)
                 )
             },
             track = {
@@ -245,7 +291,7 @@ fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferenc
                     )
                     Box(
                         modifier = Modifier
-                            .fillMaxWidth(sliderValue.value / 100)
+                            .fillMaxWidth(sliderValue.floatValue / 100)
                             .height(4.dp)
                             .background(activeTrackColor, RoundedCornerShape(4.dp))
                     )
@@ -273,7 +319,6 @@ fun SinglePodANCSwitch(service: AirPodsService, sharedPreferences: SharedPrefere
         )
     }
 
-    // Update the service when the toggle is changed
     fun updateSingleEnabled(enabled: Boolean) {
         singleANCEnabled = enabled
         sharedPreferences.edit().putBoolean("single_anc", enabled).apply()
@@ -293,20 +338,19 @@ fun SinglePodANCSwitch(service: AirPodsService, sharedPreferences: SharedPrefere
                 color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
             )
             .padding(horizontal = 12.dp, vertical = 12.dp)
-            .pointerInput(Unit) { // Detect press state for iOS-like effect
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
                         isPressed.value = true
-                        tryAwaitRelease() // Wait until release
+                        tryAwaitRelease()
                         isPressed.value = false
                     }
                 )
             }
             .clickable(
-                indication = null, // Disable ripple effect
-                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
             ) {
-                // Toggle the conversational awareness value
                 updateSingleEnabled(!singleANCEnabled)
             },
         verticalAlignment = Alignment.CenterVertically
@@ -321,7 +365,7 @@ fun SinglePodANCSwitch(service: AirPodsService, sharedPreferences: SharedPrefere
                 fontSize = 16.sp,
                 color = textColor
             )
-                Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Allow AirPods to be put in noise cancellation mode when only one AirPods is in your ear.",
                     fontSize = 12.sp,
@@ -346,7 +390,6 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
         )
     }
 
-    // Update the service when the toggle is changed
     fun updateVolumeControlEnabled(enabled: Boolean) {
         volumeControlEnabled = enabled
         sharedPreferences.edit().putBoolean("volume_control", enabled).apply()
@@ -366,20 +409,19 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
                 color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
             )
             .padding(horizontal = 12.dp, vertical = 12.dp)
-            .pointerInput(Unit) { // Detect press state for iOS-like effect
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
                         isPressed.value = true
-                        tryAwaitRelease() // Wait until release
+                        tryAwaitRelease()
                         isPressed.value = false
                     }
                 )
             }
             .clickable(
-                indication = null, // Disable ripple effect
-                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
             ) {
-                // Toggle the conversational awareness value
                 updateVolumeControlEnabled(!volumeControlEnabled)
             },
         verticalAlignment = Alignment.CenterVertically
@@ -394,7 +436,7 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
                 fontSize = 16.sp,
                 color = textColor
             )
-                Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+                Spacer(modifier = Modifier.height(4.dp))
                 Text(
                     text = "Adjust the volume by swiping up or down on the sensor located on the AirPods Pro stem.",
                     fontSize = 12.sp,
@@ -434,9 +476,7 @@ fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPref
             .background(backgroundColor, RoundedCornerShape(14.dp))
             .padding(top = 2.dp)
     ) {
-
-//        Tone Volume Slider
-
+        
         Column(
             modifier = Modifier
                 .fillMaxWidth()
@@ -476,11 +516,10 @@ fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPref
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalToolkitApi::class)
 @SuppressLint("MissingPermission", "NewApi")
 @Composable
-fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService?,
-                          navController: NavController) {
-    val sharedPreferences = LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
+fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService,
+                          navController: NavController, isConnected: Boolean) {
+    val sharedPreferences = LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE)
     var deviceName by remember { mutableStateOf(TextFieldValue(sharedPreferences.getString("name", device?.name ?: "") ?: "")) }
-//  4B 61 76 69 73 68 E2 80 99 73 20 41 69 72 50 6F 64 73 20 50 72 6F
     val verticalScrollState  = rememberScrollState()
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
@@ -490,6 +529,7 @@ fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService?,
             0xFFF2F2F7
         ),
         topBar = {
+            val darkMode = MaterialTheme.colorScheme.surface.luminance() < 0.5
             CenterAlignedTopAppBar(
                 title = {
                     Text(
@@ -499,43 +539,56 @@ fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService?,
                 },
                 modifier = Modifier
                     .newBackgroundBlur(
-                        radius = 24.dp, // the radius of the blur effect, in pixels)
-                    ),
+                        radius = 24.dp,
+                        downsample = 0.5f,
+                    )
+                    .drawBehind {
+                        val strokeWidth = 0.7.dp.value * density
+                        val y = size.height - strokeWidth / 2
+                        if (verticalScrollState.value > 55.dp.value * density) {
+                            drawLine(
+                                if (darkMode) Color.DarkGray else Color.LightGray,
+                                Offset(0f, y),
+                                Offset(size.width, y),
+                                strokeWidth
+                            )
+                        }
+                    },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.Black.copy(0.2f) else Color(0xFFF2F2F7).copy(0.2f),
+                    containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.Black.copy(0.3f) else Color(0xFFF2F2F7).copy(0.2f),
                 )
             )
-            HorizontalDivider(thickness = 3.dp, color = Color.DarkGray)
         }
     ) { paddingValues ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(horizontal = 8.dp)
-//                .padding(top = 55.dp, bottom = 32.dp)
-                .verticalScroll(
-                    state = verticalScrollState,
-                    enabled = true,
-                )
-        ) {
-            Spacer(Modifier.height(75.dp))
-            LaunchedEffect(service) {
-                service?.let {
-                    it.sendBroadcast(Intent(AirPodsNotifications.BATTERY_DATA).apply {
-                        putParcelableArrayListExtra("data", ArrayList(it.getBattery()))
-                    })
-                    it.sendBroadcast(Intent(AirPodsNotifications.ANC_DATA).apply {
-                        putExtra("data", it.getANC())
-                    })
+        if (isConnected == true) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(
+                        state = verticalScrollState,
+                        enabled = true,
+                    )
+            ) {
+                Spacer(Modifier.height(75.dp))
+                LaunchedEffect(service) {
+                    service.let {
+                        it.sendBroadcast(Intent(AirPodsNotifications.BATTERY_DATA).apply {
+                            putParcelableArrayListExtra("data", ArrayList(it.getBattery()))
+                        })
+                        it.sendBroadcast(Intent(AirPodsNotifications.ANC_DATA).apply {
+                            putExtra("data", it.getANC())
+                        })
+                    }
                 }
-            }
-            val sharedPreferences =
-                LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                val sharedPreferences = LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE)
 
-            if (service != null) {
-                BatteryView()
+                Spacer(modifier = Modifier.height(64.dp))
+
+                BatteryView(service = service)
 
                 Spacer(modifier = Modifier.height(32.dp))
+
                 StyledTextField(
                     name = "Name",
                     value = deviceName.text,
@@ -627,8 +680,43 @@ fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService?,
                         )
                     }
                 }
+                Spacer(Modifier.height(24.dp))
             }
-            Spacer(Modifier.height(24.dp))
+        }
+        else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(horizontal = 8.dp)
+                    .verticalScroll(
+                        state = verticalScrollState,
+                        enabled = true,
+                    ),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Text(
+                    text = "AirPods not connected",
+                    style = TextStyle(
+                        fontSize = 24.sp,
+                        fontWeight = FontWeight.Medium,
+                        color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
+                    ),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Spacer(Modifier.height(24.dp))
+                Text(
+                    text = "Please connect your AirPods to access settings. If you're stuck here, then try reopening the app again after closing it from the recents.\n(DO NOT KILL THE APP!)",
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Light,
+                        color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
+                    ),
+                    textAlign = TextAlign.Center,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
@@ -658,7 +746,6 @@ fun NoiseControlSlider(service: AirPodsService, sharedPreferences: SharedPrefere
             .padding(horizontal = 8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Slider
         Slider(
             value = sliderValue.floatValue,
             onValueChange = {
@@ -667,12 +754,11 @@ fun NoiseControlSlider(service: AirPodsService, sharedPreferences: SharedPrefere
             },
             valueRange = 0f..100f,
             onValueChangeFinished = {
-                // Round the value when the user stops sliding
                 sliderValue.floatValue = sliderValue.floatValue.roundToInt().toFloat()
             },
             modifier = Modifier
                 .fillMaxWidth()
-                .height(36.dp),  // Adjust height to ensure thumb fits well
+                .height(36.dp),
             colors = SliderDefaults.colors(
                 thumbColor = thumbColor,
                 inactiveTrackColor = trackColor
@@ -680,9 +766,9 @@ fun NoiseControlSlider(service: AirPodsService, sharedPreferences: SharedPrefere
             thumb = {
                 Box(
                     modifier = Modifier
-                        .size(24.dp)  // Circular thumb size
-                        .shadow(4.dp, CircleShape)  // Apply shadow to the thumb
-                        .background(thumbColor, CircleShape)  // Circular thumb
+                        .size(24.dp)
+                        .shadow(4.dp, CircleShape)
+                        .background(thumbColor, CircleShape)
                 )
             },
             track = {
@@ -703,8 +789,7 @@ fun NoiseControlSlider(service: AirPodsService, sharedPreferences: SharedPrefere
 
             }
         )
-
-        // Labels
+        
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween
@@ -742,13 +827,9 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
     val textColor = if (isDarkTheme) Color.White else Color.Black
 
-    // Standardize the key
     val snakeCasedName = name.replace(Regex("[\\W\\s]+"), "_").lowercase()
-
-    // State for the toggle
     var checked by remember { mutableStateOf(default) }
 
-    // Load initial state from SharedPreferences
     LaunchedEffect(sharedPreferences) {
         checked = sharedPreferences.getBoolean(snakeCasedName, true)
     }
@@ -767,14 +848,12 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
                 .height(55.dp)
                 .padding(horizontal = 12.dp)
                 .clickable {
-                    // Toggle checked state and save to SharedPreferences
                     checked = !checked
                     sharedPreferences
                         .edit()
                         .putBoolean(snakeCasedName, checked)
                         .apply()
 
-                    // Call the corresponding method in the service
                     val method = service::class.java.getMethod(functionName, Boolean::class.java)
                     method.invoke(service, checked)
                 },
@@ -786,8 +865,6 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
                 onCheckedChange = {
                     checked = it
                     sharedPreferences.edit().putBoolean(snakeCasedName, it).apply()
-
-                    // Call the corresponding method in the service
                     val method = service::class.java.getMethod(functionName, Boolean::class.java)
                     method.invoke(service, it)
                 },
@@ -804,7 +881,6 @@ fun ConversationalAwarenessSwitch(service: AirPodsService, sharedPreferences: Sh
         )
     }
 
-    // Update the service when the toggle is changed
     fun updateConversationalAwareness(enabled: Boolean) {
         conversationalAwarenessEnabled = enabled
         sharedPreferences.edit().putBoolean("conversational_awareness", enabled).apply()
@@ -824,20 +900,19 @@ fun ConversationalAwarenessSwitch(service: AirPodsService, sharedPreferences: Sh
                 color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
             )
             .padding(horizontal = 12.dp, vertical = 12.dp)
-            .pointerInput(Unit) { // Detect press state for iOS-like effect
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
                         isPressed.value = true
-                        tryAwaitRelease() // Wait until release
+                        tryAwaitRelease()
                         isPressed.value = false
                     }
                 )
             }
             .clickable(
-                indication = null, // Disable ripple effect
-                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
             ) {
-                // Toggle the conversational awareness value
                 updateConversationalAwareness(!conversationalAwarenessEnabled)
             },
         verticalAlignment = Alignment.CenterVertically
@@ -852,7 +927,7 @@ fun ConversationalAwarenessSwitch(service: AirPodsService, sharedPreferences: Sh
                 fontSize = 16.sp,
                 color = textColor
             )
-            Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Lowers media volume and reduces background noise when you start speaking to other people.",
                 fontSize = 12.sp,
@@ -877,7 +952,6 @@ fun PersonalizedVolumeSwitch(service: AirPodsService, sharedPreferences: SharedP
         )
     }
 
-    // Update the service when the toggle is changed
     fun updatePersonalizedVolume(enabled: Boolean) {
         personalizedVolumeEnabled = enabled
         sharedPreferences.edit().putBoolean("personalized_volume", enabled).apply()
@@ -897,20 +971,19 @@ fun PersonalizedVolumeSwitch(service: AirPodsService, sharedPreferences: SharedP
                 color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
             )
             .padding(horizontal = 12.dp, vertical = 12.dp)
-            .pointerInput(Unit) { // Detect press state for iOS-like effect
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
                         isPressed.value = true
-                        tryAwaitRelease() // Wait until release
+                        tryAwaitRelease()
                         isPressed.value = false
                     }
                 )
             }
             .clickable(
-                indication = null, // Disable ripple effect
-                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
             ) {
-                // Toggle the conversational awareness value
                 updatePersonalizedVolume(!personalizedVolumeEnabled)
             },
         verticalAlignment = Alignment.CenterVertically
@@ -925,7 +998,7 @@ fun PersonalizedVolumeSwitch(service: AirPodsService, sharedPreferences: SharedP
                 fontSize = 16.sp,
                 color = textColor
             )
-            Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Adjusts the volume of media in response to your environment.",
                 fontSize = 12.sp,
@@ -951,7 +1024,6 @@ fun LoudSoundReductionSwitch(service: AirPodsService, sharedPreferences: SharedP
         )
     }
 
-    // Update the service when the toggle is changed
     fun updateLoudSoundReduction(enabled: Boolean) {
         loudSoundReductionEnabled = enabled
         sharedPreferences.edit().putBoolean("loud_sound_reduction", enabled).apply()
@@ -971,20 +1043,19 @@ fun LoudSoundReductionSwitch(service: AirPodsService, sharedPreferences: SharedP
                 color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
             )
             .padding(horizontal = 12.dp, vertical = 12.dp)
-            .pointerInput(Unit) { // Detect press state for iOS-like effect
+            .pointerInput(Unit) {
                 detectTapGestures(
                     onPress = {
                         isPressed.value = true
-                        tryAwaitRelease() // Wait until release
+                        tryAwaitRelease()
                         isPressed.value = false
                     }
                 )
             }
             .clickable(
-                indication = null, // Disable ripple effect
-                interactionSource = remember { MutableInteractionSource() } // Required for clickable
+                indication = null,
+                interactionSource = remember { MutableInteractionSource() }
             ) {
-                // Toggle the conversational awareness value
                 updateLoudSoundReduction(!loudSoundReductionEnabled)
             },
         verticalAlignment = Alignment.CenterVertically
@@ -999,7 +1070,7 @@ fun LoudSoundReductionSwitch(service: AirPodsService, sharedPreferences: SharedP
                 fontSize = 16.sp,
                 color = textColor
             )
-            Spacer(modifier = Modifier.height(4.dp)) // Small space between main text and description
+            Spacer(modifier = Modifier.height(4.dp))
             Text(
                 text = "Reduces loud sounds you are exposed to.",
                 fontSize = 12.sp,
@@ -1393,14 +1464,15 @@ fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
     val batteryTextColor = MaterialTheme.colorScheme.onSurface
 
     // Battery indicator dimensions
-    val batteryWidth = 30.dp
+    val batteryWidth = 40.dp
     val batteryHeight = 15.dp
     val batteryCornerRadius = 4.dp
-    val tipWidth = 5.dp
+    val tipWidth = 4.dp
     val tipHeight = batteryHeight * 0.3f
 
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        // Row for battery icon and tip
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(0.dp),
@@ -1423,21 +1495,23 @@ fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
                 if (charging) {
                     Box(
                         modifier = Modifier
-                            .fillMaxSize(), // Take up the entire size of the outer Box
-                        contentAlignment = Alignment.Center // Center the charging bolt within the Box
+                            .padding(0.dp)
+                            .fillMaxSize(),
+                        contentAlignment = Alignment.Center
                     ) {
                         Text(
                             text = "\uDBC0\uDEE6",
-                            fontSize = 12.sp,
+                            fontSize = 15.sp,
                             fontFamily = FontFamily(Font(R.font.sf_pro)),
                             color = Color.White,
-                            modifier = Modifier.align(Alignment.Center)
+                            modifier = Modifier
+                                .align(Alignment.Center)
+                                .padding(0.dp)
                         )
                     }
                 }
             }
 
-            // Battery Tip (Protrusion)
             Box(
                 modifier = Modifier
                     .width(tipWidth)
@@ -1455,7 +1529,6 @@ fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
             )
         }
 
-        // Battery Percentage Text
         Text(
             text = "$batteryPercentage%",
             color = batteryTextColor,

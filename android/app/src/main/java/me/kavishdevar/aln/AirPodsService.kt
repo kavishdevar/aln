@@ -19,6 +19,7 @@ import android.os.Build
 import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
+import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -36,12 +37,19 @@ class AirPodsService: Service() {
         return LocalBinder()
     }
 
+    var popupShown = false
+
     fun showPopup(service: Service, name: String) {
+        if (popupShown) {
+            return
+        }
         val window = Window(service.applicationContext)
         window.open(name, batteryNotification)
+        popupShown = true
     }
 
-    private object Receiver: BroadcastReceiver() {
+    @Suppress("ClassName")
+    private object bluetoothReceiver: BroadcastReceiver() {
         @SuppressLint("NewApi", "MissingPermission")
         override fun onReceive(context: Context?, intent: Intent) {
             val bluetoothDevice =
@@ -50,11 +58,10 @@ class AirPodsService: Service() {
             val context = context?.applicationContext
             val name = context?.getSharedPreferences("settings", MODE_PRIVATE)?.getString("name", bluetoothDevice?.name)
             if (bluetoothDevice != null && action != null && !action.isEmpty()) {
-                Log.d("BluetoothReceiver", "Received broadcast")
+                Log.d("AirPodsService", "Received bluetooth connection broadcast")
                 if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
                     val uuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
                     if (bluetoothDevice.uuids.contains(uuid)) {
-                        Log.d("AirPodsService", "Service started")
                         val intent = Intent(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
                         intent.putExtra("name", name)
                         intent.putExtra("device", bluetoothDevice)
@@ -66,7 +73,6 @@ class AirPodsService: Service() {
                 if (BluetoothDevice.ACTION_ACL_DISCONNECTED == action
                     || BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED == action
                 ) {
-                    Log.d("AirPodsService", "Closed Socket")
                     context?.sendBroadcast(
                         Intent(AirPodsNotifications.AIRPODS_DISCONNECTED)
                     )
@@ -78,50 +84,135 @@ class AirPodsService: Service() {
     var isConnected = false
     var device: BluetoothDevice? = null
 
+    private lateinit var earReceiver: BroadcastReceiver
+
     fun startForegroundNotification() {
         val notificationChannel = NotificationChannel(
-            "airpods",
-            "AirPods",
-            NotificationManager.IMPORTANCE_DEFAULT
+            "background_service_status",
+            "Background Service Status",
+            NotificationManager.IMPORTANCE_LOW
         )
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(notificationChannel)
-
-        val notification = NotificationCompat.Builder(this, "airpods")
-            .setSmallIcon(R.drawable.ic_launcher_foreground)
-            .setContentTitle("AirPods Service Running")
-            .setContentText("AirPods service is running in the background.")
+        val notification = NotificationCompat.Builder(this, "background_service_status")
+            .setSmallIcon(R.drawable.airpods)
+            .setContentTitle("AirPods Service")
+            .setContentText("Service is running in the background")
             .setCategory(Notification.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .build()
 
-        startForeground(2, notification)
+        try {
+            startForeground(1, notification)
+        }
+        catch (e: Exception) {
+            e.printStackTrace()
+        }
     }
+
+    fun updateNotificationContent(connected: Boolean, airpodsName: String? = null, batteryList: List<Battery>? = null) {
+        val notificationManager = getSystemService(NotificationManager::class.java)
+        val textColor = this.getSharedPreferences("settings", MODE_PRIVATE).getLong("textColor", 0)
+        var updatedNotification: Notification? = null
+
+        if (connected) {
+            val collapsedRemoteViews = RemoteViews(packageName, R.layout.notification)
+            val expandedRemoteViews = RemoteViews(packageName, R.layout.notification_expanded)
+            collapsedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
+
+            collapsedRemoteViews.setTextViewText(R.id.notification_title, "Connected to $airpodsName")
+            expandedRemoteViews.setTextViewText(
+                R.id.notification_title,
+                "Connected to $airpodsName"
+            )
+            expandedRemoteViews.setTextViewText(
+                R.id.left_battery_notification,
+                batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "Left ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: "")
+            expandedRemoteViews.setTextViewText(
+                R.id.right_battery_notification,
+                batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "Right ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: "")
+            expandedRemoteViews.setTextViewText(
+                R.id.case_battery_notification,
+                batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "Case ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: "")
+            expandedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
+            expandedRemoteViews.setTextColor(R.id.left_battery_notification, textColor.toInt())
+            expandedRemoteViews.setTextColor(R.id.right_battery_notification, textColor.toInt())
+            expandedRemoteViews.setTextColor(R.id.case_battery_notification, textColor.toInt())
+            updatedNotification = NotificationCompat.Builder(this, "background_service_status")
+                .setSmallIcon(R.drawable.airpods)
+                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                .setCustomContentView(collapsedRemoteViews)
+                .setCustomBigContentView(expandedRemoteViews)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setOngoing(true)
+                .build()
+        } else {
+            updatedNotification = NotificationCompat.Builder(this, "background_service_status")
+                .setSmallIcon(R.drawable.airpods)
+                .setContentTitle("AirPods Service")
+                .setContentText("Service is running in the background!")
+                .setCategory(Notification.CATEGORY_SERVICE)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .build()
+        }
+
+        // Notify the NotificationManager with the same ID
+        notificationManager.notify(1, updatedNotification)
+    }
+
+    private lateinit var connectionReceiver: BroadcastReceiver
+    private lateinit var disconnectionReceiver: BroadcastReceiver
 
     @SuppressLint("InlinedApi", "MissingPermission")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("AirPodsService", "Service started")
         startForegroundNotification()
-        registerReceiver(Receiver, BluetoothReceiver.buildFilter(), RECEIVER_EXPORTED)
+        registerReceiver(bluetoothReceiver, BluetoothReceiver.buildFilter(), RECEIVER_EXPORTED)
 
-        registerReceiver(object: BroadcastReceiver() {
+        connectionReceiver = object: BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                val name = this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).getString("name", device?.name)
-                device = intent?.getParcelableExtra("device", BluetoothDevice::class.java)!!
-                showPopup(this@AirPodsService, name.toString())
-                connectToSocket(device!!)
-                sendBroadcast(Intent(AirPodsNotifications.AIRPODS_CONNECTED).apply {
-                    putExtra("device", device)
-                })
+                if (intent?.action == AirPodsNotifications.AIRPODS_CONNECTION_DETECTED) {
+                    val name = this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE)
+                        .getString("name", device?.name)
+                    Log.d("AirPodsService", "$name connected")
+                    device = intent.getParcelableExtra("device", BluetoothDevice::class.java)!!
+                    showPopup(this@AirPodsService, name.toString())
+                    connectToSocket(device!!)
+                    updateNotificationContent(true, name.toString(), batteryNotification.getBattery())
+                }
+                else if (intent?.action == AirPodsNotifications.AIRPODS_DISCONNECTED) {
+                    device = null
+                    isConnected = false
+                    popupShown = false
+                    updateNotificationContent(false)
+                }
             }
-        }, IntentFilter(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED), RECEIVER_EXPORTED)
+        }
 
-        registerReceiver(object: BroadcastReceiver() {
-            override fun onReceive(context: Context?, intent: Intent?) {
-                device = null
-                isConnected = false
-            }
-        }, IntentFilter(AirPodsNotifications.AIRPODS_DISCONNECTED), RECEIVER_EXPORTED)
+        val intentFilter = IntentFilter().apply {
+            addAction(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
+            addAction(AirPodsNotifications.AIRPODS_DISCONNECTED)
+        }
+        registerReceiver(connectionReceiver, intentFilter, RECEIVER_EXPORTED)
 
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
          bluetoothAdapter.bondedDevices.forEach { device ->
@@ -200,9 +291,8 @@ class AirPodsService: Service() {
                     delay(500)
                     it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
                     it.outputStream.flush()
-                    Log.d("AirPodsService","This should run first")
                 }
-                Log.d("AirPodsService","This should run later")
+
                 sendBroadcast(
                     Intent(AirPodsNotifications.AIRPODS_CONNECTED)
                         .putExtra("device", device)
@@ -243,7 +333,7 @@ class AirPodsService: Service() {
                                 })
                                 Log.d("AirPods Parser", "Ear Detection: ${earDetectionNotification.status[0]} ${earDetectionNotification.status[1]}")
                                 var justEnabledA2dp = false
-                                val earReceiver = object : BroadcastReceiver() {
+                                earReceiver = object : BroadcastReceiver() {
                                     override fun onReceive(context: Context, intent: Intent) {
                                         val data = intent.getByteArrayExtra("data")
                                         if (data != null && earDetectionEnabled) {
@@ -325,17 +415,16 @@ class AirPodsService: Service() {
                                 sendBroadcast(Intent(AirPodsNotifications.BATTERY_DATA).apply {
                                     putParcelableArrayListExtra("data", ArrayList(batteryNotification.getBattery()))
                                 })
+                                updateNotificationContent(true, this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).getString("name", device.name), batteryNotification.getBattery())
                                 for (battery in batteryNotification.getBattery()) {
                                     Log.d("AirPods Parser", "${battery.getComponentName()}: ${battery.getStatusName()} at ${battery.level}% ")
                                 }
-//                                if both are charging, disconnect audio profiles
                                 if (batteryNotification.getBattery()[0].status == 1 && batteryNotification.getBattery()[1].status == 1) {
                                     disconnectAudio(this@AirPodsService, device)
                                 }
                                 else {
                                     connectAudio(this@AirPodsService, device)
                                 }
-//                                updatePodsStatus(device!!, batteryNotification.getBattery())
                             }
                             else if (conversationAwarenessNotification.isConversationalAwarenessData(data)) {
                                 conversationAwarenessNotification.setData(data)
@@ -357,7 +446,6 @@ class AirPodsService: Service() {
                     }
                     Log.d("AirPods Service", "Socket closed")
                     isConnected = false
-                    this@AirPodsService.stopForeground(STOP_FOREGROUND_REMOVE)
                     socket.close()
                     sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
                 }
@@ -471,22 +559,6 @@ class AirPodsService: Service() {
         return ancNotification.status
     }
 
-    private fun createNotification(): Notification {
-        val channelId = "battery"
-        val notificationBuilder = NotificationCompat.Builder(this, channelId)
-            .setSmallIcon(R.drawable.pro_2_buds)
-            .setContentTitle("AirPods Connected")
-            .setOngoing(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-
-        val channel =
-            NotificationChannel(channelId, "Battery Notification", NotificationManager.IMPORTANCE_LOW)
-
-        val notificationManager = getSystemService(NotificationManager::class.java)
-        notificationManager.createNotificationChannel(channel)
-        return notificationBuilder.build()
-    }
-
     fun disconnectAudio(context: Context, device: BluetoothDevice?) {
         val bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
 
@@ -589,5 +661,30 @@ class AirPodsService: Service() {
         val bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         socket.outputStream?.write(bytes)
         socket.outputStream?.flush()
+    }
+
+    override fun onDestroy() {
+        Log.d("AirPodsService", "Service stopped is being destroyed for some reason!")
+        try {
+            unregisterReceiver(bluetoothReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            unregisterReceiver(connectionReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            unregisterReceiver(disconnectionReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        try {
+            unregisterReceiver(earReceiver)
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        super.onDestroy()
     }
 }

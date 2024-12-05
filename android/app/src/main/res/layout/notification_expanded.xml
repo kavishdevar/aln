@@ -1,0 +1,49 @@
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
+
+    <TextView
+        android:id="@+id/notification_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:textSize="16sp"
+        android:textColor="?android:attr/textColorPrimary"
+        android:fontFamily="@font/sf_pro" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingTop="8dp"
+        android:gravity="center">
+        <TextView
+            android:id="@+id/left_battery_notification"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/sf_pro"
+            android:textSize="15sp"
+            android:paddingEnd="16dp"
+            android:layout_weight="1"
+            tools:ignore="RtlSymmetry" />
+        <TextView
+            android:id="@+id/right_battery_notification"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/sf_pro"
+            android:textSize="15sp"
+            android:layout_weight="1"
+            android:paddingEnd="16dp"
+            tools:ignore="RtlSymmetry" />
+        <TextView
+            android:id="@+id/case_battery_notification"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:fontFamily="@font/sf_pro"
+            android:layout_weight="1"
+            android:textSize="15sp" />
+    </LinearLayout>
+
+</LinearLayout>
