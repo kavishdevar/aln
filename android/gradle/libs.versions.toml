@@ -13,6 +13,8 @@ composeBom = "2024.11.00"
 annotations = "26.0.0"
 navigationCompose = "2.8.4"
 constraintlayout = "2.2.0"
+haze = "1.1.1"
+hazeMaterials = "1.1.1"
 
 [libraries]
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
@@ -34,6 +36,8 @@ androidx-material3 = { group = "androidx.compose.material3", name = "material3" 
 annotations = { group = "org.jetbrains", name = "annotations", version.ref = "annotations" }
 androidx-navigation-compose = { group = "androidx.navigation", name = "navigation-compose", version.ref = "navigationCompose" }
 androidx-constraintlayout = { group = "androidx.constraintlayout", name = "constraintlayout", version.ref = "constraintlayout" }
+haze = { group = "dev.chrisbanes.haze", name = "haze", version.ref = "haze" }
+haze-materials = { group = "dev.chrisbanes.haze", name = "haze-materials", version.ref = "hazeMaterials" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

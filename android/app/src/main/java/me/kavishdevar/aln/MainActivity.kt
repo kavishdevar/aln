@@ -34,7 +34,6 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
-import com.primex.core.ExperimentalToolkitApi
 import me.kavishdevar.aln.ui.theme.ALNTheme
 
 lateinit var serviceConnection: ServiceConnection
@@ -42,7 +41,6 @@ lateinit var connectionStatusReceiver: BroadcastReceiver
 
 @ExperimentalMaterial3Api
 class MainActivity : ComponentActivity() {
-    @OptIn(ExperimentalToolkitApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -138,7 +136,7 @@ fun Main() {
             composable("settings") {
                 if (airPodsService.value != null) {
                     AirPodsSettingsScreen(
-                        device = airPodsService.value?.device,
+                        dev = airPodsService.value?.device,
                         service = airPodsService.value!!,
                         navController = navController,
                         isConnected = isConnected.value

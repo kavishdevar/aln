@@ -14,7 +14,7 @@ android {
         minSdk = 28
         targetSdk = 35
         versionCode = 1
-        versionName = "0.0.2-beta"
+        versionName = "0.0.2-beta3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -54,6 +54,8 @@ dependencies {
     implementation(libs.annotations)
     implementation(libs.androidx.navigation.compose)
     implementation(libs.androidx.constraintlayout)
+    implementation(libs.haze)
+    implementation(libs.haze.materials)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -61,5 +63,4 @@ dependencies {
     androidTestImplementation(libs.androidx.ui.test.junit4)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
-    implementation("com.github.prime-zs.toolkit:core-ktx:2.1.0")
 }

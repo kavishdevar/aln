@@ -12,7 +12,6 @@ import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
 import android.os.ParcelUuid
-import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
@@ -87,9 +86,11 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import com.primex.core.ExperimentalToolkitApi
-import com.primex.core.blur.newBackgroundBlur
-import me.kavishdevar.aln.AirPodsService
+import dev.chrisbanes.haze.HazeState
+import dev.chrisbanes.haze.haze
+import dev.chrisbanes.haze.hazeChild
+import dev.chrisbanes.haze.materials.CupertinoMaterials
+import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlin.math.roundToInt
 
 
@@ -500,14 +501,16 @@ fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPref
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalToolkitApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
 @SuppressLint("MissingPermission", "NewApi")
 @Composable
-fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService,
+fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                           navController: NavController, isConnected: Boolean) {
     val sharedPreferences = LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE)
+    var device by remember { mutableStateOf(dev) }
     var deviceName by remember { mutableStateOf(TextFieldValue(sharedPreferences.getString("name", device?.name ?: "") ?: "")) }
     val verticalScrollState  = rememberScrollState()
+    val hazeState = remember { HazeState() }
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(
@@ -517,73 +520,93 @@ fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService,
         ),
         topBar = {
             val darkMode = MaterialTheme.colorScheme.surface.luminance() < 0.5
-            CenterAlignedTopAppBar(
-                title = {
-                    Text(
-                        text = if (device != null) LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE).getString("name", device.name).toString() else "",
-                        color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black,
-                    )
-                },
-                modifier = Modifier
-                    .newBackgroundBlur(
-                        radius = 24.dp,
-                        downsample = 0.5f,
-                    )
-                    .drawBehind {
-                        val strokeWidth = 0.7.dp.value * density
-                        val y = size.height - strokeWidth / 2
-                        if (verticalScrollState.value > 55.dp.value * density) {
-                            drawLine(
-                                if (darkMode) Color.DarkGray else Color.LightGray,
-                                Offset(0f, y),
-                                Offset(size.width, y),
-                                strokeWidth
-                            )
-                        }
+            val mdensity = remember { mutableFloatStateOf(1f) }
+                CenterAlignedTopAppBar(
+                    title = {
+                        Text(
+                            text = deviceName.text
+                        )
                     },
-                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                    containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.Black.copy(0.3f) else Color(0xFFF2F2F7).copy(0.2f),
-                ),
-                actions = {
-                    val context = LocalContext.current
-                    IconButton(
-                        onClick = {
-                            val bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
-                            bluetoothAdapter.bondedDevices.forEach { device ->
-                                if (device.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
-                                    bluetoothAdapter.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
-                                        override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-                                            if (profile == BluetoothProfile.A2DP) {
-                                                val connectedDevices = proxy.connectedDevices
-                                                if (connectedDevices.isNotEmpty()) {
-                                                    service.connectToSocket(device)
-                                                }
-                                            }
-                                            bluetoothAdapter.closeProfileProxy(profile, proxy)
-                                        }
-
-                                        override fun onServiceDisconnected(profile: Int) { }
-                                    }, BluetoothProfile.A2DP)
-                                }
+                    modifier = Modifier
+                        .hazeChild(
+                            state = hazeState,
+                            style = CupertinoMaterials.thin(),
+                            block = {
+//                                make the background transparent when not scrolled yet
+                                alpha = if (verticalScrollState.value > 55.dp.value * mdensity.floatValue) 1f else 0f
+                            }
+                        )
+                        .drawBehind {
+                            mdensity.value = density
+                            val strokeWidth = 0.7.dp.value * density
+                            val y = size.height - strokeWidth / 2
+                            if (verticalScrollState.value > 55.dp.value * density) {
+                                drawLine(
+                                    if (darkMode) Color.DarkGray else Color.LightGray,
+                                    Offset(0f, y),
+                                    Offset(size.width, y),
+                                    strokeWidth
+                                )
                             }
                         },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
-                        )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Refresh,
-                            contentDescription = "Settings",
-                        )
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = Color.Transparent
+                    ),
+                    actions = {
+                        val context = LocalContext.current
+                        IconButton(
+                            onClick = {
+                                val bluetoothAdapter =
+                                    context.getSystemService(BluetoothManager::class.java).adapter
+                                bluetoothAdapter.bondedDevices.forEach { d ->
+                                    if (d.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                                        bluetoothAdapter.getProfileProxy(
+                                            context,
+                                            object : BluetoothProfile.ServiceListener {
+                                                override fun onServiceConnected(
+                                                    profile: Int,
+                                                    proxy: BluetoothProfile
+                                                ) {
+                                                    if (profile == BluetoothProfile.A2DP) {
+                                                        val connectedDevices =
+                                                            proxy.connectedDevices
+                                                        if (connectedDevices.isNotEmpty()) {
+                                                            service.connectToSocket(d)
+                                                            device = d
+                                                            deviceName = TextFieldValue(d.name)
+                                                        }
+                                                    }
+                                                    bluetoothAdapter.closeProfileProxy(
+                                                        profile,
+                                                        proxy
+                                                    )
+                                                }
+
+                                                override fun onServiceDisconnected(profile: Int) {}
+                                            },
+                                            BluetoothProfile.A2DP
+                                        )
+                                    }
+                                }
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Settings",
+                            )
+                        }
                     }
-                }
-            )
+                )
         }
     ) { paddingValues ->
         if (isConnected == true) {
             Column(
                 modifier = Modifier
+                    .haze(hazeState)
                     .fillMaxSize()
                     .padding(horizontal = 16.dp)
                     .verticalScroll(
@@ -840,7 +863,7 @@ fun NoiseControlSlider(service: AirPodsService, sharedPreferences: SharedPrefere
 @Preview
 @Composable
 fun Preview() {
-    IndependentToggle("Case Charging Sounds", AirPodsService(), "setCaseChargingSounds", LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE))
+    IndependentToggle("Case Charging Sounds", AirPodsService(), "setCaseChargingSounds", LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE))
 }
 
 @Composable
