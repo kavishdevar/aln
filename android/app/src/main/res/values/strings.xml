@@ -1,5 +1,4 @@
 <resources>
     <string name="app_name">ALN</string>
-    <string name="title_activity_debug">DebugActivity</string>
-    <string name="title_activity_custom_device">CustomDevice</string>
+    <string name="title_activity_custom_device">GATT Testing</string>
 </resources>

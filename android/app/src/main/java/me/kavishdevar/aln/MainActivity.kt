@@ -70,6 +70,22 @@ class MainActivity : ComponentActivity() {
         }
         super.onDestroy()
     }
+
+    override fun onStop() {
+        try {
+            unbindService(serviceConnection)
+            Log.d("MainActivity", "Unbound service")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error while unbinding service: $e")
+        }
+        try {
+            unregisterReceiver(connectionStatusReceiver)
+            Log.d("MainActivity", "Unregistered receiver")
+        } catch (e: Exception) {
+            Log.e("MainActivity", "Error while unregistering receiver: $e")
+        }
+        super.onStop()
+    }
 }
 
 @SuppressLint("MissingPermission", "InlinedApi")
@@ -86,7 +102,6 @@ fun Main() {
 
     val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
     if (permissionState.allPermissionsGranted) {
-        Log.d("MainActivity", "HIIIIIIIIIIIIIII")
         val context = LocalContext.current
         val navController = rememberNavController()
 

@@ -23,9 +23,20 @@ import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.lsposed.hiddenapibypass.HiddenApiBypass
+
+object ServiceManager {
+    private var service: AirPodsService? = null
+    @Synchronized
+    fun getService(): AirPodsService? {
+        return service
+    }
+    @Synchronized
+    fun setService(service: AirPodsService?) {
+        this.service = service
+    }
+}
 
 @Suppress("unused")
 class AirPodsService: Service() {
@@ -185,6 +196,7 @@ class AirPodsService: Service() {
     @SuppressLint("InlinedApi", "MissingPermission")
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         Log.d("AirPodsService", "Service started")
+        ServiceManager.setService(this)
         startForegroundNotification()
         registerReceiver(bluetoothReceiver, BluetoothReceiver.buildFilter(), RECEIVER_EXPORTED)
 
@@ -215,7 +227,7 @@ class AirPodsService: Service() {
         registerReceiver(connectionReceiver, intentFilter, RECEIVER_EXPORTED)
 
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
-         bluetoothAdapter.bondedDevices.forEach { device ->
+        bluetoothAdapter.bondedDevices.forEach { device ->
             if (device.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
                 bluetoothAdapter.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
                     override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
@@ -223,6 +235,9 @@ class AirPodsService: Service() {
                             val connectedDevices = proxy.connectedDevices
                             if (connectedDevices.isNotEmpty()) {
                                 connectToSocket(device)
+                                this@AirPodsService.sendBroadcast(
+                                    Intent(AirPodsNotifications.AIRPODS_CONNECTED)
+                                )
                             }
                         }
                         bluetoothAdapter.closeProfileProxy(profile, proxy)
@@ -242,6 +257,12 @@ class AirPodsService: Service() {
     fun connectToSocket(device: BluetoothDevice) {
         HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
         val uuid: ParcelUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
+
+        try {
+            socket.close()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
 
         try {
             socket = HiddenApiBypass.newInstance(
@@ -282,21 +303,17 @@ class AirPodsService: Service() {
             this@AirPodsService.device = device
             isConnected = true
             socket.let { it ->
-                CoroutineScope(Dispatchers.IO).launch {
-                    it.outputStream.write(Enums.HANDSHAKE.value)
-                    it.outputStream.flush()
-                    delay(500)
-                    it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
-                    it.outputStream.flush()
-                    delay(500)
-                    it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
-                    it.outputStream.flush()
-                }
-
+                it.outputStream.write(Enums.HANDSHAKE.value)
+                it.outputStream.flush()
+                it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
+                it.outputStream.flush()
+                it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
+                it.outputStream.flush()
                 sendBroadcast(
                     Intent(AirPodsNotifications.AIRPODS_CONNECTED)
                         .putExtra("device", device)
                 )
+
                 CoroutineScope(Dispatchers.IO).launch {
                     while (socket.isConnected == true) {
                         socket.let {
@@ -316,7 +333,7 @@ class AirPodsService: Service() {
                             }
                             else if (bytesRead == -1) {
                                 Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
-                                socket.close()
+//                                socket.close()
                                 sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
                                 return@launch
                             }

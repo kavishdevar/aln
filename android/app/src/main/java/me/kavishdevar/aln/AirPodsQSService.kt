@@ -10,20 +10,17 @@ import android.service.quicksettings.TileService
 import android.util.Log
 
 class AirPodsQSService: TileService() {
-    private val sharedPreferences = ServiceManager.getService()?.getSharedPreferences("me.kavishdevar.aln", Context.MODE_PRIVATE)
-    private val offListeningModeEnabled = sharedPreferences?.getBoolean("off_listening_mode", false) == true
-    private val ancModes = if (offListeningModeEnabled) listOf(NoiseControlMode.OFF.name, NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name) else listOf(NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)
-    private var currentModeIndex = if (offListeningModeEnabled) 3 else 2
+    private val ancModes = listOf(NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)
+    private var currentModeIndex = 2
     private lateinit var ancStatusReceiver: BroadcastReceiver
     private lateinit var availabilityReceiver: BroadcastReceiver
 
     @SuppressLint("InlinedApi")
     override fun onStartListening() {
-        Log.d("AirPodsQSService", "off mode: $offListeningModeEnabled")
         super.onStartListening()
-        currentModeIndex = (ServiceManager.getService()?.getANC()?.minus(if (offListeningModeEnabled) 1 else 2)) ?: if (offListeningModeEnabled) 3 else 2
+        currentModeIndex = (ServiceManager.getService()?.getANC()?.minus(1)) ?: -1
         if (currentModeIndex == -1) {
-            currentModeIndex = if (offListeningModeEnabled) 3 else 2
+            currentModeIndex = 2
         }
 
         if (ServiceManager.getService() == null) {
@@ -42,7 +39,7 @@ class AirPodsQSService: TileService() {
         ancStatusReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val ancStatus = intent.getIntExtra("data", 4)
-                currentModeIndex = ancStatus - if (offListeningModeEnabled) 1 else 2
+                currentModeIndex = ancStatus - 1
                 updateTile()
             }
         }
@@ -89,10 +86,9 @@ class AirPodsQSService: TileService() {
     override fun onClick() {
         super.onClick()
         Log.d("QuickSettingTileService", "ANC tile clicked")
-        Log.d("QuickSettingTileService", "Current mode index: $currentModeIndex, ancModes size: ${ancModes.size}")
         currentModeIndex = (currentModeIndex + 1) % ancModes.size
-        Log.d("QuickSettingTileService", "New mode index: $currentModeIndex")
-        switchAncMode(if (offListeningModeEnabled) currentModeIndex + 1 else currentModeIndex + 2)
+        Log.d("QuickSettingTileService", "New mode index: $currentModeIndex, would be set to ${currentModeIndex + 1}")
+        switchAncMode()
     }
 
     private fun updateTile() {
@@ -102,10 +98,11 @@ class AirPodsQSService: TileService() {
         qsTile.updateTile()
     }
 
-    private fun switchAncMode(modeIndex: Int) {
-        currentModeIndex = if (offListeningModeEnabled) modeIndex else modeIndex - 1
+    private fun switchAncMode() {
         val airPodsService = ServiceManager.getService()
-        airPodsService?.setANCMode(if (offListeningModeEnabled) modeIndex + 1 else modeIndex)
+        Log.d("QuickSettingTileService", "Setting ANC mode to ${currentModeIndex + 2}")
+        airPodsService?.setANCMode(currentModeIndex + 2)
+        Log.d("QuickSettingTileService", "ANC mode set to ${currentModeIndex + 2}")
         updateTile()
     }
 }

@@ -2,6 +2,8 @@ package me.kavishdevar.aln
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.bluetooth.BluetoothManager
+import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
@@ -9,6 +11,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
+import android.os.ParcelUuid
+import android.util.Log
 import androidx.annotation.RequiresApi
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.Image
@@ -37,6 +41,7 @@ import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -84,6 +89,7 @@ import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import com.primex.core.ExperimentalToolkitApi
 import com.primex.core.blur.newBackgroundBlur
+import me.kavishdevar.aln.AirPodsService
 import kotlin.math.roundToInt
 
 
@@ -157,38 +163,19 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
                     horizontalArrangement = Arrangement.Center
                 ) {
                     if (left?.status != BatteryStatus.DISCONNECTED) {
-                        Row (
-                            horizontalArrangement = Arrangement.SpaceEvenly,
-                            modifier = Modifier
-                                .weight(1f)
-                        ) {
-                            Text(
-                                text = "\uDBC6\uDCE5",
-                                fontFamily = FontFamily(Font(R.font.sf_pro)),
-                            )
-                            BatteryIndicator(
-                                left?.level ?: 0,
-                                left?.status == BatteryStatus.CHARGING
-                            )
-                        }
+                        BatteryIndicator(
+                            left?.level ?: 0,
+                            left?.status == BatteryStatus.CHARGING
+                        )
+                    }
+                    if (left?.status != BatteryStatus.DISCONNECTED && right?.status != BatteryStatus.DISCONNECTED) {
+                        Spacer(modifier = Modifier.width(16.dp))
                     }
                     if (right?.status != BatteryStatus.DISCONNECTED) {
-                        Row (
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier
-                                .weight(1f)
-                        ) {
-                            Text(
-                                text = "\uDBC6\uDCE8",
-                                fontFamily = FontFamily(Font(R.font.sf_pro)),
-                                modifier = Modifier
-                                    .fillMaxWidth(0.5f)
-                            )
-                            BatteryIndicator(
-                                right?.level ?: 0,
-                                right?.status == BatteryStatus.CHARGING
-                            )
-                        }
+                        BatteryIndicator(
+                            right?.level ?: 0,
+                            right?.status == BatteryStatus.CHARGING
+                        )
                     }
                 }
             }
@@ -556,7 +543,41 @@ fun AirPodsSettingsScreen(device: BluetoothDevice?, service: AirPodsService,
                     },
                 colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                     containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.Black.copy(0.3f) else Color(0xFFF2F2F7).copy(0.2f),
-                )
+                ),
+                actions = {
+                    val context = LocalContext.current
+                    IconButton(
+                        onClick = {
+                            val bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
+                            bluetoothAdapter.bondedDevices.forEach { device ->
+                                if (device.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                                    bluetoothAdapter.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
+                                        override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                                            if (profile == BluetoothProfile.A2DP) {
+                                                val connectedDevices = proxy.connectedDevices
+                                                if (connectedDevices.isNotEmpty()) {
+                                                    service.connectToSocket(device)
+                                                }
+                                            }
+                                            bluetoothAdapter.closeProfileProxy(profile, proxy)
+                                        }
+
+                                        override fun onServiceDisconnected(profile: Int) { }
+                                    }, BluetoothProfile.A2DP)
+                                }
+                            }
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Refresh,
+                            contentDescription = "Settings",
+                        )
+                    }
+                }
             )
         }
     ) { paddingValues ->
@@ -1467,8 +1488,8 @@ fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
     val batteryWidth = 40.dp
     val batteryHeight = 15.dp
     val batteryCornerRadius = 4.dp
-    val tipWidth = 4.dp
-    val tipHeight = batteryHeight * 0.3f
+    val tipWidth = 5.dp
+    val tipHeight = batteryHeight * 0.375f
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
