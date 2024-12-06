@@ -1,6 +1,5 @@
 # ALN - AirPods like Normal
 *Access AirPods' Apple-exclusive features on linux and android!*
-### Check out the packet definitions at [AAP Definitions](/AAP%20Definitions.md)
 
 ## Tested device(s)
 - AirPods Pro 2
@@ -110,6 +109,8 @@ Recognizes when the AirPods are in your ears to automatically play or pause audi
 |-------------------|-------------------|-------------------|
 | ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
 | ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
+
+## Check out the packet definitions at [AAP Definitions](/AAP%20Definitions.md)
 
 # License
 
