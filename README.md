@@ -101,9 +101,10 @@ Quick Tile to toggle Conversational Awareness and to switch Noise Control modes,
 
 ### Screenshots of the app
 
-![AirPods Settings](/android/imgs/settings.png)
-![Debugging View](/android/imgs/debug.png)
-
+| | | |
+|-------------------|-------------------|-------------------|
+| ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
+| ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
 # License
 
 AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
