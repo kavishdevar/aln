@@ -39,7 +39,7 @@ class AirPodsQSService: TileService() {
         ancStatusReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val ancStatus = intent.getIntExtra("data", 4)
-                currentModeIndex = ancStatus - 1
+                currentModeIndex = if (ancStatus == 2) 0 else if (ancStatus == 3) 1 else if (ancStatus == 4) 2 else 2
                 updateTile()
             }
         }
@@ -58,6 +58,10 @@ class AirPodsQSService: TileService() {
         }
 
         registerReceiver(ancStatusReceiver, IntentFilter(AirPodsNotifications.ANC_DATA), RECEIVER_EXPORTED)
+
+        qsTile.state = if (ServiceManager.getService()?.isConnected == true) Tile.STATE_ACTIVE else Tile.STATE_UNAVAILABLE
+        val ancIndex = ServiceManager.getService()?.getANC()
+        currentModeIndex = if (ancIndex != null) { if (ancIndex == 2) 0 else if (ancIndex == 3) 1 else if (ancIndex == 4) 2 else 2 } else 0
         updateTile()
     }
 
