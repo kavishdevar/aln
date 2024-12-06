@@ -25,7 +25,7 @@
             android:fontFamily="@font/sf_pro"
             android:gravity="center"
             android:text="Kavish's AirPods Pro"
-            android:textColor="@color/white"
+            android:textColor="@color/popup_text"
 
             android:textSize="28sp"
             app:layout_constraintTop_toTopOf="parent"
@@ -72,7 +72,7 @@
                 android:layout_marginTop="16dp"
                 android:fontFamily="@font/sf_pro"
                 android:text=""
-                android:textColor="@color/white"
+                android:textColor="@color/popup_text"
                 android:textSize="20sp"
                 android:id="@+id/left_battery"
                 android:gravity="center"
@@ -88,7 +88,7 @@
                 android:gravity="center"
                 android:text=""
                 android:id="@+id/right_battery"
-                android:textColor="@color/white"
+                android:textColor="@color/popup_text"
                 android:textSize="20sp" />
         </LinearLayout>
 
@@ -103,7 +103,7 @@
             android:fontFamily="@font/sf_pro"
             android:gravity="center"
             android:text=""
-            android:textColor="@color/white"
+            android:textColor="@color/popup_text"
             android:textSize="20sp" />
     </LinearLayout>
 </LinearLayout>

@@ -1,0 +1,16 @@
+<resources>
+
+    <style name="Widget.ALN.AppWidget.Container" parent="android:Widget">
+        <item name="android:id">@android:id/background</item>
+        <item name="android:padding">?attr/appWidgetPadding</item>
+        <item name="android:background">@drawable/app_widget_background</item>
+        <item name="android:clipToOutline">true</item>
+    </style>
+
+    <style name="Widget.ALN.AppWidget.InnerView" parent="android:Widget">
+        <item name="android:padding">?attr/appWidgetPadding</item>
+        <item name="android:background">@drawable/app_widget_inner_view_background</item>
+        <item name="android:textColor">?android:attr/textColorPrimary</item>
+        <item name="android:clipToOutline">true</item>
+    </style>
+</resources>

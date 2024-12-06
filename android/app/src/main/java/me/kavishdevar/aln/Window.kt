@@ -9,6 +9,7 @@ import android.graphics.PixelFormat
 import android.util.Log
 import android.view.Gravity
 import android.view.LayoutInflater
+import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.view.animation.AccelerateInterpolator
@@ -17,25 +18,35 @@ import android.widget.ImageButton
 import android.widget.LinearLayout
 import android.widget.TextView
 import android.widget.VideoView
-import androidx.lifecycle.findViewTreeLifecycleOwner
-import androidx.lifecycle.setViewTreeLifecycleOwner
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.lang.Exception
 
-@SuppressLint("InflateParams")
+@SuppressLint("InflateParams", "ClickableViewAccessibility")
 class Window (context: Context) {
     private val mView: View
-    private val mParams: WindowManager.LayoutParams = WindowManager.LayoutParams(
-        (context.resources.displayMetrics.widthPixels * 0.95).toInt(),
-        WindowManager.LayoutParams.WRAP_CONTENT,  // Display it on top of other application windows
-        WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,  // Don't let it grab the input focus
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,  // Make the underlying application window visible
-        PixelFormat.TRANSLUCENT
-    )
+
+    @Suppress("DEPRECATION")
+    @SuppressLint("NewApi")
+    private val mParams: WindowManager.LayoutParams = WindowManager.LayoutParams().apply {
+        height = WindowManager.LayoutParams.WRAP_CONTENT
+        width = WindowManager.LayoutParams.MATCH_PARENT
+        type = WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+        format = PixelFormat.TRANSLUCENT
+        gravity = Gravity.BOTTOM
+        dimAmount = 0.3f
+        flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
+                WindowManager.LayoutParams.FLAG_FULLSCREEN or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_DIM_BEHIND or
+                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+    }
+
+
     private val mWindowManager: WindowManager
+
     init {
         val layoutInflater = context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
         mView = layoutInflater.inflate(R.layout.popup_window, null)
@@ -56,7 +67,29 @@ class Window (context: Context) {
         ll.setOnClickListener {
             close()
         }
-        ll.setViewTreeLifecycleOwner(mView.findViewTreeLifecycleOwner())
+
+        @Suppress("DEPRECATION")
+        mView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
+                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+                View.SYSTEM_UI_FLAG_FULLSCREEN or
+                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+
+        mView.setOnTouchListener { _, event ->
+            if (event.action == MotionEvent.ACTION_DOWN) {
+                val touchY = event.rawY
+                val popupTop = mView.top
+                if (touchY < popupTop) {
+                    close()
+                    true
+                } else {
+                    false
+                }
+            } else {
+                false
+            }
+        }
         mWindowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     }
 
@@ -91,49 +124,6 @@ class Window (context: Context) {
                     batteryCaseText.text = batteryStatus.find { it.component == BatteryComponent.CASE }?.let {
                         "\uDBC3\uDE6C    ${it.level}%"
                     } ?: ""
-//                    composeView.setContent {
-//                        Row (
-//                            modifier = Modifier
-//                                .fillMaxWidth(),
-//                            horizontalArrangement = Arrangement.Center,
-//                            verticalAlignment = Alignment.CenterVertically
-//                        ) {
-//                            Row (
-//                                modifier = Modifier
-//                                    .fillMaxWidth(0.5f),
-//                                horizontalArrangement = Arrangement.SpaceBetween
-//                            ){
-//                                val left = batteryStatus.find { it.component == BatteryComponent.LEFT }
-//                                val right = batteryStatus.find { it.component == BatteryComponent.RIGHT }
-//                                if ((right?.status == BatteryStatus.CHARGING && left?.status == BatteryStatus.CHARGING) || (left?.status == BatteryStatus.NOT_CHARGING && right?.status == BatteryStatus.NOT_CHARGING))
-//                                {
-//                                    BatteryIndicator(right.level.let { left.level.coerceAtMost(it) }, left.status == BatteryStatus.CHARGING)
-//                                }
-//                                else {
-//                                    Row {
-//                                        if (left?.status != BatteryStatus.DISCONNECTED) {
-//                                            Text(text = "\uDBC6\uDCE5", fontFamily = FontFamily(Font(R.font.sf_pro)))
-//                                            BatteryIndicator(left?.level ?: 0, left?.status == BatteryStatus.CHARGING)
-//                                            Spacer(modifier = Modifier.width(16.dp))
-//                                        }
-//                                        if (right?.status != BatteryStatus.DISCONNECTED) {
-//                                            Text(text = "\uDBC6\uDCE8", fontFamily = FontFamily(Font(R.font.sf_pro)))
-//                                            BatteryIndicator(right?.level ?: 0, right?.status == BatteryStatus.CHARGING)
-//                                        }
-//                                    }
-//                                }
-//                            }
-//                            Row (
-//                                modifier = Modifier
-//                                    .fillMaxWidth(),
-//                                horizontalArrangement = Arrangement.Center
-//                            ) {
-//                                val case =
-//                                    batteryStatus.find { it.component == BatteryComponent.CASE }
-//                                BatteryIndicator(case?.level ?: 0)
-//                            }
-//                        }
-//                    }
 
                     // Slide-up animation
                     val displayMetrics = mView.context.resources.displayMetrics

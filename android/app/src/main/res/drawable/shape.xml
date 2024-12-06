@@ -4,16 +4,16 @@
     android:shape="rectangle"   >
 
     <solid
-        android:color="#000000" >
+        android:color="@color/popup_background" >
     </solid>
 
     <padding
-        android:bottom="64dp"
+        android:bottom="56dp"
         android:top="16dp">
     </padding>
 
     <corners
-        android:radius="48dp">
+        android:radius="56dp">
     </corners>
 
 </shape>
