@@ -68,6 +68,10 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 @Composable
 fun DebugScreen(navController: NavController) {
     val hazeState = remember { HazeState() }
+    val text = remember { mutableStateListOf<String>("Log Start") }
+    val context = LocalContext.current
+    val listState = rememberLazyListState()
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -82,7 +86,14 @@ fun DebugScreen(navController: NavController) {
                 modifier = Modifier
                     .hazeChild(
                         state = hazeState,
-                        style = CupertinoMaterials.thin()
+                        style = CupertinoMaterials.thin(),
+                        block = {
+                            alpha = if (listState.firstVisibleItemIndex > 0) {
+                                1f
+                            } else {
+                                0f
+                            }
+                        }
                     ),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
@@ -92,16 +103,11 @@ fun DebugScreen(navController: NavController) {
         containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF000000)
         else Color(0xFFF2F2F7),
     ) { paddingValues ->
-
-        val text = remember { mutableStateListOf<String>("Log Start") }
-        val context = LocalContext.current
-        val listState = rememberLazyListState()
-
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
                 val data = intent.getByteArrayExtra("data")
                 data?.let {
-                    text.add(">" + it.joinToString(" ") { byte -> "%02X".format(byte) }) // Use ">" for received packets
+                    text.add(">" + it.joinToString(" ") { byte -> "%02X".format(byte) })
                 }
             }
         }
@@ -121,12 +127,10 @@ fun DebugScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-//                .padding(paddingValues)
                 .imePadding()
                 .haze(hazeState)
                 .padding(top = 0.dp)
         ) {
-            Spacer(modifier = Modifier.height(55.dp))
             LazyColumn(
                 state = listState,
                 modifier = Modifier
@@ -136,7 +140,12 @@ fun DebugScreen(navController: NavController) {
                     items(text.size) { index ->
                         val message = text[index]
                         val isSent = message.startsWith(">")
-                        val backgroundColor = if (isSent) Color(0xFFE1FFC7) else Color(0xFFD1D1D1)
+                        val backgroundColor =
+                            if (isSent) Color(0xFFE1FFC7) else Color(0xFFD1D1D1)
+
+                        if (message == "Log Start") {
+                            Spacer(modifier = Modifier.height(115.dp))
+                        }
 
                         Box(
                             modifier = Modifier
@@ -155,11 +164,13 @@ fun DebugScreen(navController: NavController) {
                                 }
 
                                 Text(
-                                    text = if (isSent) message.substring(1) else message, // Remove the ">" from sent packets
+                                    text = if (isSent) message.substring(1) else message,
                                     fontFamily = FontFamily(Font(R.font.hack)),
-                                    color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF000000)
+                                    color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(
+                                        0xFF000000
+                                    )
                                     else Color(0xFF000000),
-                                    modifier = Modifier.weight(1f) // Allows text to take available space
+                                    modifier = Modifier.weight(1f)
                                 )
 
                                 if (isSent) {
@@ -170,6 +181,7 @@ fun DebugScreen(navController: NavController) {
                     }
                 }
             )
+            Spacer(modifier = Modifier.height(8.dp))
             val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
 
             val serviceConnection = object : ServiceConnection {
@@ -200,13 +212,14 @@ fun DebugScreen(navController: NavController) {
                     label = { Text("Packet") },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 8.dp), // Padding for the input field
+                        .padding(horizontal = 8.dp)
+                        .padding(bottom = 5.dp),
                     trailingIcon = {
                         IconButton(
                             onClick = {
                                 airPodsService.value?.sendPacket(packet.value.text)
-                                text.add(packet.value.text) // Add sent message directly without prefix
-                                packet.value = TextFieldValue("") // Clear input field after sending
+                                text.add(packet.value.text)
+                                packet.value = TextFieldValue("")
                             }
                         ) {
                             @Suppress("DEPRECATION")

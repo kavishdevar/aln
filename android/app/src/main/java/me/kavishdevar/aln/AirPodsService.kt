@@ -258,219 +258,248 @@ class AirPodsService: Service() {
         HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
         val uuid: ParcelUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
 
-        try {
-            socket.close()
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
+        if (isConnected != true) {
 
-        try {
-            socket = HiddenApiBypass.newInstance(
-                BluetoothSocket::class.java,
-                3,
-                true,
-                true,
-                device,
-                0x1001,
-                uuid
-            ) as BluetoothSocket
-        }
-        catch (
-            e: Exception
-        ) {
-            e.printStackTrace()
+
             try {
                 socket = HiddenApiBypass.newInstance(
                     BluetoothSocket::class.java,
                     3,
-                    1,
                     true,
                     true,
                     device,
                     0x1001,
                     uuid
                 ) as BluetoothSocket
-            }
-            catch (
+            } catch (
                 e: Exception
             ) {
                 e.printStackTrace()
+                try {
+                    socket = HiddenApiBypass.newInstance(
+                        BluetoothSocket::class.java,
+                        3,
+                        1,
+                        true,
+                        true,
+                        device,
+                        0x1001,
+                        uuid
+                    ) as BluetoothSocket
+                } catch (
+                    e: Exception
+                ) {
+                    e.printStackTrace()
+                }
             }
-        }
 
-        try {
-            socket.connect()
-            this@AirPodsService.device = device
-            isConnected = true
-            socket.let { it ->
-                it.outputStream.write(Enums.HANDSHAKE.value)
-                it.outputStream.flush()
-                it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
-                it.outputStream.flush()
-                it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
-                it.outputStream.flush()
-                sendBroadcast(
-                    Intent(AirPodsNotifications.AIRPODS_CONNECTED)
-                        .putExtra("device", device)
-                )
+            try {
+                socket.connect()
+                this@AirPodsService.device = device
+                isConnected = true
+                socket.let { it ->
+                    it.outputStream.write(Enums.HANDSHAKE.value)
+                    it.outputStream.flush()
+                    it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
+                    it.outputStream.flush()
+                    it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
+                    it.outputStream.flush()
+                    sendBroadcast(
+                        Intent(AirPodsNotifications.AIRPODS_CONNECTED)
+                            .putExtra("device", device)
+                    )
 
-                CoroutineScope(Dispatchers.IO).launch {
-                    while (socket.isConnected == true) {
-                        socket.let {
-                            val audioManager = this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
-                            MediaController.initialize(audioManager)
-                            val buffer = ByteArray(1024)
-                            val bytesRead = it.inputStream.read(buffer)
-                            var data: ByteArray = byteArrayOf()
-                            if (bytesRead > 0) {
-                                data = buffer.copyOfRange(0, bytesRead)
-                                sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DATA).apply {
-                                    putExtra("data", buffer.copyOfRange(0, bytesRead))
-                                })
-                                val bytes = buffer.copyOfRange(0, bytesRead)
-                                val formattedHex = bytes.joinToString(" ") { "%02X".format(it) }
-                                Log.d("AirPods Data", "Data received: $formattedHex")
-                            }
-                            else if (bytesRead == -1) {
-                                Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
+                    CoroutineScope(Dispatchers.IO).launch {
+                        while (socket.isConnected == true) {
+                            socket.let {
+                                val audioManager =
+                                    this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
+                                MediaController.initialize(audioManager)
+                                val buffer = ByteArray(1024)
+                                val bytesRead = it.inputStream.read(buffer)
+                                var data: ByteArray = byteArrayOf()
+                                if (bytesRead > 0) {
+                                    data = buffer.copyOfRange(0, bytesRead)
+                                    sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DATA).apply {
+                                        putExtra("data", buffer.copyOfRange(0, bytesRead))
+                                    })
+                                    val bytes = buffer.copyOfRange(0, bytesRead)
+                                    val formattedHex = bytes.joinToString(" ") { "%02X".format(it) }
+                                    Log.d("AirPods Data", "Data received: $formattedHex")
+                                } else if (bytesRead == -1) {
+                                    Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
 //                                socket.close()
-                                sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
-                                return@launch
-                            }
-                            var inEar = false
-                            var inEarData = listOf<Boolean>()
-                            if (earDetectionNotification.isEarDetectionData(data)) {
-                                earDetectionNotification.setStatus(data)
-                                sendBroadcast(Intent(AirPodsNotifications.EAR_DETECTION_DATA).apply {
-                                    val list = earDetectionNotification.status
-                                    val bytes = ByteArray(2)
-                                    bytes[0] = list[0]
-                                    bytes[1] = list[1]
-                                    putExtra("data", bytes)
-                                })
-                                Log.d("AirPods Parser", "Ear Detection: ${earDetectionNotification.status[0]} ${earDetectionNotification.status[1]}")
-                                var justEnabledA2dp = false
-                                earReceiver = object : BroadcastReceiver() {
-                                    override fun onReceive(context: Context, intent: Intent) {
-                                        val data = intent.getByteArrayExtra("data")
-                                        if (data != null && earDetectionEnabled) {
-                                            inEar = if (data.find { it == 0x02.toByte() } != null || data.find { it == 0x03.toByte() } != null) {
-                                                data[0] == 0x00.toByte() || data[1] == 0x00.toByte()
-                                            } else {
-                                                data[0] == 0x00.toByte() && data[1] == 0x00.toByte()
-                                            }
-
-                                            val newInEarData = listOf(data[0] == 0x00.toByte(), data[1] == 0x00.toByte())
-                                            if (newInEarData.contains(true) && inEarData == listOf(false, false)) {
-                                                connectAudio(this@AirPodsService, device)
-                                                justEnabledA2dp = true
-                                                val bluetoothAdapter = this@AirPodsService.getSystemService(BluetoothManager::class.java).adapter
-                                                bluetoothAdapter.getProfileProxy(
-                                                    this@AirPodsService, object : BluetoothProfile.ServiceListener {
-                                                        override fun onServiceConnected(
-                                                            profile: Int,
-                                                            proxy: BluetoothProfile
-                                                        ) {
-                                                            if (profile == BluetoothProfile.A2DP) {
-                                                                val connectedDevices =
-                                                                    proxy.connectedDevices
-                                                                if (connectedDevices.isNotEmpty()) {
-                                                                    MediaController.sendPlay()
-                                                                }
-                                                            }
-                                                            bluetoothAdapter.closeProfileProxy(
-                                                                profile,
-                                                                proxy
-                                                            )
-                                                        }
-
-                                                        override fun onServiceDisconnected(
-                                                            profile: Int
-                                                        ) {
-                                                        }
+                                    sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
+                                    return@launch
+                                }
+                                var inEar = false
+                                var inEarData = listOf<Boolean>()
+                                if (earDetectionNotification.isEarDetectionData(data)) {
+                                    earDetectionNotification.setStatus(data)
+                                    sendBroadcast(Intent(AirPodsNotifications.EAR_DETECTION_DATA).apply {
+                                        val list = earDetectionNotification.status
+                                        val bytes = ByteArray(2)
+                                        bytes[0] = list[0]
+                                        bytes[1] = list[1]
+                                        putExtra("data", bytes)
+                                    })
+                                    Log.d(
+                                        "AirPods Parser",
+                                        "Ear Detection: ${earDetectionNotification.status[0]} ${earDetectionNotification.status[1]}"
+                                    )
+                                    var justEnabledA2dp = false
+                                    earReceiver = object : BroadcastReceiver() {
+                                        override fun onReceive(context: Context, intent: Intent) {
+                                            val data = intent.getByteArrayExtra("data")
+                                            if (data != null && earDetectionEnabled) {
+                                                inEar =
+                                                    if (data.find { it == 0x02.toByte() } != null || data.find { it == 0x03.toByte() } != null) {
+                                                        data[0] == 0x00.toByte() || data[1] == 0x00.toByte()
+                                                    } else {
+                                                        data[0] == 0x00.toByte() && data[1] == 0x00.toByte()
                                                     }
-                                                    ,BluetoothProfile.A2DP
+
+                                                val newInEarData = listOf(
+                                                    data[0] == 0x00.toByte(),
+                                                    data[1] == 0x00.toByte()
                                                 )
+                                                if (newInEarData.contains(true) && inEarData == listOf(
+                                                        false,
+                                                        false
+                                                    )
+                                                ) {
+                                                    connectAudio(this@AirPodsService, device)
+                                                    justEnabledA2dp = true
+                                                    val bluetoothAdapter =
+                                                        this@AirPodsService.getSystemService(
+                                                            BluetoothManager::class.java
+                                                        ).adapter
+                                                    bluetoothAdapter.getProfileProxy(
+                                                        this@AirPodsService,
+                                                        object : BluetoothProfile.ServiceListener {
+                                                            override fun onServiceConnected(
+                                                                profile: Int,
+                                                                proxy: BluetoothProfile
+                                                            ) {
+                                                                if (profile == BluetoothProfile.A2DP) {
+                                                                    val connectedDevices =
+                                                                        proxy.connectedDevices
+                                                                    if (connectedDevices.isNotEmpty()) {
+                                                                        MediaController.sendPlay()
+                                                                    }
+                                                                }
+                                                                bluetoothAdapter.closeProfileProxy(
+                                                                    profile,
+                                                                    proxy
+                                                                )
+                                                            }
 
-                                            }
-                                            else if (newInEarData == listOf(false, false)){
-                                                disconnectAudio(this@AirPodsService, device)
-                                            }
+                                                            override fun onServiceDisconnected(
+                                                                profile: Int
+                                                            ) {
+                                                            }
+                                                        },
+                                                        BluetoothProfile.A2DP
+                                                    )
 
-                                            inEarData = newInEarData
-
-                                            if (inEar == true) {
-                                                if (!justEnabledA2dp) {
-                                                    justEnabledA2dp = false
-                                                    MediaController.sendPlay()
+                                                } else if (newInEarData == listOf(false, false)) {
+                                                    disconnectAudio(this@AirPodsService, device)
                                                 }
-                                            } else {
-                                                MediaController.sendPause()
+
+                                                inEarData = newInEarData
+
+                                                if (inEar == true) {
+                                                    if (!justEnabledA2dp) {
+                                                        justEnabledA2dp = false
+                                                        MediaController.sendPlay()
+                                                    }
+                                                } else {
+                                                    MediaController.sendPause()
+                                                }
                                             }
                                         }
                                     }
-                                }
 
-                                val earIntentFilter = IntentFilter(AirPodsNotifications.EAR_DETECTION_DATA)
-                                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                                    this@AirPodsService.registerReceiver(earReceiver, earIntentFilter,
-                                        RECEIVER_EXPORTED
+                                    val earIntentFilter =
+                                        IntentFilter(AirPodsNotifications.EAR_DETECTION_DATA)
+                                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                                        this@AirPodsService.registerReceiver(
+                                            earReceiver, earIntentFilter,
+                                            RECEIVER_EXPORTED
+                                        )
+                                    } else {
+                                        this@AirPodsService.registerReceiver(
+                                            earReceiver,
+                                            earIntentFilter
+                                        )
+                                    }
+                                } else if (ancNotification.isANCData(data)) {
+                                    ancNotification.setStatus(data)
+                                    sendBroadcast(Intent(AirPodsNotifications.ANC_DATA).apply {
+                                        putExtra("data", ancNotification.status)
+                                    })
+                                    Log.d("AirPods Parser", "ANC: ${ancNotification.status}")
+                                } else if (batteryNotification.isBatteryData(data)) {
+                                    batteryNotification.setBattery(data)
+                                    sendBroadcast(Intent(AirPodsNotifications.BATTERY_DATA).apply {
+                                        putParcelableArrayListExtra(
+                                            "data",
+                                            ArrayList(batteryNotification.getBattery())
+                                        )
+                                    })
+                                    updateNotificationContent(
+                                        true,
+                                        this@AirPodsService.getSharedPreferences(
+                                            "settings",
+                                            MODE_PRIVATE
+                                        ).getString("name", device.name),
+                                        batteryNotification.getBattery()
+                                    )
+                                    for (battery in batteryNotification.getBattery()) {
+                                        Log.d(
+                                            "AirPods Parser",
+                                            "${battery.getComponentName()}: ${battery.getStatusName()} at ${battery.level}% "
+                                        )
+                                    }
+                                    if (batteryNotification.getBattery()[0].status == 1 && batteryNotification.getBattery()[1].status == 1) {
+                                        disconnectAudio(this@AirPodsService, device)
+                                    } else {
+                                        connectAudio(this@AirPodsService, device)
+                                    }
+                                } else if (conversationAwarenessNotification.isConversationalAwarenessData(
+                                        data
+                                    )
+                                ) {
+                                    conversationAwarenessNotification.setData(data)
+                                    sendBroadcast(Intent(AirPodsNotifications.CA_DATA).apply {
+                                        putExtra("data", conversationAwarenessNotification.status)
+                                    })
+
+
+                                    if (conversationAwarenessNotification.status == 1.toByte() || conversationAwarenessNotification.status == 2.toByte()) {
+                                        MediaController.startSpeaking()
+                                    } else if (conversationAwarenessNotification.status == 8.toByte() || conversationAwarenessNotification.status == 9.toByte()) {
+                                        MediaController.stopSpeaking()
+                                    }
+
+                                    Log.d(
+                                        "AirPods Parser",
+                                        "Conversation Awareness: ${conversationAwarenessNotification.status}"
                                     )
                                 } else {
-                                    this@AirPodsService.registerReceiver(earReceiver, earIntentFilter)
                                 }
                             }
-                            else if (ancNotification.isANCData(data)) {
-                                ancNotification.setStatus(data)
-                                sendBroadcast(Intent(AirPodsNotifications.ANC_DATA).apply {
-                                    putExtra("data", ancNotification.status)
-                                })
-                                Log.d("AirPods Parser", "ANC: ${ancNotification.status}")
-                            }
-                            else if (batteryNotification.isBatteryData(data)) {
-                                batteryNotification.setBattery(data)
-                                sendBroadcast(Intent(AirPodsNotifications.BATTERY_DATA).apply {
-                                    putParcelableArrayListExtra("data", ArrayList(batteryNotification.getBattery()))
-                                })
-                                updateNotificationContent(true, this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).getString("name", device.name), batteryNotification.getBattery())
-                                for (battery in batteryNotification.getBattery()) {
-                                    Log.d("AirPods Parser", "${battery.getComponentName()}: ${battery.getStatusName()} at ${battery.level}% ")
-                                }
-                                if (batteryNotification.getBattery()[0].status == 1 && batteryNotification.getBattery()[1].status == 1) {
-                                    disconnectAudio(this@AirPodsService, device)
-                                }
-                                else {
-                                    connectAudio(this@AirPodsService, device)
-                                }
-                            }
-                            else if (conversationAwarenessNotification.isConversationalAwarenessData(data)) {
-                                conversationAwarenessNotification.setData(data)
-                                sendBroadcast(Intent(AirPodsNotifications.CA_DATA).apply {
-                                    putExtra("data", conversationAwarenessNotification.status)
-                                })
-
-
-                                if (conversationAwarenessNotification.status == 1.toByte() || conversationAwarenessNotification.status == 2.toByte()) {
-                                    MediaController.startSpeaking()
-                                } else if (conversationAwarenessNotification.status == 8.toByte() || conversationAwarenessNotification.status == 9.toByte()) {
-                                    MediaController.stopSpeaking()
-                                }
-
-                                Log.d("AirPods Parser", "Conversation Awareness: ${conversationAwarenessNotification.status}")
-                            }
-                            else { }
                         }
+                        Log.d("AirPods Service", "Socket closed")
+                        isConnected = false
+                        socket.close()
+                        sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
                     }
-                    Log.d("AirPods Service", "Socket closed")
-                    isConnected = false
-                    socket.close()
-                    sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
                 }
+            } catch (e: Exception) {
+                e.printStackTrace()
+                Log.d("AirPodsService", "Failed to connect to socket")
             }
-        }
-        catch (e: Exception) {
-            e.printStackTrace()
-            Log.d("AirPodsService", "Failed to connect to socket")
         }
     }
 

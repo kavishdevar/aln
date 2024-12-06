@@ -520,7 +520,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
         ),
         topBar = {
             val darkMode = MaterialTheme.colorScheme.surface.luminance() < 0.5
-            val mdensity = remember { mutableFloatStateOf(1f) }
+            val mDensity = remember { mutableFloatStateOf(1f) }
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
@@ -530,14 +530,14 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                     modifier = Modifier
                         .hazeChild(
                             state = hazeState,
-                            style = CupertinoMaterials.thin(),
+                            style = CupertinoMaterials.regular(),
                             block = {
 //                                make the background transparent when not scrolled yet
-                                alpha = if (verticalScrollState.value > 55.dp.value * mdensity.floatValue) 1f else 0f
+                                alpha = if (verticalScrollState.value > 55.dp.value * mDensity.floatValue) 1f else 0f
                             }
                         )
                         .drawBehind {
-                            mdensity.value = density
+                            mDensity.floatValue = density
                             val strokeWidth = 0.7.dp.value * density
                             val y = size.height - strokeWidth / 2
                             if (verticalScrollState.value > 55.dp.value * density) {
