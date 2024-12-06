@@ -12,12 +12,14 @@ Other devices might work too! Features like ear detection and battery should be 
 | Feature | Linux | Android |
 | --- | --- | --- |
 | Ear Detection | ✅ | ✅ |
+| Battery Levels | ✅ | ✅ |
 | Conversational Awareness | ✅ | ✅ |
-| Setting Noise Control | ✅ | ✅ |
-| Battery Level | ✅ | ✅ |
-| Rename AirPods | ❌ | ✅ |
-| Adjust Adaptive Audio | ❌ | ✅ |
-| Loud Sound Reduction | ❌ | ✅ |
+| Changing Noise Control modes | ✅ | ✅ |
+| Configure AirPods' Settings | ❌ | ✅ |
+| Popup | ❌ | ✅ |
+
+> [!NOTE]
+> This just includes features that are already implemented for at least one of the platforms. There is no list for any planned features.
 
 ## Linux
 Check out the README file in [linux](/linux) folder for more info.
@@ -31,7 +33,8 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working `(upvote the issue - click the '+1' icon on the top right corner of IssueTracker)`. This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). 
 
-**This workaround requires root access** to implement and it might not work on other android OEM skins. Try at your own risk!!
+> [!IMPORTANT]
+> **This workaround requires root access** to implement and it might not work on other android OEM skins. Try at your own risk!!
 
 ### Workaround
 
@@ -84,20 +87,22 @@ Once the issue is resolved by Google developers or you've addressed it through t
 When you rename the Airpods using the app, you'll need to re-pair it with your phone. Currently, user-level apps cannot directly rename a Bluetooth device. After re-pairing, your phone will display the updated name!
 
 #### Noise Control Modes
+
 - Active Noise Cancellation (ANC): Blocks external sounds using microphones and advanced algorithms for an immersive audio experience; ideal for noisy environments.
 - Transparency Mode: Allows external sounds to blend with audio for situational awareness; best for environments where you need to stay alert.
 - Off Mode: Disables noise control for a natural listening experience, conserving battery in quiet settings.
 - Adaptive Transparency: Dynamically reduces sudden loud noises while maintaining environmental awareness, adjusting seamlessly to fluctuating noise levels.
 
+> [!IMPORTANT]
+> Due to recent AirPods' firmware upgrades, you must enable `Off listening mode` to switch to `Off`. This is because in this mode, louds sounds are not reduced!
+
 #### Conversational Awareness
+
 Automatically lowers audio volume and enhances voices when you start speaking, making it easier to engage in conversations without removing your AirPods.
 
 #### Automatic Ear Detection
- Recognizes when the AirPods are in your ears to automatically play or pause audio and adjust functionality accordingly.
 
-#### Planned Features
-Quick Tile to toggle Conversational Awareness and to switch Noise Control modes, and Battery Widget (App and AndroidSystemIntelligence)/Notification coming soon!!
-
+Recognizes when the AirPods are in your ears to automatically play or pause audio and adjust functionality accordingly.
 
 ### Screenshots of the app
 
@@ -105,6 +110,7 @@ Quick Tile to toggle Conversational Awareness and to switch Noise Control modes,
 |-------------------|-------------------|-------------------|
 | ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
 | ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
+
 # License
 
 AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
