@@ -30,6 +30,17 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ## Android
 
+Here are a few screenshots!
+
+### Screenshots
+
+| | | |
+|-------------------|-------------------|-------------------|
+| ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
+| ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
+
+### Installation
+
 Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). 
 
 > [!CAUTION]
@@ -102,13 +113,6 @@ Automatically lowers audio volume and enhances voices when you start speaking, m
 #### Automatic Ear Detection
 
 Recognizes when the AirPods are in your ears to automatically play or pause audio and adjust functionality accordingly.
-
-### Screenshots of the app
-
-| | | |
-|-------------------|-------------------|-------------------|
-| ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
-| ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
 
 ## Check out the packet definitions at [AAP Definitions](/AAP%20Definitions.md)
 
