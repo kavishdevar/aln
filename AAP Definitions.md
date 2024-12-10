@@ -227,11 +227,11 @@ The level can be any value between 0 and 100, 0 to allow maximum noise (i.e. min
 - [x] Case Charging Sounds
 - [x] Rename AirPods
 - [ ] Mute Unmute Calls
-- Accessibilty
+- Accessibilty Settings
     - [ ] Press Speed
     - [ ] Press and hold duration
-    - [ ] Noise Cancellation with one AirPod
-    - [ ] Tone Volume
+    - [x] Noise Cancellation with one AirPod
+    - [x] Tone Volume
     - [ ] Toggle Volume Control on Swipe (APP only, i believe)
     - [ ] Volume Swipe (Normal/Longer/Longest)
     - [ ] Headphone accomodation (I literally can't tell the difference between any samples played, lol, also, idk if this is something that the mac does)
@@ -314,6 +314,7 @@ The packets sent (based on the previous states) are as follows:
 
 ```plaintext
 <!-- 04 00 04 00 17 00 00 00 10 00 11 00 08 7C 10 02 42 0B 08 4E 10 02 1A 05 01 40 9C 00 00 -->
+OR
 04 00 04 00 17 00 00 00 10 00 10 00 08 A1 02 42 0B 08 0E 10 02 1A 05 01 40 9C 00 00
 ```
 
