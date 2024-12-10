@@ -308,6 +308,14 @@ The packets sent (based on the previous states) are as follows:
 
 </details>
 
+New, all = A,T,and NC, not O
+
+turn on everything `04 00 04 00 09 00 1A 0E 00 00 00`
+
+turn off transparency from all - `04 00 04 00 09 00 1A 0A 00 00 00`
+turn off adaptive from all - `04 00 04 00 09 00 1A 06 00 00 00`
+turn off noise cancellation from all - `04 00 04 00 09 00 1A 0C 00 00 00`
+
 > *i do hate apple for not hardcoding these, like there are literally only 4^2 - ${\binom{4}{1}}$ - $\binom{4}{2}$*
 
 ## Request something (Probably Head Positions)

@@ -38,3 +38,6 @@ class enums:
     SET_CONVERSATION_AWARENESS_ON = PREFIX + SETTINGS + CONVERSATION_AWARENESS + Capabilites.ConversationAwareness.ON + SUFFIX
     
     CONVERSATION_AWARENESS_RECEIVE_PREFIX = PREFIX + b"\x4b\x00\x02\00"
+    
+    class longPress:
+        PREFIX = b'\x04\x00\x04\x00\x09\x00\x1A'
