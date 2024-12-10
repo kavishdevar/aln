@@ -146,6 +146,9 @@ fun Main() {
             composable("debug") {
                 DebugScreen(navController = navController)
             }
+            composable("long_press") {
+                LongPress(navController = navController)
+            }
         }
 
          serviceConnection = remember {
