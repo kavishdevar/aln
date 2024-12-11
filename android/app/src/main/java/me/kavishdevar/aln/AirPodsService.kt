@@ -36,6 +36,11 @@ object ServiceManager {
     fun setService(service: AirPodsService?) {
         this.service = service
     }
+    @Synchronized
+    fun restartService(context: Context) {
+        service?.stopSelf()
+        context.startService(Intent(context, AirPodsService::class.java))
+    }
 }
 
 @Suppress("unused")
@@ -707,6 +712,146 @@ class AirPodsService: Service() {
         val bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         socket.outputStream?.write(bytes)
         socket.outputStream?.flush()
+    }
+    fun findChangedIndex(oldArray: BooleanArray, newArray: BooleanArray): Int {
+        for (i in oldArray.indices) {
+            if (oldArray[i] != newArray[i]) {
+                return i
+            }
+        }
+        throw IllegalArgumentException("No element has changed")
+    }
+    fun updateLongPress(oldLongPressArray: BooleanArray, newLongPressArray: BooleanArray, offListeningMode: Boolean) {
+        if (oldLongPressArray.contentEquals(newLongPressArray)) {
+            return
+        }
+        val oldOffEnabled = oldLongPressArray[0]
+        val oldAncEnabled = oldLongPressArray[1]
+        val oldTransparencyEnabled = oldLongPressArray[2]
+        val oldAdaptiveEnabled = oldLongPressArray[3]
+
+        val newOffEnabled = newLongPressArray[0]
+        val newAncEnabled = newLongPressArray[1]
+        val newTransparencyEnabled = newLongPressArray[2]
+        val newAdaptiveEnabled = newLongPressArray[3]
+
+        val changedIndex = findChangedIndex(oldLongPressArray, newLongPressArray)
+        Log.d("AirPodsService", "changedIndex: $changedIndex")
+        var packet: ByteArray? = null
+        if (offListeningMode) {
+            packet = when (changedIndex) {
+                0 -> {
+                    if (newOffEnabled) {
+                        when {
+                            oldAncEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ANC.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_ADAPTIVE_AND_ANC.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldAncEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_EVERYTHING.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ANC.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_ADAPTIVE_AND_ANC.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    }
+                }
+
+                1 -> {
+                    if (newAncEnabled) {
+                        when {
+                            oldOffEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ANC_FROM_OFF_AND_TRANSPARENCY.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_ANC_FROM_OFF_AND_ADAPTIVE.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldOffEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_ANC_FROM_EVERYTHING.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ANC_FROM_OFF_AND_TRANSPARENCY.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_ANC_FROM_OFF_AND_ADAPTIVE.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    }
+                }
+
+                2 -> {
+                    if (newTransparencyEnabled) {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_OFF_AND_ADAPTIVE.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_ADAPTIVE_AND_ANC.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_OFF_AND_ADAPTIVE.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_ADAPTIVE_AND_ANC.value
+                            else -> null
+                        }
+                    }
+                }
+
+                3 -> {
+                    if (newAdaptiveEnabled) {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_OFF_AND_TRANSPARENCY.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_TRANSPARENCY_AND_ANC.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_OFF_AND_TRANSPARENCY.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_TRANSPARENCY_AND_ANC.value
+                            else -> null
+                        }
+                    }
+                }
+
+                else -> null
+            }
+        } else {
+            when (changedIndex) {
+                1 -> {
+                    packet = if (newLongPressArray[1]) {
+                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
+                    } else {
+                        LongPressPackets.DISABLE_ANC_OFF_DISABLED.value
+                    }
+                }
+                2 -> {
+                    packet = if (newLongPressArray[2]) {
+                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
+                    } else {
+                        LongPressPackets.DISABLE_TRANSPARENCY_OFF_DISABLED.value
+                    }
+                }
+                3 -> {
+                    packet = if (newLongPressArray[3]) {
+                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
+                    } else {
+                        LongPressPackets.DISABLE_ADAPTIVE_OFF_DISABLED.value
+                    }
+                }
+            }
+
+        }
+        packet?.let {
+            Log.d("AirPodsService", "Sending packet: ${it.joinToString(" ") { "%02X".format(it) }}")
+            socket.outputStream.write(it)
+        }
     }
 
     override fun onDestroy() {

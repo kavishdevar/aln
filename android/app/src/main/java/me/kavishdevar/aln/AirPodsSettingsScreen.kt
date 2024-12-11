@@ -2,8 +2,6 @@ package me.kavishdevar.aln
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothManager
-import android.bluetooth.BluetoothProfile
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
@@ -11,12 +9,8 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
-import android.os.ParcelUuid
 import androidx.annotation.RequiresApi
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,20 +23,19 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
@@ -63,22 +56,16 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.draw.scale
 import androidx.compose.ui.draw.shadow
-import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -86,358 +73,27 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import me.kavishdevar.aln.composables.BatteryView
+import me.kavishdevar.aln.composables.SinglePodANCSwitch
+import me.kavishdevar.aln.composables.StyledSwitch
+import me.kavishdevar.aln.composables.StyledTextField
+import me.kavishdevar.aln.composables.ToneVolumeSlider
+import me.kavishdevar.aln.composables.VolumeControlSwitch
+import me.kavishdevar.aln.ui.theme.ALNTheme
 import kotlin.math.roundToInt
 
 
-@Preview
+@Preview(showBackground = true)
 @Composable
 fun BatteryViewPreview() {
-    BatteryView(AirPodsService(), true)
-}
-
-@Composable
-fun BatteryView(service: AirPodsService, preview: Boolean = false) {
-    val batteryStatus = remember { mutableStateOf<List<Battery>>(listOf()) }
-    @Suppress("DEPRECATION") val batteryReceiver = remember {
-        object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                batteryStatus.value =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableArrayListExtra("data", Battery::class.java)
-                    } else {
-                        intent.getParcelableArrayListExtra("data")
-                    }?.toList() ?: listOf()
-            }
-        }
-    }
-    val context = LocalContext.current
-
-    LaunchedEffect(context) {
-        val batteryIntentFilter = IntentFilter(AirPodsNotifications.BATTERY_DATA)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.registerReceiver(
-                batteryReceiver,
-                batteryIntentFilter,
-                Context.RECEIVER_EXPORTED
-            )
-        }
-    }
-
-    batteryStatus.value = service.getBattery()
-
-    if (preview) {
-        batteryStatus.value = listOf<Battery>(
-            Battery(BatteryComponent.LEFT, 100, BatteryStatus.CHARGING),
-            Battery(BatteryComponent.RIGHT, 50, BatteryStatus.NOT_CHARGING),
-            Battery(BatteryComponent.CASE, 5, BatteryStatus.CHARGING)
-        )
-    }
-
-    Row {
-        Column (
-            modifier = Modifier
-                .fillMaxWidth(0.5f),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Image (
-                bitmap = ImageBitmap.imageResource(R.drawable.pro_2_buds),
-                contentDescription = "Buds",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .scale(0.80f)
-            )
-            val left = batteryStatus.value.find { it.component == BatteryComponent.LEFT }
-            val right = batteryStatus.value.find { it.component == BatteryComponent.RIGHT }
-            if ((right?.status == BatteryStatus.CHARGING && left?.status == BatteryStatus.CHARGING) || (left?.status == BatteryStatus.NOT_CHARGING && right?.status == BatteryStatus.NOT_CHARGING))
-            {
-                BatteryIndicator(right.level.let { left.level.coerceAtMost(it) }, left.status == BatteryStatus.CHARGING)
-            }
-            else {
-                Row (
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    horizontalArrangement = Arrangement.Center
-                ) {
-                    if (left?.status != BatteryStatus.DISCONNECTED) {
-                        BatteryIndicator(
-                            left?.level ?: 0,
-                            left?.status == BatteryStatus.CHARGING
-                        )
-                    }
-                    if (left?.status != BatteryStatus.DISCONNECTED && right?.status != BatteryStatus.DISCONNECTED) {
-                        Spacer(modifier = Modifier.width(16.dp))
-                    }
-                    if (right?.status != BatteryStatus.DISCONNECTED) {
-                        BatteryIndicator(
-                            right?.level ?: 0,
-                            right?.status == BatteryStatus.CHARGING
-                        )
-                    }
-                }
-            }
-        }
-
-        Column (
-            modifier = Modifier
-                .fillMaxWidth(),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            val case = batteryStatus.value.find { it.component == BatteryComponent.CASE }
-
-            Image(
-                bitmap = ImageBitmap.imageResource(R.drawable.pro_2_case),
-                contentDescription = "Case",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .scale(1.25f)
-            )
-            BatteryIndicator(case?.level ?: 0)
-        }
-    }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferences) {
-    val sliderValue = remember { mutableFloatStateOf(0f) }
-    LaunchedEffect(sliderValue) {
-        if (sharedPreferences.contains("tone_volume")) {
-            sliderValue.floatValue = sharedPreferences.getInt("tone_volume", 0).toFloat()
-        }
-    }
-    LaunchedEffect(sliderValue.floatValue) {
-        sharedPreferences.edit().putInt("tone_volume", sliderValue.floatValue.toInt()).apply()
-    }
-
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-
-    val trackColor = if (isDarkTheme) Color(0xFFB3B3B3) else Color(0xFF929491)
-    val activeTrackColor = if (isDarkTheme) Color(0xFF007AFF) else Color(0xFF3C6DF5)
-    val thumbColor = if (isDarkTheme) Color(0xFFFFFFFF) else Color(0xFFFFFFFF)
-    val labelTextColor = if (isDarkTheme) Color.White else Color.Black
-
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = "\uDBC0\uDEA1",
-            style = TextStyle(
-                fontSize = 16.sp,
-                fontFamily = FontFamily(Font(R.font.sf_pro)),
-                fontWeight = FontWeight.Light,
-                color = labelTextColor
-            ),
-            modifier = Modifier.padding(start = 4.dp)
-        )
-        Slider(
-            value = sliderValue.floatValue,
-            onValueChange = {
-                sliderValue.floatValue = it
-                service.setToneVolume(volume = it.toInt())
-            },
-            valueRange = 0f..100f,
-            onValueChangeFinished = {
-                sliderValue.floatValue = sliderValue.floatValue.roundToInt().toFloat()
-            },
-            modifier = Modifier
-                .weight(1f)
-                .height(36.dp),
-            colors = SliderDefaults.colors(
-                thumbColor = thumbColor,
-                activeTrackColor = activeTrackColor,
-                inactiveTrackColor = trackColor
-            ),
-            thumb = {
-                Box(
-                    modifier = Modifier
-                        .size(24.dp)
-                        .shadow(4.dp, CircleShape)
-                        .background(thumbColor, CircleShape)
-                )
-            },
-            track = {
-                Box (
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(12.dp),
-                    contentAlignment = Alignment.CenterStart
-                )
-                {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .background(trackColor, RoundedCornerShape(4.dp))
-                    )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(sliderValue.floatValue / 100)
-                            .height(4.dp)
-                            .background(activeTrackColor, RoundedCornerShape(4.dp))
-                    )
-                }
-            }
-        )
-        Text(
-            text = "\uDBC0\uDEA9",
-            style = TextStyle(
-                fontSize = 16.sp,
-                fontFamily = FontFamily(Font(R.font.sf_pro)),
-                fontWeight = FontWeight.Light,
-                color = labelTextColor
-            ),
-            modifier = Modifier.padding(end = 4.dp)
-        )
-    }
-}
-
-@Composable
-fun SinglePodANCSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
-    var singleANCEnabled by remember {
-        mutableStateOf(
-            sharedPreferences.getBoolean("single_anc", true)
-        )
-    }
-
-    fun updateSingleEnabled(enabled: Boolean) {
-        singleANCEnabled = enabled
-        sharedPreferences.edit().putBoolean("single_anc", enabled).apply()
-        service.setNoiseCancellationWithOnePod(enabled)
-    }
-
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-    val textColor = if (isDarkTheme) Color.White else Color.Black
-
-    val isPressed = remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                shape = RoundedCornerShape(14.dp),
-                color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
-            )
-            .padding(horizontal = 12.dp, vertical = 12.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        isPressed.value = true
-                        tryAwaitRelease()
-                        isPressed.value = false
-                    }
-                )
-            }
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) {
-                updateSingleEnabled(!singleANCEnabled)
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 4.dp)
-        ) {
-            Text(
-                text = "Noise Cancellation with Single AirPod",
-                fontSize = 16.sp,
-                color = textColor
-            )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Allow AirPods to be put in noise cancellation mode when only one AirPods is in your ear.",
-                    fontSize = 12.sp,
-                    color = textColor.copy(0.6f),
-                    lineHeight = 14.sp,
-                )
-        }
-        StyledSwitch(
-            checked = singleANCEnabled,
-            onCheckedChange = {
-                updateSingleEnabled(it)
-            },
-        )
-    }
-}
-
-@Composable
-fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
-    var volumeControlEnabled by remember {
-        mutableStateOf(
-            sharedPreferences.getBoolean("volume_control", true)
-        )
-    }
-
-    fun updateVolumeControlEnabled(enabled: Boolean) {
-        volumeControlEnabled = enabled
-        sharedPreferences.edit().putBoolean("volume_control", enabled).apply()
-        service.setVolumeControl(enabled)
-    }
-
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-    val textColor = if (isDarkTheme) Color.White else Color.Black
-
-    val isPressed = remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .background(
-                shape = RoundedCornerShape(14.dp),
-                color = if (isPressed.value) Color(0xFFE0E0E0) else Color.Transparent
-            )
-            .padding(horizontal = 12.dp, vertical = 12.dp)
-            .pointerInput(Unit) {
-                detectTapGestures(
-                    onPress = {
-                        isPressed.value = true
-                        tryAwaitRelease()
-                        isPressed.value = false
-                    }
-                )
-            }
-            .clickable(
-                indication = null,
-                interactionSource = remember { MutableInteractionSource() }
-            ) {
-                updateVolumeControlEnabled(!volumeControlEnabled)
-            },
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(
-            modifier = Modifier
-                .weight(1f)
-                .padding(end = 4.dp)
-        ) {
-            Text(
-                text = "Volume Control",
-                fontSize = 16.sp,
-                color = textColor
-            )
-                Spacer(modifier = Modifier.height(4.dp))
-                Text(
-                    text = "Adjust the volume by swiping up or down on the sensor located on the AirPods Pro stem.",
-                    fontSize = 12.sp,
-                    color = textColor.copy(0.6f),
-                    lineHeight = 14.sp,
-                )
-        }
-        StyledSwitch(
-            checked = volumeControlEnabled,
-            onCheckedChange = {
-                updateVolumeControlEnabled(it)
-            },
-        )
+    ALNTheme (darkTheme = false) {
+        BatteryView(AirPodsService(), true)
     }
 }
 
@@ -487,17 +143,164 @@ fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPref
 
 //        Dropdown menu with 3 options, Default, Slower, Slowest – Press speed
 //        Dropdown menu with 3 options, Default, Slower, Slowest – Press and hold duration
-//        IndependentToggle for Noise Cancellation with one AirPod
-//        IndependentToggle for Enable Volume Control
 //        Dropdown menu with 3 options, Default, Slower, Slowest – Volume Swipe Speed
 
-//        IndependentToggle(name = "Noise Cancellation with one AirPod", service = service, functionName = "setNoiseCancellationWithOnePod", sharedPreferences = sharedPreferences, false)
-
         SinglePodANCSwitch(service = service, sharedPreferences = sharedPreferences)
-
-//        IndependentToggle(name = "Enable Volume Control", service = service, functionName = "setVolumeControl", sharedPreferences = sharedPreferences, true)
-
         VolumeControlSwitch(service = service, sharedPreferences = sharedPreferences)
+    }
+}
+
+
+@Composable
+fun PressAndHoldSettings(navController: NavController) {
+    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val textColor = if (isDarkTheme) Color.White else Color.Black
+
+    Text(
+        text = "PRESS AND HOLD AIRPODS",
+        style = TextStyle(
+            fontSize = 14.sp,
+            fontWeight = FontWeight.Light,
+            color = textColor.copy(alpha = 0.6f)
+        ),
+        modifier = Modifier.padding(8.dp, bottom = 2.dp)
+    )
+
+    val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(backgroundColor, RoundedCornerShape(14.dp))
+            .padding(top = 2.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(55.dp)
+                .background(
+                    backgroundColor,
+                    RoundedCornerShape(14.dp)
+                )
+                .clickable(
+                    onClick = {
+                        navController.navigate("long_press/Left")
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(start = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Left",
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        color = textColor
+                    )
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        navController.navigate("long_press/Left")
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "go",
+                        tint = textColor
+                    )
+                }
+            }
+        }
+        HorizontalDivider(
+            thickness = 2.dp,
+            color = Color(0xFF4D4D4D).copy(alpha = 0.4f),
+            modifier = Modifier
+                .padding(start = 16.dp)
+        )
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(55.dp)
+                .background(
+                    backgroundColor,
+                    RoundedCornerShape(14.dp)
+                )
+                .clickable(
+                    onClick = {
+                        navController.navigate("long_press/Right")
+                    }
+                ),
+            contentAlignment = Alignment.Center
+        ) {
+            Row(
+                modifier = Modifier
+                    .padding(start = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Right",
+                    style = TextStyle(
+                        fontSize = 16.sp,
+                        color = textColor
+                    )
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                IconButton(
+                    onClick = {
+                        navController.navigate("long_press/Right")
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                        contentDescription = "go",
+                        tint = textColor
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun NavigationButton(to: String, name: String, navController: NavController) {
+    Row(
+        modifier = Modifier
+            .background(
+                if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(
+                    0xFF1C1C1E
+                ) else Color(0xFFFFFFFF), RoundedCornerShape(14.dp)
+            )
+            .height(55.dp)
+            .clickable {
+                navController.navigate(to)
+            }
+    ) {
+        Text(
+            text = name,
+            modifier = Modifier.padding(16.dp),
+            color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
+        )
+        Spacer(modifier = Modifier.weight(1f))
+        IconButton(
+            onClick = { navController.navigate(to) },
+            colors = IconButtonDefaults.iconButtonColors(
+                containerColor = Color.Transparent,
+                contentColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
+            ),
+            modifier = Modifier
+                .padding(start = 16.dp)
+                .fillMaxHeight()
+        ) {
+            @Suppress("DEPRECATION")
+            Icon(
+                imageVector = Icons.Default.KeyboardArrowRight,
+                contentDescription = name
+            )
+        }
     }
 }
 
@@ -508,9 +311,16 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                           navController: NavController, isConnected: Boolean) {
     val sharedPreferences = LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE)
     var device by remember { mutableStateOf(dev) }
-    var deviceName by remember { mutableStateOf(TextFieldValue(sharedPreferences.getString("name", device?.name ?: "") ?: "")) }
+    var deviceName by remember {
+        mutableStateOf(
+            TextFieldValue(
+                sharedPreferences.getString("name", device?.name ?: "AirPods Pro").toString()
+            )
+        )
+    }
     val verticalScrollState  = rememberScrollState()
     val hazeState = remember { HazeState() }
+
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
         containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(
@@ -532,8 +342,8 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                             state = hazeState,
                             style = CupertinoMaterials.regular(),
                             block = {
-//                                make the background transparent when not scrolled yet
-                                alpha = if (verticalScrollState.value > 55.dp.value * mDensity.floatValue) 1f else 0f
+                                alpha =
+                                    if (verticalScrollState.value > 55.dp.value * mDensity.floatValue) 1f else 0f
                             }
                         )
                         .drawBehind {
@@ -556,38 +366,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                         val context = LocalContext.current
                         IconButton(
                             onClick = {
-                                val bluetoothAdapter =
-                                    context.getSystemService(BluetoothManager::class.java).adapter
-                                bluetoothAdapter.bondedDevices.forEach { d ->
-                                    if (d.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
-                                        bluetoothAdapter.getProfileProxy(
-                                            context,
-                                            object : BluetoothProfile.ServiceListener {
-                                                override fun onServiceConnected(
-                                                    profile: Int,
-                                                    proxy: BluetoothProfile
-                                                ) {
-                                                    if (profile == BluetoothProfile.A2DP) {
-                                                        val connectedDevices =
-                                                            proxy.connectedDevices
-                                                        if (connectedDevices.isNotEmpty()) {
-                                                            service.connectToSocket(d)
-                                                            device = d
-                                                            deviceName = TextFieldValue(d.name)
-                                                        }
-                                                    }
-                                                    bluetoothAdapter.closeProfileProxy(
-                                                        profile,
-                                                        proxy
-                                                    )
-                                                }
-
-                                                override fun onServiceDisconnected(profile: Int) {}
-                                            },
-                                            BluetoothProfile.A2DP
-                                        )
-                                    }
-                                }
+                                ServiceManager.restartService(context)
                             },
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Transparent,
@@ -647,6 +426,9 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                 NoiseControlSettings(service = service)
 
                 Spacer(modifier = Modifier.height(16.dp))
+                PressAndHoldSettings(navController = navController)
+
+                Spacer(modifier = Modifier.height(16.dp))
                 AudioSettings(service = service, sharedPreferences = sharedPreferences)
 
                 Spacer(modifier = Modifier.height(16.dp))
@@ -669,61 +451,9 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
 
                 Spacer(modifier = Modifier.height(16.dp))
                 AccessibilitySettings(service = service, sharedPreferences = sharedPreferences)
-//            Spacer(modifier = Modifier.height(16.dp))
-
-//            val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-//            val textColor = if (isDarkTheme) Color.White else Color.Black
-
-                // localstorage stuff
-                // TODO: localstorage and call the setButtons() with previous configuration and new configuration
-//            Box (
-//                modifier = Modifier
-//                    .padding(vertical = 8.dp)
-//                    .background(
-//                        if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF),
-//                        RoundedCornerShape(14.dp)
-//                    )
-//            )
-//            {
-//                // TODO: A Column Rows with text at start and a check mark if ticked
-//            }
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Row(
-                    modifier = Modifier
-                        .background(
-                            if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(
-                                0xFF1C1C1E
-                            ) else Color(0xFFFFFFFF), RoundedCornerShape(14.dp)
-                        )
-                        .height(55.dp)
-                        .clickable {
-                            navController.navigate("debug")
-                        }
-                ) {
-                    Text(
-                        text = "Debug",
-                        modifier = Modifier.padding(16.dp),
-                        color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
-                    )
-                    Spacer(modifier = Modifier.weight(1f))
-                    IconButton(
-                        onClick = { navController.navigate("debug") },
-                        colors = IconButtonDefaults.iconButtonColors(
-                            containerColor = Color.Transparent,
-                            contentColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black
-                        ),
-                        modifier = Modifier
-                            .padding(start = 16.dp)
-                            .fillMaxHeight()
-                    ) {
-                        @Suppress("DEPRECATION")
-                        Icon(
-                            imageVector = Icons.Default.KeyboardArrowRight,
-                            contentDescription = "Debug"
-                        )
-                    }
-                }
+                NavigationButton("debug", "Debug", navController)
                 Spacer(Modifier.height(24.dp))
             }
         }
@@ -860,12 +590,6 @@ fun NoiseControlSlider(service: AirPodsService, sharedPreferences: SharedPrefere
     }
 }
 
-@Preview
-@Composable
-fun Preview() {
-    IndependentToggle("Case Charging Sounds", AirPodsService(), "setCaseChargingSounds", LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE))
-}
-
 @Composable
 fun IndependentToggle(name: String, service: AirPodsService, functionName: String, sharedPreferences: SharedPreferences, default: Boolean = false) {
     val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
@@ -884,23 +608,23 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
                 if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF),
                 RoundedCornerShape(14.dp)
             )
+            .clickable {
+                checked = !checked
+                sharedPreferences
+                    .edit()
+                    .putBoolean(snakeCasedName, checked)
+                    .apply()
+
+                val method = service::class.java.getMethod(functionName, Boolean::class.java)
+                method.invoke(service, checked)
+            },
     )
     {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(55.dp)
-                .padding(horizontal = 12.dp)
-                .clickable {
-                    checked = !checked
-                    sharedPreferences
-                        .edit()
-                        .putBoolean(snakeCasedName, checked)
-                        .apply()
-
-                    val method = service::class.java.getMethod(functionName, Boolean::class.java)
-                    method.invoke(service, checked)
-                },
+                .padding(horizontal = 12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(text = name, modifier = Modifier.weight(1f), fontSize = 16.sp, color = textColor)
@@ -1202,26 +926,6 @@ fun NoiseControlSettings(service: AirPodsService) {
 
     val noiseControlMode = remember { mutableStateOf(NoiseControlMode.OFF) }
 
-    val noiseControlReceiver = remember {
-        object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                noiseControlMode.value = NoiseControlMode.entries.toTypedArray()[intent.getIntExtra("data", 3) - 1]
-            }
-        }
-    }
-
-    val context = LocalContext.current
-    val noiseControlIntentFilter = IntentFilter(AirPodsNotifications.ANC_DATA)
-    context.registerReceiver(noiseControlReceiver, noiseControlIntentFilter, Context.RECEIVER_EXPORTED)
-
-//    val paddingAnim by animateDpAsState(
-//        targetValue = when (noiseControlMode.value) {
-//            NoiseControlMode.OFF -> 0.dp
-//            NoiseControlMode.TRANSPARENCY -> 150.dp
-//            NoiseControlMode.ADAPTIVE -> 250.dp
-//            NoiseControlMode.NOISE_CANCELLATION -> 350.dp
-//        }, label = ""
-//    )
 
     val d1a = remember { mutableFloatStateOf(0f) }
     val d2a = remember { mutableFloatStateOf(0f) }
@@ -1254,6 +958,19 @@ fun NoiseControlSettings(service: AirPodsService) {
         }
     }
 
+    val noiseControlReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context, intent: Intent) {
+                noiseControlMode.value = NoiseControlMode.entries.toTypedArray()[intent.getIntExtra("data", 3) - 1]
+                onModeSelected(noiseControlMode.value)
+            }
+        }
+    }
+
+    val context = LocalContext.current
+    val noiseControlIntentFilter = IntentFilter(AirPodsNotifications.ANC_DATA)
+    context.registerReceiver(noiseControlReceiver, noiseControlIntentFilter, Context.RECEIVER_EXPORTED)
+
     Text(
         text = "NOISE CONTROL",
         style = TextStyle(
@@ -1275,13 +992,6 @@ fun NoiseControlSettings(service: AirPodsService) {
                 .height(75.dp)
                 .padding(8.dp)
         ) {
-//            Box(
-//                modifier = Modifier
-//                    .fillMaxHeight()
-//                    .width(80.dp)
-//                    .offset(x = paddingAnim)
-//                    .background(selectedBackground, RoundedCornerShape(8.dp))
-//            )
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -1405,178 +1115,12 @@ fun NoiseControlButton(
     }
 }
 
+@Preview
 @Composable
-fun StyledSwitch(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
-) {
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-
-    val thumbColor = Color.White
-    val trackColor = if (checked) Color(0xFF34C759) else if (isDarkTheme) Color(0xFF5B5B5E) else Color(0xFFD1D1D6)
-
-    // Animate the horizontal offset of the thumb
-    val thumbOffsetX by animateDpAsState(targetValue = if (checked) 20.dp else 0.dp, label = "Test")
-
-    Box(
-        modifier = Modifier
-            .width(51.dp)
-            .height(31.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .background(trackColor) // Dynamic track background
-            .padding(horizontal = 3.dp),
-        contentAlignment = Alignment.CenterStart
+fun AirPodsSettingsScreenPreview() {
+    ALNTheme (
+        darkTheme = true
     ) {
-        Box(
-            modifier = Modifier
-                .offset(x = thumbOffsetX) // Animate the offset for smooth transition
-                .size(27.dp)
-                .clip(CircleShape)
-                .background(thumbColor) // Dynamic thumb color
-                .clickable { onCheckedChange(!checked) } // Make the switch clickable
-        )
-    }
-}
-
-@Composable
-fun StyledTextField(
-    name: String,
-    value: String,
-    onValueChange: (String) -> Unit
-) {
-    var isFocused by remember { mutableStateOf(false) }
-
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
-
-    val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
-    val textColor = if (isDarkTheme) Color.White else Color.Black
-    val cursorColor = if (isFocused) { // Show cursor only when focused
-        if (isDarkTheme) Color.White else Color.Black
-    } else {
-        Color.Transparent // Hide cursor when not focused
-    }
-
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(55.dp)
-            .background(
-                backgroundColor,
-                RoundedCornerShape(14.dp)
-            )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = name,
-            style = TextStyle(
-                fontSize = 16.sp,
-                color = textColor
-            )
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            textStyle = TextStyle(
-                color = textColor,
-                fontSize = 16.sp,
-            ),
-            singleLine = true,
-            cursorBrush = SolidColor(cursorColor), // Dynamic cursor color based on focus
-            decorationBox = { innerTextField ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    innerTextField()
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(start = 8.dp)
-                .onFocusChanged { focusState ->
-                    isFocused = focusState.isFocused // Update focus state
-                }
-        )
-    }
-}
-
-@Composable
-fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
-    val batteryOutlineColor = Color(0xFFBFBFBF) // Light gray outline
-    val batteryFillColor = if (batteryPercentage > 30) Color(0xFF30D158) else Color(0xFFFC3C3C)
-    val batteryTextColor = MaterialTheme.colorScheme.onSurface
-
-    // Battery indicator dimensions
-    val batteryWidth = 40.dp
-    val batteryHeight = 15.dp
-    val batteryCornerRadius = 4.dp
-    val tipWidth = 5.dp
-    val tipHeight = batteryHeight * 0.375f
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(0.dp),
-            modifier = Modifier.padding(bottom = 4.dp) // Padding between icon and percentage text
-        ) {
-            // Battery Icon
-            Box(
-                modifier = Modifier
-                    .width(batteryWidth)
-                    .height(batteryHeight)
-                    .border(1.dp, batteryOutlineColor, RoundedCornerShape(batteryCornerRadius))
-            ) {
-                Box(
-                    modifier = Modifier
-                        .fillMaxHeight()
-                        .padding(2.dp)
-                        .width(batteryWidth * (batteryPercentage / 100f))
-                        .background(batteryFillColor, RoundedCornerShape(2.dp))
-                )
-                if (charging) {
-                    Box(
-                        modifier = Modifier
-                            .padding(0.dp)
-                            .fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "\uDBC0\uDEE6",
-                            fontSize = 15.sp,
-                            fontFamily = FontFamily(Font(R.font.sf_pro)),
-                            color = Color.White,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(0.dp)
-                        )
-                    }
-                }
-            }
-
-            Box(
-                modifier = Modifier
-                    .width(tipWidth)
-                    .height(tipHeight)
-                    .padding(start = 1.dp)
-                    .background(
-                        batteryOutlineColor,
-                        RoundedCornerShape(
-                            topStart = 0.dp,
-                            topEnd = 12.dp,
-                            bottomStart = 0.dp,
-                            bottomEnd = 12.dp
-                        )
-                    )
-            )
-        }
-
-        Text(
-            text = "$batteryPercentage%",
-            color = batteryTextColor,
-            style = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        )
+        AirPodsSettingsScreen(dev = null, service = AirPodsService(), navController = rememberNavController(), isConnected = true)
     }
 }

@@ -146,8 +146,8 @@ fun Main() {
             composable("debug") {
                 DebugScreen(navController = navController)
             }
-            composable("long_press") {
-                LongPress(navController = navController)
+            composable("long_press/{bud}") { navBackStackEntry ->
+                LongPress(navController = navController, name = navBackStackEntry.arguments?.getString("bud")!!)
             }
         }
 
