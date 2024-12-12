@@ -1,6 +1,8 @@
 # ALN - AirPods like Normal
 *Access AirPods' Apple-exclusive features on linux and android!*
 
+## XDAForums Thread - [https://xdaforums.com/t/app-root-for-now-airpodslikenormal-unlock-apple-exclusive-airpods-features-on-android.4707585/](https://xdaforums.com/t/app-root-for-now-airpodslikenormal-unlock-apple-exclusive-airpods-features-on-android.4707585/)
+
 ## Tested device(s)
 - AirPods Pro 2
 
