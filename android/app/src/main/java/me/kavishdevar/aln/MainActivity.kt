@@ -34,6 +34,9 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
+import me.kavishdevar.aln.screens.AirPodsSettingsScreen
+import me.kavishdevar.aln.screens.DebugScreen
+import me.kavishdevar.aln.screens.LongPress
 import me.kavishdevar.aln.ui.theme.ALNTheme
 
 lateinit var serviceConnection: ServiceConnection
@@ -66,6 +69,7 @@ class MainActivity : ComponentActivity() {
         } catch (e: Exception) {
             Log.e("MainActivity", "Error while unregistering receiver: $e")
         }
+        sendBroadcast(Intent(AirPodsNotifications.DISCONNECT_RECEIVERS))
         super.onDestroy()
     }
 
@@ -147,7 +151,10 @@ fun Main() {
                 DebugScreen(navController = navController)
             }
             composable("long_press/{bud}") { navBackStackEntry ->
-                LongPress(navController = navController, name = navBackStackEntry.arguments?.getString("bud")!!)
+                LongPress(
+                    navController = navController,
+                    name = navBackStackEntry.arguments?.getString("bud")!!
+                )
             }
         }
 

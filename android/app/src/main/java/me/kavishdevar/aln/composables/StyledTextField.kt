@@ -1,6 +1,7 @@
 package me.kavishdevar.aln.composables
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,7 +9,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -33,7 +33,7 @@ fun StyledTextField(
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val isDarkTheme = isSystemInDarkTheme()
 
     val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
     val textColor = if (isDarkTheme) Color.White else Color.Black
@@ -86,4 +86,10 @@ fun StyledTextField(
                 }
         )
     }
+}
+
+@Preview
+@Composable
+fun StyledTextFieldPreview() {
+    StyledTextField(name = "Name", value = "AirPods Pro", onValueChange = {})
 }

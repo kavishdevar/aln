@@ -1,4 +1,4 @@
-package me.kavishdevar.aln
+package me.kavishdevar.aln.utils
 
 import android.media.AudioManager
 import android.util.Log
@@ -16,16 +16,36 @@ object MediaController {
     @Synchronized
     fun sendPause() {
         if (audioManager.isMusicActive) {
-            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PAUSE))
-            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PAUSE))
+            audioManager.dispatchMediaKeyEvent(
+                KeyEvent(
+                    KeyEvent.ACTION_DOWN,
+                    KeyEvent.KEYCODE_MEDIA_PAUSE
+                )
+            )
+            audioManager.dispatchMediaKeyEvent(
+                KeyEvent(
+                    KeyEvent.ACTION_UP,
+                    KeyEvent.KEYCODE_MEDIA_PAUSE
+                )
+            )
         }
     }
 
     @Synchronized
     fun sendPlay() {
         if (!audioManager.isMusicActive) {
-            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_MEDIA_PLAY))
-            audioManager.dispatchMediaKeyEvent(KeyEvent(KeyEvent.ACTION_UP, KeyEvent.KEYCODE_MEDIA_PLAY))
+            audioManager.dispatchMediaKeyEvent(
+                KeyEvent(
+                    KeyEvent.ACTION_DOWN,
+                    KeyEvent.KEYCODE_MEDIA_PLAY
+                )
+            )
+            audioManager.dispatchMediaKeyEvent(
+                KeyEvent(
+                    KeyEvent.ACTION_UP,
+                    KeyEvent.KEYCODE_MEDIA_PLAY
+                )
+            )
         }
     }
 

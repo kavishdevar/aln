@@ -30,16 +30,17 @@ import androidx.compose.ui.unit.sp
 import me.kavishdevar.aln.AirPodsService
 
 @Composable
-fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
-    var volumeControlEnabled by remember {
+fun LoudSoundReductionSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
+    var loudSoundReductionEnabled by remember {
         mutableStateOf(
-            sharedPreferences.getBoolean("volume_control", true)
+            sharedPreferences.getBoolean("loud_sound_reduction", true)
         )
     }
-    fun updateVolumeControlEnabled(enabled: Boolean) {
-        volumeControlEnabled = enabled
-        sharedPreferences.edit().putBoolean("volume_control", enabled).apply()
-        service.setVolumeControl(enabled)
+
+    fun updateLoudSoundReduction(enabled: Boolean) {
+        loudSoundReductionEnabled = enabled
+        sharedPreferences.edit().putBoolean("loud_sound_reduction", enabled).apply()
+        service.setLoudSoundReduction(enabled)
     }
 
     val isDarkTheme = isSystemInDarkTheme()
@@ -68,7 +69,7 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) {
-                updateVolumeControlEnabled(!volumeControlEnabled)
+                updateLoudSoundReduction(!loudSoundReductionEnabled)
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -78,22 +79,23 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
                 .padding(end = 4.dp)
         ) {
             Text(
-                text = "Volume Control",
+                text = "Loud Sound Reduction",
                 fontSize = 16.sp,
                 color = textColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Adjust the volume by swiping up or down on the sensor located on the AirPods Pro stem.",
+                text = "Reduces loud sounds you are exposed to.",
                 fontSize = 12.sp,
                 color = textColor.copy(0.6f),
                 lineHeight = 14.sp,
             )
         }
+
         StyledSwitch(
-            checked = volumeControlEnabled,
+            checked = loudSoundReductionEnabled,
             onCheckedChange = {
-                updateVolumeControlEnabled(it)
+                updateLoudSoundReduction(it)
             },
         )
     }
@@ -101,6 +103,6 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
 
 @Preview
 @Composable
-fun VolumeControlSwitchPreview() {
-    VolumeControlSwitch(service = AirPodsService(), sharedPreferences = LocalContext.current.getSharedPreferences("preview", 0))
+fun LoudSoundReductionSwitchPreview() {
+    LoudSoundReductionSwitch(AirPodsService(), LocalContext.current.getSharedPreferences("preview", 0))
 }

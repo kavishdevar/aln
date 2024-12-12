@@ -1,4 +1,4 @@
-package me.kavishdevar.aln
+package me.kavishdevar.aln.services
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -8,6 +8,9 @@ import android.content.IntentFilter
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
+import me.kavishdevar.aln.AirPodsNotifications
+import me.kavishdevar.aln.NoiseControlMode
+import me.kavishdevar.aln.ServiceManager
 
 class AirPodsQSService: TileService() {
     private val ancModes = listOf(NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)
@@ -46,18 +49,19 @@ class AirPodsQSService: TileService() {
 
         availabilityReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == AirPodsNotifications.AIRPODS_CONNECTED) {
+                if (intent.action == AirPodsNotifications.Companion.AIRPODS_CONNECTED) {
                     qsTile.state = Tile.STATE_ACTIVE
                     qsTile.updateTile()
                 }
-                else if (intent.action == AirPodsNotifications.AIRPODS_DISCONNECTED) {
+                else if (intent.action == AirPodsNotifications.Companion.AIRPODS_DISCONNECTED) {
                     qsTile.state = Tile.STATE_UNAVAILABLE
                     qsTile.updateTile()
                 }
             }
         }
 
-        registerReceiver(ancStatusReceiver, IntentFilter(AirPodsNotifications.ANC_DATA), RECEIVER_EXPORTED)
+        registerReceiver(ancStatusReceiver,
+            IntentFilter(AirPodsNotifications.Companion.ANC_DATA), RECEIVER_EXPORTED)
 
         qsTile.state = if (ServiceManager.getService()?.isConnected == true) Tile.STATE_ACTIVE else Tile.STATE_UNAVAILABLE
         val ancIndex = ServiceManager.getService()?.getANC()

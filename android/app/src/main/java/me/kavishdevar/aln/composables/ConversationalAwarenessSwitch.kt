@@ -30,16 +30,17 @@ import androidx.compose.ui.unit.sp
 import me.kavishdevar.aln.AirPodsService
 
 @Composable
-fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
-    var volumeControlEnabled by remember {
+fun ConversationalAwarenessSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {
+    var conversationalAwarenessEnabled by remember {
         mutableStateOf(
-            sharedPreferences.getBoolean("volume_control", true)
+            sharedPreferences.getBoolean("conversational_awareness", true)
         )
     }
-    fun updateVolumeControlEnabled(enabled: Boolean) {
-        volumeControlEnabled = enabled
-        sharedPreferences.edit().putBoolean("volume_control", enabled).apply()
-        service.setVolumeControl(enabled)
+
+    fun updateConversationalAwareness(enabled: Boolean) {
+        conversationalAwarenessEnabled = enabled
+        sharedPreferences.edit().putBoolean("conversational_awareness", enabled).apply()
+        service.setCAEnabled(enabled)
     }
 
     val isDarkTheme = isSystemInDarkTheme()
@@ -68,7 +69,7 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
                 indication = null,
                 interactionSource = remember { MutableInteractionSource() }
             ) {
-                updateVolumeControlEnabled(!volumeControlEnabled)
+                updateConversationalAwareness(!conversationalAwarenessEnabled)
             },
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -78,22 +79,22 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
                 .padding(end = 4.dp)
         ) {
             Text(
-                text = "Volume Control",
+                text = "Conversational Awareness",
                 fontSize = 16.sp,
                 color = textColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Adjust the volume by swiping up or down on the sensor located on the AirPods Pro stem.",
+                text = "Lowers media volume and reduces background noise when you start speaking to other people.",
                 fontSize = 12.sp,
                 color = textColor.copy(0.6f),
                 lineHeight = 14.sp,
             )
         }
         StyledSwitch(
-            checked = volumeControlEnabled,
+            checked = conversationalAwarenessEnabled,
             onCheckedChange = {
-                updateVolumeControlEnabled(it)
+                updateConversationalAwareness(it)
             },
         )
     }
@@ -101,6 +102,6 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
 
 @Preview
 @Composable
-fun VolumeControlSwitchPreview() {
-    VolumeControlSwitch(service = AirPodsService(), sharedPreferences = LocalContext.current.getSharedPreferences("preview", 0))
+fun ConversationalAwarenessSwitchPreview() {
+    ConversationalAwarenessSwitch(AirPodsService(), LocalContext.current.getSharedPreferences("preview", 0))
 }

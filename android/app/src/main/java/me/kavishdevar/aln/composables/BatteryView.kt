@@ -22,12 +22,12 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kavishdevar.aln.AirPodsNotifications
 import me.kavishdevar.aln.AirPodsService
 import me.kavishdevar.aln.Battery
 import me.kavishdevar.aln.BatteryComponent
-import me.kavishdevar.aln.composables.BatteryIndicator
 import me.kavishdevar.aln.BatteryStatus
 import me.kavishdevar.aln.R
 
@@ -37,19 +37,28 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
     @Suppress("DEPRECATION") val batteryReceiver = remember {
         object : BroadcastReceiver() {
             override fun onReceive(context: Context, intent: Intent) {
-                batteryStatus.value =
-                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                        intent.getParcelableArrayListExtra("data", Battery::class.java)
-                    } else {
-                        intent.getParcelableArrayListExtra("data")
-                    }?.toList() ?: listOf()
+                if (intent.action == AirPodsNotifications.BATTERY_DATA) {
+                    batteryStatus.value =
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                            intent.getParcelableArrayListExtra("data", Battery::class.java)
+                        } else {
+                            intent.getParcelableArrayListExtra("data")
+                        }?.toList() ?: listOf()
+                }
+                else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
+                    context.unregisterReceiver(this)
+                }
             }
         }
     }
     val context = LocalContext.current
 
     LaunchedEffect(context) {
-        val batteryIntentFilter = IntentFilter(AirPodsNotifications.BATTERY_DATA)
+        val batteryIntentFilter = IntentFilter()
+            .apply {
+                addAction(AirPodsNotifications.BATTERY_DATA)
+                addAction(AirPodsNotifications.DISCONNECT_RECEIVERS)
+            }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.registerReceiver(
                 batteryReceiver,
@@ -132,4 +141,10 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
             }
         }
     }
+}
+
+@Preview
+@Composable
+fun BatteryViewPreview() {
+    BatteryView(AirPodsService(), preview = true)
 }

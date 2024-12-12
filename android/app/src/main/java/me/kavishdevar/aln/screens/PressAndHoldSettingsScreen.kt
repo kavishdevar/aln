@@ -1,9 +1,10 @@
-package me.kavishdevar.aln
+package me.kavishdevar.aln.screens
 
 import android.content.Context
 import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,7 +22,6 @@ import androidx.compose.material3.CheckboxDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -35,7 +35,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.text.TextStyle
@@ -45,6 +44,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import me.kavishdevar.aln.R
+import me.kavishdevar.aln.ServiceManager
 
 @Composable()
 fun RightDivider() {
@@ -64,7 +65,7 @@ fun LongPress(navController: NavController, name: String) {
     val transparencyChecked = remember { mutableStateOf(sharedPreferences.getBoolean("long_press_transparency", false)) }
     val adaptiveChecked = remember { mutableStateOf(sharedPreferences.getBoolean("long_press_adaptive", false)) }
     Log.d("LongPress", "offChecked: ${offChecked.value}, ncChecked: ${ncChecked.value}, transparencyChecked: ${transparencyChecked.value}, adaptiveChecked: ${adaptiveChecked.value}")
-    val isDarkTheme = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val isDarkTheme = isSystemInDarkTheme()
     val textColor = if (isDarkTheme) Color.White else Color.Black
 
     Scaffold(
@@ -81,7 +82,7 @@ fun LongPress(navController: NavController, name: String) {
                         onClick = {
                             navController.popBackStack()
                         },
-                        shape = RoundedCornerShape(24.dp),
+                        shape = RoundedCornerShape(8.dp),
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowLeft,
@@ -105,7 +106,7 @@ fun LongPress(navController: NavController, name: String) {
                 )
             )
         },
-        containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF000000)
+        containerColor = if (isSystemInDarkTheme()) Color(0xFF000000)
         else Color(0xFFF2F2F7),
     ) { paddingValues ->
         val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
@@ -160,7 +161,7 @@ fun LongPressElement (name: String, checked: MutableState<Boolean>, id: String, 
     val sharedPreferences =
         LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val offListeningMode = sharedPreferences.getBoolean("off_listening_mode", false)
-    val darkMode = MaterialTheme.colorScheme.surface.luminance() < 0.5
+    val darkMode = isSystemInDarkTheme()
     val textColor = if (darkMode) Color.White else Color.Black
     val desc = when (name) {
         "Off" -> "Turns off noise management"

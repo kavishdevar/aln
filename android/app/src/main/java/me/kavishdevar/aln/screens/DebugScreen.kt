@@ -1,6 +1,6 @@
 @file:OptIn(ExperimentalHazeMaterialsApi::class)
 
-package me.kavishdevar.aln
+package me.kavishdevar.aln.screens
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
@@ -13,6 +13,7 @@ import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -34,7 +35,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -49,7 +49,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -62,6 +61,9 @@ import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import me.kavishdevar.aln.AirPodsNotifications
+import me.kavishdevar.aln.AirPodsService
+import me.kavishdevar.aln.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -97,10 +99,10 @@ fun DebugScreen(navController: NavController) {
                     ),
                 colors = TopAppBarDefaults.topAppBarColors(
                     containerColor = Color.Transparent
-                )
+                ),
             )
         },
-        containerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF000000)
+        containerColor = if (isSystemInDarkTheme()) Color(0xFF000000)
         else Color(0xFFF2F2F7),
     ) { paddingValues ->
         val receiver = object : BroadcastReceiver() {
@@ -113,7 +115,7 @@ fun DebugScreen(navController: NavController) {
         }
 
         LaunchedEffect(context) {
-            val intentFilter = IntentFilter(AirPodsNotifications.AIRPODS_DATA)
+            val intentFilter = IntentFilter(AirPodsNotifications.Companion.AIRPODS_DATA)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.registerReceiver(receiver, intentFilter, Context.RECEIVER_EXPORTED)
             }
@@ -166,7 +168,7 @@ fun DebugScreen(navController: NavController) {
                                 Text(
                                     text = if (isSent) message.substring(1) else message,
                                     fontFamily = FontFamily(Font(R.font.hack)),
-                                    color = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(
+                                    color = if (isSystemInDarkTheme()) Color(
                                         0xFF000000
                                     )
                                     else Color(0xFF000000),
@@ -202,7 +204,7 @@ fun DebugScreen(navController: NavController) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .background(if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF1C1B20) else Color(0xFFF2F2F7)),
+                    .background(if (isSystemInDarkTheme()) Color(0xFF1C1B20) else Color(0xFFF2F2F7)),
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 val packet = remember { mutableStateOf(TextFieldValue("")) }
@@ -227,14 +229,14 @@ fun DebugScreen(navController: NavController) {
                         }
                     },
                     colors = TextFieldDefaults.colors(
-                        focusedContainerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF1C1B20) else Color(0xFFF2F2F7),
-                        unfocusedContainerColor = if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color(0xFF1C1B20) else Color(0xFFF2F2F7),
+                        focusedContainerColor = if (isSystemInDarkTheme()) Color(0xFF1C1B20) else Color(0xFFF2F2F7),
+                        unfocusedContainerColor = if (isSystemInDarkTheme()) Color(0xFF1C1B20) else Color(0xFFF2F2F7),
                         focusedIndicatorColor = Color.Transparent,
                         unfocusedIndicatorColor = Color.Transparent,
-                        focusedTextColor =  if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black,
-                        unfocusedTextColor =  if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White else Color.Black.copy(alpha = 0.6f),
-                        focusedLabelColor =  if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White.copy(alpha = 0.6f) else Color.Black,
-                        unfocusedLabelColor =  if (MaterialTheme.colorScheme.surface.luminance() < 0.5) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f),
+                        focusedTextColor =  if (isSystemInDarkTheme()) Color.White else Color.Black,
+                        unfocusedTextColor =  if (isSystemInDarkTheme()) Color.White else Color.Black.copy(alpha = 0.6f),
+                        focusedLabelColor =  if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.6f) else Color.Black,
+                        unfocusedLabelColor =  if (isSystemInDarkTheme()) Color.White.copy(alpha = 0.6f) else Color.Black.copy(alpha = 0.6f),
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )

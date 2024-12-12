@@ -23,7 +23,9 @@ import android.widget.RemoteViews
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.kavishdevar.aln.utils.MediaController
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 object ServiceManager {
@@ -36,11 +38,11 @@ object ServiceManager {
     fun setService(service: AirPodsService?) {
         this.service = service
     }
-    @Synchronized
-    fun restartService(context: Context) {
-        service?.stopSelf()
-        context.startService(Intent(context, AirPodsService::class.java))
-    }
+//    @Synchronized
+//    fun restartService(context: Context) {
+//        service?.stopSelf()
+//        context.startService(Intent(context, AirPodsService::class.java))
+//    }
 }
 
 @Suppress("unused")
@@ -76,6 +78,10 @@ class AirPodsService: Service() {
             if (bluetoothDevice != null && action != null && !action.isEmpty()) {
                 Log.d("AirPodsService", "Received bluetooth connection broadcast")
                 if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
+                    if (ServiceManager.getService()?.isConnected == true) {
+                        ServiceManager.getService()?.manuallyCheckForAudioSource()
+                        return
+                    }
                     val uuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
                     if (bluetoothDevice.uuids.contains(uuid)) {
                         val intent = Intent(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
@@ -84,8 +90,6 @@ class AirPodsService: Service() {
                         context?.sendBroadcast(intent)
                     }
                 }
-
-                // Airpods disconnected, remove notification but leave the scanner going.
                 if (BluetoothDevice.ACTION_ACL_DISCONNECTED == action
                     || BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED == action
                 ) {
@@ -203,7 +207,19 @@ class AirPodsService: Service() {
         Log.d("AirPodsService", "Service started")
         ServiceManager.setService(this)
         startForegroundNotification()
-        registerReceiver(bluetoothReceiver, BluetoothReceiver.buildFilter(), RECEIVER_EXPORTED)
+        val serviceIntentFilter = IntentFilter().apply {
+            addAction("android.bluetooth.device.action.ACL_CONNECTED")
+            addAction("android.bluetooth.device.action.ACL_DISCONNECTED")
+            addAction("android.bluetooth.device.action.BOND_STATE_CHANGED")
+            addAction("android.bluetooth.device.action.NAME_CHANGED")
+            addAction("android.bluetooth.adapter.action.CONNECTION_STATE_CHANGED")
+            addAction("android.bluetooth.adapter.action.STATE_CHANGED")
+            addAction("android.bluetooth.headset.profile.action.CONNECTION_STATE_CHANGED")
+            addAction("android.bluetooth.headset.action.VENDOR_SPECIFIC_HEADSET_EVENT")
+            addAction("android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED")
+            addAction("android.bluetooth.a2dp.profile.action.PLAYING_STATE_CHANGED")
+        }
+        registerReceiver(bluetoothReceiver, serviceIntentFilter, RECEIVER_EXPORTED)
 
         connectionReceiver = object: BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
@@ -225,11 +241,11 @@ class AirPodsService: Service() {
             }
         }
 
-        val intentFilter = IntentFilter().apply {
+        val deviceIntentFilter = IntentFilter().apply {
             addAction(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
             addAction(AirPodsNotifications.AIRPODS_DISCONNECTED)
         }
-        registerReceiver(connectionReceiver, intentFilter, RECEIVER_EXPORTED)
+        registerReceiver(connectionReceiver, deviceIntentFilter, RECEIVER_EXPORTED)
 
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
         bluetoothAdapter.bondedDevices.forEach { device ->
@@ -257,6 +273,13 @@ class AirPodsService: Service() {
     }
 
     private lateinit var socket: BluetoothSocket
+
+    fun manuallyCheckForAudioSource() {
+        if (earDetectionNotification.status[0] != 0.toByte() && earDetectionNotification.status[1] != 0.toByte()) {
+            Log.d("AirPodsService", "For some reason, Android connected to the audio profile itself even after disconnecting. Disconnecting audio profile again!")
+            disconnectAudio(this, device)
+        }
+    }
 
     @SuppressLint("MissingPermission", "UnspecifiedRegisterReceiverFlag")
     fun connectToSocket(device: BluetoothDevice) {
@@ -303,18 +326,32 @@ class AirPodsService: Service() {
                 this@AirPodsService.device = device
                 isConnected = true
                 socket.let { it ->
+                    // sometimes doesn't work ;-;
+                    // i though i move it to the coroutine
+                    // but, the socket sometimes disconnects if i don't send a packet outside of the routine first
+                    // so, sending *again*, with a delay, in the coroutine
                     it.outputStream.write(Enums.HANDSHAKE.value)
                     it.outputStream.flush()
                     it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
                     it.outputStream.flush()
                     it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
                     it.outputStream.flush()
-                    sendBroadcast(
-                        Intent(AirPodsNotifications.AIRPODS_CONNECTED)
-                            .putExtra("device", device)
-                    )
-
                     CoroutineScope(Dispatchers.IO).launch {
+                        // this is so stupid, why does it disconnect if i don't send a packet outside of the coroutine first
+                        it.outputStream.write(Enums.HANDSHAKE.value)
+                        it.outputStream.flush()
+                        delay(200)
+                        it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
+                        it.outputStream.flush()
+                        delay(200)
+                        it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
+                        it.outputStream.flush()
+                        delay(200)
+                        sendBroadcast(
+                            Intent(AirPodsNotifications.AIRPODS_CONNECTED)
+                                .putExtra("device", device)
+                        )
+
                         while (socket.isConnected == true) {
                             socket.let {
                                 val audioManager =
@@ -516,6 +553,7 @@ class AirPodsService: Service() {
     }
 
     fun setANCMode(mode: Int) {
+        Log.d("AirPodsService", "setANCMode: $mode")
         when (mode) {
             1 -> {
                 socket.outputStream?.write(Enums.NOISE_CANCELLATION_OFF.value)

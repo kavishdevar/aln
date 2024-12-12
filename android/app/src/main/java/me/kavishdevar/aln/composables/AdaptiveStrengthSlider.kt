@@ -1,10 +1,12 @@
 package me.kavishdevar.aln.composables
 
+import android.content.Context
 import android.content.SharedPreferences
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,69 +28,53 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.Font
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kavishdevar.aln.AirPodsService
-import me.kavishdevar.aln.R
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferences) {
+fun AdaptiveStrengthSlider(service: AirPodsService, sharedPreferences: SharedPreferences) {
     val sliderValue = remember { mutableFloatStateOf(0f) }
     LaunchedEffect(sliderValue) {
-        if (sharedPreferences.contains("tone_volume")) {
-            sliderValue.floatValue = sharedPreferences.getInt("tone_volume", 0).toFloat()
+        if (sharedPreferences.contains("adaptive_strength")) {
+            sliderValue.floatValue = sharedPreferences.getInt("adaptive_strength", 0).toFloat()
         }
     }
     LaunchedEffect(sliderValue.floatValue) {
-        sharedPreferences.edit().putInt("tone_volume", sliderValue.floatValue.toInt()).apply()
+        sharedPreferences.edit().putInt("adaptive_strength", sliderValue.floatValue.toInt()).apply()
     }
 
     val isDarkTheme = isSystemInDarkTheme()
 
-    val trackColor = if (isDarkTheme) Color(0xFFB3B3B3) else Color(0xFF929491)
-    val activeTrackColor = if (isDarkTheme) Color(0xFF007AFF) else Color(0xFF3C6DF5)
+    val trackColor = if (isDarkTheme) Color(0xFFB3B3B3) else Color(0xFFD9D9D9)
     val thumbColor = if (isDarkTheme) Color(0xFFFFFFFF) else Color(0xFFFFFFFF)
     val labelTextColor = if (isDarkTheme) Color.White else Color.Black
 
-
-    Row(
+    Column(
         modifier = Modifier
-            .fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text(
-            text = "\uDBC0\uDEA1",
-            style = TextStyle(
-                fontSize = 16.sp,
-                fontFamily = FontFamily(Font(R.font.sf_pro)),
-                fontWeight = FontWeight.Light,
-                color = labelTextColor
-            ),
-            modifier = Modifier.padding(start = 4.dp)
-        )
         Slider(
             value = sliderValue.floatValue,
             onValueChange = {
                 sliderValue.floatValue = it
-                service.setToneVolume(volume = it.toInt())
+                service.setAdaptiveStrength(100 - it.toInt())
             },
             valueRange = 0f..100f,
             onValueChangeFinished = {
                 sliderValue.floatValue = sliderValue.floatValue.roundToInt().toFloat()
             },
             modifier = Modifier
-                .weight(1f)
+                .fillMaxWidth()
                 .height(36.dp),
             colors = SliderDefaults.colors(
                 thumbColor = thumbColor,
-                activeTrackColor = activeTrackColor,
                 inactiveTrackColor = trackColor
             ),
             thumb = {
@@ -100,7 +86,7 @@ fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferenc
                 )
             },
             track = {
-                Box (
+                Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(12.dp),
@@ -113,30 +99,39 @@ fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferenc
                             .height(4.dp)
                             .background(trackColor, RoundedCornerShape(4.dp))
                     )
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(sliderValue.floatValue / 100)
-                            .height(4.dp)
-                            .background(activeTrackColor, RoundedCornerShape(4.dp))
-                    )
                 }
+
             }
         )
-        Text(
-            text = "\uDBC0\uDEA9",
-            style = TextStyle(
-                fontSize = 16.sp,
-                fontFamily = FontFamily(Font(R.font.sf_pro)),
-                fontWeight = FontWeight.Light,
-                color = labelTextColor
-            ),
-            modifier = Modifier.padding(end = 4.dp)
-        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text(
+                text = "Less Noise",
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Light,
+                    color = labelTextColor
+                ),
+                modifier = Modifier.padding(start = 4.dp)
+            )
+            Text(
+                text = "More Noise",
+                style = TextStyle(
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Light,
+                    color = labelTextColor
+                ),
+                modifier = Modifier.padding(end = 4.dp)
+            )
+        }
     }
 }
 
 @Preview
 @Composable
-fun ToneVolumeSliderPreview() {
-    ToneVolumeSlider(AirPodsService(), sharedPreferences = LocalContext.current.getSharedPreferences("preview", 0))
+fun AdaptiveStrengthSliderPreview() {
+    AdaptiveStrengthSlider(service = AirPodsService(), sharedPreferences = LocalContext.current.getSharedPreferences("preview", Context.MODE_PRIVATE))
 }

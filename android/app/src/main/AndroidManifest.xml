@@ -67,7 +67,7 @@
             android:foregroundServiceType="connectedDevice"
             android:permission="android.permission.BLUETOOTH_CONNECT" />
         <service
-            android:name=".AirPodsQSService"
+            android:name=".services.AirPodsQSService"
             android:exported="true"
             android:icon="@drawable/airpods"
             android:label="ANC Mode"
@@ -78,7 +78,7 @@
         </service>
 
         <receiver
-            android:name=".BootReceiver"
+            android:name=".receivers.BootReceiver"
             android:enabled="true"
             android:exported="true"
             android:label="@string/app_name">
