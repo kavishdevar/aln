@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       release:
-        description: 'Create a release'
+        description: 'Create a nightly release'
         required: true
         type: boolean
         default: false
@@ -52,6 +52,8 @@ jobs:
         run: mv "./Debug APK/debug/"*.apk "./$APK_NAME"
       - name: Decode keystore file
         run: echo "${{ secrets.DEBUG_KEYSTORE_FILE }}" | base64 --decode > debug.keystore
+      - name: Install apksigner
+        run: sudo apt-get update && sudo apt-get install -y apksigner
       - name: Sign APK
         run: |
           apksigner sign --ks debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android "./$APK_NAME"
