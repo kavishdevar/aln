@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - '*-dev'
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  build-debug-apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'zulu'
+          java-version: 21
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Debug APK
+          path: build/outputs/apk/**/*.apk
+
+  nightly-release:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/15-dev'
+    needs: build-debug-apk
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+      - name: Export APK_NAME for later use
+        run: echo "APK_NAME=Debug.${{ github.ref_name }}.Nightly-CI_${{ github.run_number }}-$(echo ${{ github.sha }} | cut -c1-7).apk" >> $GITHUB_ENV
+      - name: Rename .apk file
+        run: mv "./Debug APK/debug/"*.apk "./$APK_NAME"
+      - name: Delete release if exist then create release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
+          gh release create "nightly" "./$APK_NAME" -p -t "Nightly Release" --generate-notes
