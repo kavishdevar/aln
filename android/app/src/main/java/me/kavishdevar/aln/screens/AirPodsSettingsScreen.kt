@@ -109,7 +109,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                     modifier = Modifier
                         .hazeChild(
                             state = hazeState,
-                            style = CupertinoMaterials.regular(),
+                            style = CupertinoMaterials.thick(),
                             block = {
                                 alpha =
                                     if (verticalScrollState.value > 55.dp.value * mDensity.floatValue) 1f else 0f

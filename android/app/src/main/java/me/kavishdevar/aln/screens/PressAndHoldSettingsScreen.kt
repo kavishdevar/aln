@@ -50,9 +50,10 @@ import me.kavishdevar.aln.services.ServiceManager
 @Composable()
 fun RightDivider() {
     HorizontalDivider(
-        color = Color(0xFF4D4D4D).copy(alpha = 0.4f),
-        thickness = 2.dp,
-        modifier = Modifier.padding(start = 72.dp)
+        thickness = 1.5.dp,
+        color = Color(0x40888888),
+        modifier = Modifier
+            .padding(start = 72.dp)
     )
 }
 

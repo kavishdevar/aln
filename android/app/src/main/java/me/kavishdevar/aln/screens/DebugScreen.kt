@@ -29,7 +29,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -37,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -48,10 +49,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -61,9 +65,9 @@ import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import me.kavishdevar.aln.utils.AirPodsNotifications
-import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.R
+import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.utils.AirPodsNotifications
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
@@ -79,16 +83,34 @@ fun DebugScreen(navController: NavController) {
             TopAppBar(
                 title = { Text("Debug") },
                 navigationIcon = {
-                    IconButton(onClick = {
-                        navController.popBackStack()
-                    }) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, null)
+                    TextButton(
+                        onClick = {
+                            navController.popBackStack()
+                        },
+                        shape = RoundedCornerShape(8.dp),
+                    ) {
+                        val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+                        Icon(
+                            Icons.AutoMirrored.Filled.KeyboardArrowLeft,
+                            contentDescription = "Back",
+                            tint = if (isSystemInDarkTheme())  Color(0xFF007AFF) else Color(0xFF3C6DF5),
+                            modifier = Modifier.scale(1.5f)
+                        )
+                        Text(
+                            sharedPreferences.getString("name", "AirPods")!!,
+                            style = TextStyle(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (isSystemInDarkTheme()) Color(0xFF007AFF) else Color(0xFF3C6DF5),
+                                fontFamily = FontFamily(Font(R.font.sf_pro))
+                            ),
+                        )
                     }
                 },
                 modifier = Modifier
                     .hazeChild(
                         state = hazeState,
-                        style = CupertinoMaterials.thin(),
+                        style = CupertinoMaterials.thick(),
                         block = {
                             alpha = if (listState.firstVisibleItemIndex > 0) {
                                 1f

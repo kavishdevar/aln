@@ -108,8 +108,8 @@ fun PressAndHoldSettings(navController: NavController) {
             }
         }
         HorizontalDivider(
-            thickness = 2.dp,
-            color = Color(0xFF4D4D4D).copy(alpha = 0.4f),
+            thickness = 1.5.dp,
+            color = Color(0x40888888),
             modifier = Modifier
                 .padding(start = 16.dp)
         )
