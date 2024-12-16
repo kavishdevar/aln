@@ -42,10 +42,20 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
+      - name: Get latest release tag
+        id: get_latest_release
+        run: echo "::set-output name=tag::$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName')"
       - name: Export APK_NAME for later use
-        run: echo "APK_NAME=Debug.${{ github.ref_name }}.Nightly-CI_${{ github.run_number }}-$(echo ${{ github.sha }} | cut -c1-7).apk" >> $GITHUB_ENV
+        run: echo "APK_NAME=ALN-${{ steps.get_latest_release.outputs.tag }}-${{ github.sha }}" >> $GITHUB_ENV
       - name: Rename .apk file
         run: mv "./Debug APK/debug/"*.apk "./$APK_NAME"
+      - name: Decode keystore file
+        run: echo "${{ secrets.DEBUG_KEYSTORE_FILE }}" | base64 --decode > debug.keystore
+      - name: Sign APK
+        run: |
+          apksigner sign --ks debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android "./$APK_NAME"
+      - name: Verify APK
+        run: apksigner verify "./$APK_NAME"
       - name: Delete release if exist then create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
