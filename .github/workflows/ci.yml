@@ -3,7 +3,7 @@ name: CI
 on:
   push:
     branches:
-      - '*-dev'
+      - '*'
   workflow_dispatch:
   workflow_call:
 
@@ -21,15 +21,16 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
       - name: Build debug APK
         run: ./gradlew assembleDebug
+        working-directory: android
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: Debug APK
-          path: build/outputs/apk/**/*.apk
+          path: android/build/outputs/apk/**/*.apk
 
   nightly-release:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/15-dev'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release-nightly'
     needs: build-debug-apk
     permissions:
       contents: write
