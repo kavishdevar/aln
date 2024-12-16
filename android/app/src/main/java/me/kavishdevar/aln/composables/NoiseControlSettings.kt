@@ -34,9 +34,9 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.kavishdevar.aln.AirPodsNotifications
-import me.kavishdevar.aln.AirPodsService
-import me.kavishdevar.aln.NoiseControlMode
+import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.utils.NoiseControlMode
 import me.kavishdevar.aln.R
 
 @SuppressLint("UnspecifiedRegisterReceiverFlag")

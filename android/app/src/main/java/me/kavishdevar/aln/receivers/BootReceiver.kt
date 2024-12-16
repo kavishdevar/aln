@@ -3,7 +3,7 @@ package me.kavishdevar.aln.receivers
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import me.kavishdevar.aln.AirPodsService
+import me.kavishdevar.aln.services.AirPodsService
 
 class BootReceiver: BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {

@@ -2,4 +2,6 @@
 <resources>
     <color name="popup_background">#1C1B1E</color>
     <color name="popup_text">@color/white</color>
+    <color name="widget_background">#1C1B1E</color>
+    <color name="widget_text">@color/white</color>
 </resources>

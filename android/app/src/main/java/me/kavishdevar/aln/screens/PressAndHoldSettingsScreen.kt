@@ -45,7 +45,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import me.kavishdevar.aln.R
-import me.kavishdevar.aln.ServiceManager
+import me.kavishdevar.aln.services.ServiceManager
 
 @Composable()
 fun RightDivider() {

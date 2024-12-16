@@ -1,4 +1,4 @@
-package me.kavishdevar.aln
+package me.kavishdevar.aln.services
 
 import android.annotation.SuppressLint
 import android.app.Notification
@@ -25,6 +25,14 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.utils.Battery
+import me.kavishdevar.aln.utils.BatteryComponent
+import me.kavishdevar.aln.utils.BatteryStatus
+import me.kavishdevar.aln.utils.Enums
+import me.kavishdevar.aln.utils.LongPressPackets
+import me.kavishdevar.aln.R
+import me.kavishdevar.aln.utils.Window
 import me.kavishdevar.aln.utils.MediaController
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
@@ -38,11 +46,11 @@ object ServiceManager {
     fun setService(service: AirPodsService?) {
         this.service = service
     }
-//    @Synchronized
-//    fun restartService(context: Context) {
-//        service?.stopSelf()
-//        context.startService(Intent(context, AirPodsService::class.java))
-//    }
+    @Synchronized
+    fun restartService(context: Context) {
+        service?.stopSelf()
+        context.startService(Intent(context, AirPodsService::class.java))
+    }
 }
 
 @Suppress("unused")
@@ -84,7 +92,7 @@ class AirPodsService: Service() {
                     }
                     val uuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
                     if (bluetoothDevice.uuids.contains(uuid)) {
-                        val intent = Intent(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
+                        val intent = Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTION_DETECTED)
                         intent.putExtra("name", name)
                         intent.putExtra("device", bluetoothDevice)
                         context?.sendBroadcast(intent)
@@ -94,7 +102,7 @@ class AirPodsService: Service() {
                     || BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED == action
                 ) {
                     context?.sendBroadcast(
-                        Intent(AirPodsNotifications.AIRPODS_DISCONNECTED)
+                        Intent(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED)
                     )
                 }
             }
@@ -195,7 +203,6 @@ class AirPodsService: Service() {
                 .build()
         }
 
-        // Notify the NotificationManager with the same ID
         notificationManager.notify(1, updatedNotification)
     }
 
@@ -219,11 +226,12 @@ class AirPodsService: Service() {
             addAction("android.bluetooth.a2dp.profile.action.CONNECTION_STATE_CHANGED")
             addAction("android.bluetooth.a2dp.profile.action.PLAYING_STATE_CHANGED")
         }
+
         registerReceiver(bluetoothReceiver, serviceIntentFilter, RECEIVER_EXPORTED)
 
         connectionReceiver = object: BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
-                if (intent?.action == AirPodsNotifications.AIRPODS_CONNECTION_DETECTED) {
+                if (intent?.action == AirPodsNotifications.Companion.AIRPODS_CONNECTION_DETECTED) {
                     val name = this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE)
                         .getString("name", device?.name)
                     Log.d("AirPodsService", "$name connected")
@@ -232,7 +240,7 @@ class AirPodsService: Service() {
                     connectToSocket(device!!)
                     updateNotificationContent(true, name.toString(), batteryNotification.getBattery())
                 }
-                else if (intent?.action == AirPodsNotifications.AIRPODS_DISCONNECTED) {
+                else if (intent?.action == AirPodsNotifications.Companion.AIRPODS_DISCONNECTED) {
                     device = null
                     isConnected = false
                     popupShown = false
@@ -242,8 +250,8 @@ class AirPodsService: Service() {
         }
 
         val deviceIntentFilter = IntentFilter().apply {
-            addAction(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
-            addAction(AirPodsNotifications.AIRPODS_DISCONNECTED)
+            addAction(AirPodsNotifications.Companion.AIRPODS_CONNECTION_DETECTED)
+            addAction(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED)
         }
         registerReceiver(connectionReceiver, deviceIntentFilter, RECEIVER_EXPORTED)
 
@@ -257,7 +265,7 @@ class AirPodsService: Service() {
                             if (connectedDevices.isNotEmpty()) {
                                 connectToSocket(device)
                                 this@AirPodsService.sendBroadcast(
-                                    Intent(AirPodsNotifications.AIRPODS_CONNECTED)
+                                    Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
                                 )
                             }
                         }
@@ -348,7 +356,7 @@ class AirPodsService: Service() {
                         it.outputStream.flush()
                         delay(200)
                         sendBroadcast(
-                            Intent(AirPodsNotifications.AIRPODS_CONNECTED)
+                            Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
                                 .putExtra("device", device)
                         )
 
@@ -362,7 +370,7 @@ class AirPodsService: Service() {
                                 var data: ByteArray = byteArrayOf()
                                 if (bytesRead > 0) {
                                     data = buffer.copyOfRange(0, bytesRead)
-                                    sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DATA).apply {
+                                    sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DATA).apply {
                                         putExtra("data", buffer.copyOfRange(0, bytesRead))
                                     })
                                     val bytes = buffer.copyOfRange(0, bytesRead)
@@ -371,14 +379,14 @@ class AirPodsService: Service() {
                                 } else if (bytesRead == -1) {
                                     Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
 //                                socket.close()
-                                    sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
+                                    sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED))
                                     return@launch
                                 }
                                 var inEar = false
                                 var inEarData = listOf<Boolean>()
                                 if (earDetectionNotification.isEarDetectionData(data)) {
                                     earDetectionNotification.setStatus(data)
-                                    sendBroadcast(Intent(AirPodsNotifications.EAR_DETECTION_DATA).apply {
+                                    sendBroadcast(Intent(AirPodsNotifications.Companion.EAR_DETECTION_DATA).apply {
                                         val list = earDetectionNotification.status
                                         val bytes = ByteArray(2)
                                         bytes[0] = list[0]
@@ -463,7 +471,7 @@ class AirPodsService: Service() {
                                     }
 
                                     val earIntentFilter =
-                                        IntentFilter(AirPodsNotifications.EAR_DETECTION_DATA)
+                                        IntentFilter(AirPodsNotifications.Companion.EAR_DETECTION_DATA)
                                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                                         this@AirPodsService.registerReceiver(
                                             earReceiver, earIntentFilter,
@@ -477,13 +485,13 @@ class AirPodsService: Service() {
                                     }
                                 } else if (ancNotification.isANCData(data)) {
                                     ancNotification.setStatus(data)
-                                    sendBroadcast(Intent(AirPodsNotifications.ANC_DATA).apply {
+                                    sendBroadcast(Intent(AirPodsNotifications.Companion.ANC_DATA).apply {
                                         putExtra("data", ancNotification.status)
                                     })
                                     Log.d("AirPods Parser", "ANC: ${ancNotification.status}")
                                 } else if (batteryNotification.isBatteryData(data)) {
                                     batteryNotification.setBattery(data)
-                                    sendBroadcast(Intent(AirPodsNotifications.BATTERY_DATA).apply {
+                                    sendBroadcast(Intent(AirPodsNotifications.Companion.BATTERY_DATA).apply {
                                         putParcelableArrayListExtra(
                                             "data",
                                             ArrayList(batteryNotification.getBattery())
@@ -513,7 +521,7 @@ class AirPodsService: Service() {
                                     )
                                 ) {
                                     conversationAwarenessNotification.setData(data)
-                                    sendBroadcast(Intent(AirPodsNotifications.CA_DATA).apply {
+                                    sendBroadcast(Intent(AirPodsNotifications.Companion.CA_DATA).apply {
                                         putExtra("data", conversationAwarenessNotification.status)
                                     })
 
@@ -535,7 +543,7 @@ class AirPodsService: Service() {
                         Log.d("AirPods Service", "Socket closed")
                         isConnected = false
                         socket.close()
-                        sendBroadcast(Intent(AirPodsNotifications.AIRPODS_DISCONNECTED))
+                        sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED))
                     }
                 }
             } catch (e: Exception) {

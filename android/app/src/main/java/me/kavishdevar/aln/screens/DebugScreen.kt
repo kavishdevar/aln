@@ -61,8 +61,8 @@ import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import me.kavishdevar.aln.AirPodsNotifications
-import me.kavishdevar.aln.AirPodsService
+import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

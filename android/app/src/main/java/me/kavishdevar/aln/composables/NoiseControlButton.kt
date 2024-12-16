@@ -1,6 +1,5 @@
 package me.kavishdevar.aln.composables
 
-import me.kavishdevar.aln.R
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -20,6 +19,7 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import me.kavishdevar.aln.R
 
 @Composable
 fun NoiseControlButton(

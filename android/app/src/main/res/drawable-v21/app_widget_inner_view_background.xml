@@ -4,7 +4,6 @@ appWidgetInnerRadius attribute value
 -->
 <shape xmlns:android="http://schemas.android.com/apk/res/android"
     android:shape="rectangle">
-
     <corners android:radius="?attr/appWidgetInnerRadius" />
     <solid android:color="?android:attr/colorAccent" />
 </shape>

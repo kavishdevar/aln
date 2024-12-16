@@ -14,8 +14,13 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
@@ -33,6 +38,8 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.style.TextAlign
@@ -46,8 +53,7 @@ import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
-import me.kavishdevar.aln.AirPodsNotifications
-import me.kavishdevar.aln.AirPodsService
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.composables.AccessibilitySettings
 import me.kavishdevar.aln.composables.AudioSettings
 import me.kavishdevar.aln.composables.BatteryView
@@ -56,7 +62,10 @@ import me.kavishdevar.aln.composables.NavigationButton
 import me.kavishdevar.aln.composables.NoiseControlSettings
 import me.kavishdevar.aln.composables.PressAndHoldSettings
 import me.kavishdevar.aln.composables.StyledTextField
+import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.services.ServiceManager
 import me.kavishdevar.aln.ui.theme.ALNTheme
+import me.kavishdevar.aln.utils.AirPodsNotifications
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
 @SuppressLint("MissingPermission", "NewApi")
@@ -88,7 +97,13 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                 CenterAlignedTopAppBar(
                     title = {
                         Text(
-                            text = deviceName.text
+                            text = deviceName.text,
+                            style = TextStyle(
+                                fontSize = 20.sp,
+                                fontWeight = FontWeight.Medium,
+                                color = if (darkMode) Color.White else Color.Black,
+                                fontFamily = FontFamily(Font(R.font.sf_pro))
+                            )
                         )
                     },
                     modifier = Modifier
@@ -116,23 +131,23 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                     colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
                         containerColor = Color.Transparent
                     ),
-//                    actions = {
-//                        val context = LocalContext.current
-//                        IconButton(
-//                            onClick = {
-//                                ServiceManager.restartService(context)
-//                            },
-//                            colors = IconButtonDefaults.iconButtonColors(
-//                                containerColor = Color.Transparent,
-//                                contentColor = if (isSystemInDarkTheme()) Color.White else Color.Black
-//                            )
-//                        ) {
-//                            Icon(
-//                                imageVector = Icons.Default.Refresh,
-//                                contentDescription = "Settings",
-//                            )
-//                        }
-//                    }
+                    actions = {
+                        val context = LocalContext.current
+                        IconButton(
+                            onClick = {
+                                ServiceManager.restartService(context)
+                            },
+                            colors = IconButtonDefaults.iconButtonColors(
+                                containerColor = Color.Transparent,
+                                contentColor = if (isSystemInDarkTheme()) Color.White else Color.Black
+                            )
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Refresh,
+                                contentDescription = "Settings",
+                            )
+                        }
+                    }
                 )
         }
     ) { paddingValues ->
@@ -228,7 +243,8 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                     style = TextStyle(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Medium,
-                        color = if (isSystemInDarkTheme()) Color.White else Color.Black
+                        color = if (isSystemInDarkTheme()) Color.White else Color.Black,
+                        fontFamily = FontFamily(Font(R.font.sf_pro))
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -239,7 +255,8 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                     style = TextStyle(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Light,
-                        color = if (isSystemInDarkTheme()) Color.White else Color.Black
+                        color = if (isSystemInDarkTheme()) Color.White else Color.Black,
+                        fontFamily = FontFamily(Font(R.font.sf_pro))
                     ),
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth()
@@ -253,9 +270,13 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
 @Preview
 @Composable
 fun AirPodsSettingsScreenPreview() {
-    ALNTheme (
-        darkTheme = true
+    Column (
+        modifier = Modifier.height(2000.dp)
     ) {
-        AirPodsSettingsScreen(dev = null, service = AirPodsService(), navController = rememberNavController(), isConnected = true)
+        ALNTheme (
+            darkTheme = true
+        ) {
+            AirPodsSettingsScreen(dev = null, service = AirPodsService(), navController = rememberNavController(), isConnected = true)
+        }
     }
 }

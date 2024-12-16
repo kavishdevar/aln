@@ -27,7 +27,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.kavishdevar.aln.AirPodsService
+import me.kavishdevar.aln.services.AirPodsService
 
 @Composable
 fun PersonalizedVolumeSwitch(service: AirPodsService, sharedPreferences: SharedPreferences) {

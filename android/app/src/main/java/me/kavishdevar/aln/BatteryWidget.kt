@@ -3,11 +3,12 @@ package me.kavishdevar.aln
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.util.Log
 import android.widget.RemoteViews
+import me.kavishdevar.aln.services.ServiceManager
+import me.kavishdevar.aln.utils.BatteryComponent
+import me.kavishdevar.aln.utils.BatteryStatus
 
-/**
- * Implementation of App Widget functionality.
- */
 class BatteryWidget : AppWidgetProvider() {
     override fun onUpdate(
         context: Context,
@@ -34,11 +35,36 @@ internal fun updateAppWidget(
     appWidgetManager: AppWidgetManager,
     appWidgetId: Int
 ) {
-    val widgetText = context.getString(R.string.appwidget_text)
-    // Construct the RemoteViews object
-    val views = RemoteViews(context.packageName, R.layout.battery_widget)
-    views.setTextViewText(R.id.appwidget_text, widgetText)
+    val service = ServiceManager.getService()
+    val batteryList = service?.batteryNotification?.getBattery()
 
-    // Instruct the widget manager to update the widget
+    val views = RemoteViews(context.packageName, R.layout.battery_widget)
+    Log.d("BatteryWidget", "Battery list: $batteryList")
+
+    views.setTextViewText(R.id.left_battery_widget,
+        batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+            if (it.status != BatteryStatus.DISCONNECTED) {
+                "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+            } else {
+                ""
+            }
+        } ?: "")
+    views.setTextViewText(R.id.right_battery_widget,
+        batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+            if (it.status != BatteryStatus.DISCONNECTED) {
+                "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+            } else {
+                ""
+            }
+        } ?: "")
+    views.setTextViewText(R.id.case_battery_widget,
+        batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+            if (it.status != BatteryStatus.DISCONNECTED) {
+                "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+            } else {
+                ""
+            }
+        } ?: "")
+
     appWidgetManager.updateAppWidget(appWidgetId, views)
 }

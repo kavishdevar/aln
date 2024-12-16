@@ -1,6 +1,6 @@
 @file:Suppress("unused")
 
-package me.kavishdevar.aln
+package me.kavishdevar.aln.utils
 
 import android.os.Parcelable
 import kotlinx.parcelize.Parcelize

@@ -24,11 +24,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import me.kavishdevar.aln.AirPodsNotifications
-import me.kavishdevar.aln.AirPodsService
-import me.kavishdevar.aln.Battery
-import me.kavishdevar.aln.BatteryComponent
-import me.kavishdevar.aln.BatteryStatus
+import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.utils.Battery
+import me.kavishdevar.aln.utils.BatteryComponent
+import me.kavishdevar.aln.utils.BatteryStatus
 import me.kavishdevar.aln.R
 
 @Composable

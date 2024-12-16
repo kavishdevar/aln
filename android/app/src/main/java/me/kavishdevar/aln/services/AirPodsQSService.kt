@@ -8,9 +8,8 @@ import android.content.IntentFilter
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
-import me.kavishdevar.aln.AirPodsNotifications
-import me.kavishdevar.aln.NoiseControlMode
-import me.kavishdevar.aln.ServiceManager
+import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.utils.NoiseControlMode
 
 class AirPodsQSService: TileService() {
     private val ancModes = listOf(NoiseControlMode.NOISE_CANCELLATION.name, NoiseControlMode.TRANSPARENCY.name, NoiseControlMode.ADAPTIVE.name)

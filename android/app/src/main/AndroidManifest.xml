@@ -61,7 +61,7 @@
         </activity>
 
         <service
-            android:name=".AirPodsService"
+            android:name=".services.AirPodsService"
             android:enabled="true"
             android:exported="true"
             android:foregroundServiceType="connectedDevice"

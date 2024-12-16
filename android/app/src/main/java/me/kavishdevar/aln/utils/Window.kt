@@ -1,4 +1,4 @@
-package me.kavishdevar.aln
+package me.kavishdevar.aln.utils
 
 import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
@@ -22,7 +22,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import java.lang.Exception
+import me.kavishdevar.aln.R
 
 @SuppressLint("InflateParams", "ClickableViewAccessibility")
 class Window (context: Context) {

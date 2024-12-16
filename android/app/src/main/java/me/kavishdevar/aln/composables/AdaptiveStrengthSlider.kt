@@ -32,7 +32,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.kavishdevar.aln.AirPodsService
+import me.kavishdevar.aln.services.AirPodsService
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
