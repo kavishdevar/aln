@@ -25,15 +25,15 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.Battery
 import me.kavishdevar.aln.utils.BatteryComponent
 import me.kavishdevar.aln.utils.BatteryStatus
 import me.kavishdevar.aln.utils.Enums
 import me.kavishdevar.aln.utils.LongPressPackets
-import me.kavishdevar.aln.R
-import me.kavishdevar.aln.utils.Window
 import me.kavishdevar.aln.utils.MediaController
+import me.kavishdevar.aln.utils.Window
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 object ServiceManager {
@@ -295,9 +295,8 @@ class AirPodsService: Service() {
         val uuid: ParcelUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
 
         if (isConnected != true) {
-
-
             try {
+                Log.d("aikooo7", "trying first method")
                 socket = HiddenApiBypass.newInstance(
                     BluetoothSocket::class.java,
                     3,
@@ -311,6 +310,7 @@ class AirPodsService: Service() {
                 e: Exception
             ) {
                 e.printStackTrace()
+                Log.d("aikooo7", "first method didn't work; trying second method")
                 try {
                     socket = HiddenApiBypass.newInstance(
                         BluetoothSocket::class.java,

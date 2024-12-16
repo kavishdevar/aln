@@ -57,7 +57,7 @@ object MediaController {
             Log.d("MediaController", "Initial Volume Set: $initialVolume")
             audioManager.setStreamVolume(
                 AudioManager.STREAM_MUSIC,
-                1,  // Set to a lower volume when speaking starts
+                audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 1 / 12,  // Set to a lower volume when speaking starts
                 0
             )
         }
