@@ -5,6 +5,11 @@ on:
     branches:
       - '*'
   workflow_dispatch:
+    inputs:
+      release:
+        description: 'Create a release'
+        required: true
+        default: 'false'
   workflow_call:
 
 jobs:
@@ -26,11 +31,11 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Debug APK
-          path: android/build/outputs/apk/**/*.apk
+          path: android/app/build/outputs/apk/**/*.apk
 
   nightly-release:
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/release-nightly'
+    if: github.event_name == 'push' && github.ref == 'refs/heads/release-nightly' || github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'true'
     needs: build-debug-apk
     permissions:
       contents: write
