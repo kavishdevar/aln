@@ -43,11 +43,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
-      - name: Get latest release tag
-        id: get_latest_release
-        run: echo "tag=$(gh release list --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName')" >> $GITHUB_ENV
       - name: Export APK_NAME for later use
-        run: echo "APK_NAME=ALN-${{ env.tag }}-$(echo ${{ github.sha }} | cut -c1-7).apk" >> $GITHUB_ENV
+        run: echo "APK_NAME=ALN-$(echo ${{ github.sha }} | cut -c1-7).apk" >> $GITHUB_ENV
       - name: Rename .apk file
         run: mv "./Debug APK/debug/"*.apk "./$APK_NAME"
       - name: Decode keystore file
