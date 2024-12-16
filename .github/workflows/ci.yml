@@ -9,7 +9,8 @@ on:
       release:
         description: 'Create a release'
         required: true
-        default: 'false'
+        type: boolean
+        default: false
   workflow_call:
 
 jobs:
