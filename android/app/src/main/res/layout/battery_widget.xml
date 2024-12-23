@@ -3,6 +3,7 @@
     style="@style/Widget.ALN.AppWidget.Container"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:id="@+id/battery_widget"
     android:theme="@style/Theme.ALN.AppWidgetContainer">
     <LinearLayout
         android:layout_width="match_parent"

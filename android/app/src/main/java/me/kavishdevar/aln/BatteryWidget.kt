@@ -3,7 +3,6 @@ package me.kavishdevar.aln
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
-import android.util.Log
 import android.widget.RemoteViews
 import me.kavishdevar.aln.services.ServiceManager
 import me.kavishdevar.aln.utils.BatteryComponent
@@ -22,11 +21,7 @@ class BatteryWidget : AppWidgetProvider() {
     }
 
     override fun onEnabled(context: Context) {
-        // Enter relevant functionality for when the first widget is created
-    }
-
-    override fun onDisabled(context: Context) {
-        // Enter relevant functionality for when the last widget is disabled
+        updateAppWidget(context, AppWidgetManager.getInstance(context), 0)
     }
 }
 
@@ -39,7 +34,6 @@ internal fun updateAppWidget(
     val batteryList = service?.batteryNotification?.getBattery()
 
     val views = RemoteViews(context.packageName, R.layout.battery_widget)
-    Log.d("BatteryWidget", "Battery list: $batteryList")
 
     views.setTextViewText(R.id.left_battery_widget,
         batteryList?.find { it.component == BatteryComponent.LEFT }?.let {

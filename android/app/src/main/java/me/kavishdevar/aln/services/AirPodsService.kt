@@ -5,11 +5,13 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
+import android.appwidget.AppWidgetManager
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
 import android.content.BroadcastReceiver
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
@@ -25,6 +27,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.kavishdevar.aln.BatteryWidget
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.Battery
@@ -136,6 +139,47 @@ class AirPodsService: Service() {
         catch (e: Exception) {
             e.printStackTrace()
         }
+    }
+
+    fun updateBatteryWidget() {
+        val appWidgetManager = AppWidgetManager.getInstance(this)
+        val componentName = ComponentName(this, BatteryWidget::class.java)
+        val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
+
+        val remoteViews = RemoteViews(packageName, R.layout.battery_widget).also {
+            it.setTextViewText(
+                R.id.left_battery_widget,
+                batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""
+            )
+            it.setTextViewText(
+                R.id.right_battery_widget,
+                batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""
+            )
+            it.setTextViewText(
+                R.id.case_battery_widget,
+                batteryNotification.getBattery().find { it.component == BatteryComponent.CASE }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""
+            )
+        }
+        Log.d("AirPodsService", "Updating battery widget")
+        appWidgetManager.updateAppWidget(widgetIds, remoteViews)
     }
 
     fun updateNotificationContent(connected: Boolean, airpodsName: String? = null, batteryList: List<Battery>? = null) {
@@ -296,7 +340,6 @@ class AirPodsService: Service() {
 
         if (isConnected != true) {
             try {
-                Log.d("aikooo7", "trying first method")
                 socket = HiddenApiBypass.newInstance(
                     BluetoothSocket::class.java,
                     3,
@@ -310,7 +353,6 @@ class AirPodsService: Service() {
                 e: Exception
             ) {
                 e.printStackTrace()
-                Log.d("aikooo7", "first method didn't work; trying second method")
                 try {
                     socket = HiddenApiBypass.newInstance(
                         BluetoothSocket::class.java,
@@ -497,6 +539,7 @@ class AirPodsService: Service() {
                                             ArrayList(batteryNotification.getBattery())
                                         )
                                     })
+                                    updateBatteryWidget()
                                     updateNotificationContent(
                                         true,
                                         this@AirPodsService.getSharedPreferences(
