@@ -52,10 +52,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.kavishdevar.aln.utils.AirPodsNotifications
-import me.kavishdevar.aln.services.AirPodsService
-import me.kavishdevar.aln.utils.NoiseControlMode
 import me.kavishdevar.aln.R
+import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.utils.NoiseControlMode
 
 @SuppressLint("UnspecifiedRegisterReceiverFlag")
 @Composable
@@ -108,7 +108,11 @@ fun NoiseControlSettings(service: AirPodsService) {
                     onModeSelected(noiseControlMode.value, true)
                 }
                 else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
-                    context.unregisterReceiver(this)
+                    try {
+                        context.unregisterReceiver(this)
+                    } catch (e: IllegalArgumentException) {
+                        e.printStackTrace()
+                    }
                 }
             }
         }
