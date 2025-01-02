@@ -459,6 +459,7 @@ class AirPodsService: Service() {
                                     )
                                     var justEnabledA2dp = false
                                     earReceiver = object : BroadcastReceiver() {
+                                        @SuppressLint("NewApi")
                                         override fun onReceive(context: Context, intent: Intent) {
                                             val data = intent.getByteArrayExtra("data")
                                             if (data != null && earDetectionEnabled) {
@@ -516,15 +517,41 @@ class AirPodsService: Service() {
                                                     disconnectAudio(this@AirPodsService, device)
                                                 }
 
+                                                if (inEarData.contains(false) && newInEarData == listOf(
+                                                        true,
+                                                        true
+                                                    )
+                                                ) {
+                                                    Log.d("AirPods Parser", "User put in both AirPods from just one.")
+                                                    MediaController.userPlayedTheMedia = false
+                                                }
+                                                if (newInEarData.contains(false) && inEarData == listOf(
+                                                        true,
+                                                        true
+                                                    )
+                                                ) {
+                                                    Log.d("AirPods Parser", "User took one of two out.")
+                                                    MediaController.userPlayedTheMedia = false
+                                                }
+
+                                                if (newInEarData.sorted() == inEarData.sorted()) {
+                                                    return
+                                                }
+
                                                 inEarData = newInEarData
 
                                                 if (inEar == true) {
                                                     if (!justEnabledA2dp) {
                                                         justEnabledA2dp = false
+//                                                        if (audioManager.activePlaybackConfigurations.any { it.audioDeviceInfo?.address == device.address }) {
                                                         MediaController.sendPlay()
+                                                        MediaController.iPausedTheMedia = false
+//                                                        }
                                                     }
                                                 } else {
-                                                    MediaController.sendPause()
+//                                                    if (audioManager.activePlaybackConfigurations.any { it.audioDeviceInfo?.address == device.address }) {
+                                                        MediaController.sendPause()
+//                                                    }
                                                 }
                                             }
                                         }

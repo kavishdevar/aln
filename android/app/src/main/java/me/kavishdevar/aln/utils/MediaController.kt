@@ -20,21 +20,43 @@
 package me.kavishdevar.aln.utils
 
 import android.media.AudioManager
+import android.media.AudioPlaybackConfiguration
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
 
 object MediaController {
-    private var initialVolume: Int? = null  // Nullable to track the unset state
-    private lateinit var audioManager: AudioManager  // Declare AudioManager
+    private var initialVolume: Int? = null
+    private lateinit var audioManager: AudioManager
+    var iPausedTheMedia = false
+    var userPlayedTheMedia = false
 
-    // Initialize the singleton with the AudioManager instance
     fun initialize(audioManager: AudioManager) {
         this.audioManager = audioManager
+        audioManager.registerAudioPlaybackCallback(cb, null)
+    }
+
+    val cb = object : AudioManager.AudioPlaybackCallback() {
+        override fun onPlaybackConfigChanged(configs: MutableList<AudioPlaybackConfiguration>?) {
+            super.onPlaybackConfigChanged(configs)
+            Log.d("MediaController", "Playback config changed, iPausedTheMedia: $iPausedTheMedia")
+            if (configs != null && !iPausedTheMedia) {
+                Log.d("MediaController", "Seems like the user changed the state of media themselves, now I won't `play` until the ear detection pauses it.")
+                Handler(Looper.getMainLooper()).postDelayed({
+                    iPausedTheMedia = !audioManager.isMusicActive
+                    userPlayedTheMedia = audioManager.isMusicActive
+                }, 7) // i have no idea why, but android sends a pause event a hundred times after the user does something.
+            }
+        }
     }
 
     @Synchronized
     fun sendPause() {
-        if (audioManager.isMusicActive) {
+        Log.d("MediaController", "Sending pause with iPausedTheMedia: $iPausedTheMedia, userPlayedTheMedia: $userPlayedTheMedia")
+        if (audioManager.isMusicActive && !userPlayedTheMedia) {
+            iPausedTheMedia = true
+            userPlayedTheMedia = false
             audioManager.dispatchMediaKeyEvent(
                 KeyEvent(
                     KeyEvent.ACTION_DOWN,
@@ -52,7 +74,10 @@ object MediaController {
 
     @Synchronized
     fun sendPlay() {
-        if (!audioManager.isMusicActive) {
+        Log.d("MediaController", "Sending play with iPausedTheMedia: $iPausedTheMedia")
+        if (iPausedTheMedia) {
+            Log.d("MediaController", "Sending play and setting userPlayedTheMedia to false")
+            userPlayedTheMedia = false
             audioManager.dispatchMediaKeyEvent(
                 KeyEvent(
                     KeyEvent.ACTION_DOWN,
@@ -76,8 +101,7 @@ object MediaController {
             Log.d("MediaController", "Initial Volume Set: $initialVolume")
             audioManager.setStreamVolume(
                 AudioManager.STREAM_MUSIC,
-                audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 1 / 12,  // Set to a lower volume when speaking starts
-                0
+                audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 1 / 12, 0
             )
         }
         Log.d("MediaController", "Initial Volume: $initialVolume")
@@ -91,4 +115,5 @@ object MediaController {
             initialVolume = null  // Reset to null after restoring the volume
         }
     }
+
 }
