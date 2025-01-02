@@ -49,7 +49,7 @@ Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.g
 ### Workaround
 
 #### Step 1: Download the Required Files
-- Go to the [Releases](https://github.com/kavishdevar/aln/releases) section.
+- Go to the [first release](https://github.com/kavishdevar/aln/releases/tag/v0.0.1).
 - Download the required files depending upon your Android version - `bt.sh`, `module.prop`, and `libbluetooth_jni-a14.so` (for android 14) or `libbluetooth_jni-a15.so` (for android 15).
 
 #### Step 2: Set Up the Directory Structure
