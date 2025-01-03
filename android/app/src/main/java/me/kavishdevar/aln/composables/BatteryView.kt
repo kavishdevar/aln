@@ -23,6 +23,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
+import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,12 +43,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.Battery
 import me.kavishdevar.aln.utils.BatteryComponent
 import me.kavishdevar.aln.utils.BatteryStatus
-import me.kavishdevar.aln.R
 
 @Composable
 fun BatteryView(service: AirPodsService, preview: Boolean = false) {
@@ -64,7 +65,12 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
                         }?.toList() ?: listOf()
                 }
                 else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
-                    context.unregisterReceiver(this)
+                    try {
+                        context.unregisterReceiver(this)
+                    }
+                    catch (e: IllegalArgumentException) {
+                        Log.wtf("BatteryReceiver", "Receiver already unregistered")
+                    }
                 }
             }
         }
