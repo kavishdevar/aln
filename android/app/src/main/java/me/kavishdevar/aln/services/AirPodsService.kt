@@ -534,9 +534,15 @@ class AirPodsService: Service() {
                                                     MediaController.userPlayedTheMedia = false
                                                 }
 
+                                                Log.d(
+                                                    "AirPods Parser",
+                                                    "inEarData: ${inEarData.sorted()}, newInEarData: ${newInEarData.sorted()}"
+                                                )
                                                 if (newInEarData.sorted() == inEarData.sorted()) {
+                                                    Log.d("AirPods Parser", "hi")
                                                     return
                                                 }
+                                                Log.d("AirPods Parser", "this shouldn't be run if the last log was 'hi'.")
 
                                                 inEarData = newInEarData
 

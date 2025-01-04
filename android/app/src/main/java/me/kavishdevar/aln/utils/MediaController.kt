@@ -16,7 +16,6 @@
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
 
-
 package me.kavishdevar.aln.utils
 
 import android.media.AudioManager
@@ -31,6 +30,7 @@ object MediaController {
     private lateinit var audioManager: AudioManager
     var iPausedTheMedia = false
     var userPlayedTheMedia = false
+    private val handler = Handler(Looper.getMainLooper())
 
     fun initialize(audioManager: AudioManager) {
         this.audioManager = audioManager
@@ -43,7 +43,7 @@ object MediaController {
             Log.d("MediaController", "Playback config changed, iPausedTheMedia: $iPausedTheMedia")
             if (configs != null && !iPausedTheMedia) {
                 Log.d("MediaController", "Seems like the user changed the state of media themselves, now I won't `play` until the ear detection pauses it.")
-                Handler(Looper.getMainLooper()).postDelayed({
+                handler.postDelayed({
                     iPausedTheMedia = !audioManager.isMusicActive
                     userPlayedTheMedia = audioManager.isMusicActive
                 }, 7) // i have no idea why, but android sends a pause event a hundred times after the user does something.
@@ -99,10 +99,8 @@ object MediaController {
         if (initialVolume == null) {
             initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
             Log.d("MediaController", "Initial Volume Set: $initialVolume")
-            audioManager.setStreamVolume(
-                AudioManager.STREAM_MUSIC,
-                audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 1 / 12, 0
-            )
+            val targetVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 1 / 12
+            smoothVolumeTransition(initialVolume!!, targetVolume)
         }
         Log.d("MediaController", "Initial Volume: $initialVolume")
     }
@@ -110,10 +108,25 @@ object MediaController {
     @Synchronized
     fun stopSpeaking() {
         Log.d("MediaController", "Stopping speaking, initialVolume: $initialVolume")
-        initialVolume?.let { volume ->
-            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, volume, 0)
-            initialVolume = null  // Reset to null after restoring the volume
+        if (initialVolume != null) {
+            smoothVolumeTransition(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC), initialVolume!!)
+            initialVolume = null
         }
     }
 
+    private fun smoothVolumeTransition(fromVolume: Int, toVolume: Int) {
+        val step = if (fromVolume < toVolume) 1 else -1
+        val delay = 50L // 50 milliseconds delay between each step
+        var currentVolume = fromVolume
+
+        handler.post(object : Runnable {
+            override fun run() {
+                if (currentVolume != toVolume) {
+                    currentVolume += step
+                    audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, currentVolume, 0)
+                    handler.postDelayed(this, delay)
+                }
+            }
+        })
+    }
 }
