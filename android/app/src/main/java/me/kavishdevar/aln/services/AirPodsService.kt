@@ -148,10 +148,10 @@ class AirPodsService: Service() {
         notificationManager.createNotificationChannel(notificationChannel)
         val notification = NotificationCompat.Builder(this, "background_service_status")
             .setSmallIcon(R.drawable.airpods)
-            .setContentTitle("AirPods Service")
-            .setContentText("Service is running in the background")
+            .setContentTitle("AirPods are not connected")
             .setCategory(Notification.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
             .build()
 
         try {
@@ -261,36 +261,37 @@ class AirPodsService: Service() {
 
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
-                .setContentTitle("""L: ${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
-                } ?: ""} R: ${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
-                } ?: ""} C: ${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
+                .setContentTitle("""AirPods  –${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "  L:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""}${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "  R:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""}${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "  C:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
                 } ?: ""}""")
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
                 .build()
 
         } else {
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
-                .setContentTitle("AirPods Service")
-                .setContentText("Service is running in the background!")
+                .setContentTitle("AirPods are not connected")
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
                 .build()
         }
 
