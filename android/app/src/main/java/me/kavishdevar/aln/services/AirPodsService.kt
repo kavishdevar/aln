@@ -261,21 +261,21 @@ class AirPodsService: Service() {
 
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
-                .setContentTitle("""L: ${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+                .setContentTitle("""AirPods  –${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
                     if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                        "  L:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                     } else {
                         ""
                     }
-                } ?: ""} R: ${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+                } ?: ""}${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
                     if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                        "  R:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                     } else {
                         ""
                     }
-                } ?: ""} C: ${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+                } ?: ""}${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
                     if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                        "  C:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                     } else {
                         ""
                     }
