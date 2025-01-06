@@ -1,5 +1,5 @@
-# ALN - AirPods like Normal
-*Access AirPods' Apple-exclusive features on linux and android!*
+# ALN - AirPodsLikeNormal
+*Bringing AirPods' Apple-exclusive features on linux and android!*
 
 ## [XDAForums Thread](https://xdaforums.com/t/app-root-for-now-airpodslikenormal-unlock-apple-exclusive-airpods-features-on-android.4707585/)
 
@@ -119,7 +119,7 @@ Recognizes when the AirPods are in your ears to automatically play or pause audi
 
 # License
 
-AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
+AirPodsLikeNormal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
 Copyright (C) 2024 Kavish Devar
 
 This program is free software: you can redistribute it and/or modify
