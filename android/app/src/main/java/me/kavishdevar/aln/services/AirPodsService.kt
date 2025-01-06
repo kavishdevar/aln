@@ -206,55 +206,83 @@ class AirPodsService: Service() {
         var updatedNotification: Notification? = null
 
         if (connected) {
-            val collapsedRemoteViews = RemoteViews(packageName, R.layout.notification)
-            val expandedRemoteViews = RemoteViews(packageName, R.layout.notification_expanded)
-            collapsedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
+//            val collapsedRemoteViews = RemoteViews(packageName, R.layout.notification)
+//            val expandedRemoteViews = RemoteViews(packageName, R.layout.notification_expanded)
+//            collapsedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
+//
+//            collapsedRemoteViews.setTextViewText(R.id.notification_title, "Connected to $airpodsName")
+//            expandedRemoteViews.setTextViewText(
+//                R.id.notification_title,
+//                "Connected to $airpodsName"
+//            )
+//            expandedRemoteViews.setTextViewText(
+//                R.id.left_battery_notification,
+//                batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                        "Left ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+//                    } else {
+//                        ""
+//                    }
+//                } ?: "")
+//            expandedRemoteViews.setTextViewText(
+//                R.id.right_battery_notification,
+//                batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                        "Right ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+//                    } else {
+//                        ""
+//                    }
+//                } ?: "")
+//            expandedRemoteViews.setTextViewText(
+//                R.id.case_battery_notification,
+//                batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                        "Case ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+//                    } else {
+//                        ""
+//                    }
+//                } ?: "")
+//            expandedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
+//            expandedRemoteViews.setTextColor(R.id.left_battery_notification, textColor.toInt())
+//            expandedRemoteViews.setTextColor(R.id.right_battery_notification, textColor.toInt())
+//            expandedRemoteViews.setTextColor(R.id.case_battery_notification, textColor.toInt())
+//            updatedNotification = NotificationCompat.Builder(this, "background_service_status")
+//                .setSmallIcon(R.drawable.airpods)
+//                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+//                .setCustomContentView(collapsedRemoteViews)
+//                .setCustomBigContentView(expandedRemoteViews)
+//                .setPriority(NotificationCompat.PRIORITY_LOW)
+//                .setCategory(Notification.CATEGORY_SERVICE)
+//                .setOngoing(true)
+//                .build()
 
-            collapsedRemoteViews.setTextViewText(R.id.notification_title, "Connected to $airpodsName")
-            expandedRemoteViews.setTextViewText(
-                R.id.notification_title,
-                "Connected to $airpodsName"
-            )
-            expandedRemoteViews.setTextViewText(
-                R.id.left_battery_notification,
-                batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "Left ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
-                } ?: "")
-            expandedRemoteViews.setTextViewText(
-                R.id.right_battery_notification,
-                batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "Right ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
-                } ?: "")
-            expandedRemoteViews.setTextViewText(
-                R.id.case_battery_notification,
-                batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "Case ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
-                } ?: "")
-            expandedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
-            expandedRemoteViews.setTextColor(R.id.left_battery_notification, textColor.toInt())
-            expandedRemoteViews.setTextColor(R.id.right_battery_notification, textColor.toInt())
-            expandedRemoteViews.setTextColor(R.id.case_battery_notification, textColor.toInt())
+//            Instead have something like L: 50% | R: 50% | C: 12% with the emojis, without using remote views, in thte title itself.
+
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
-                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-                .setCustomContentView(collapsedRemoteViews)
-                .setCustomBigContentView(expandedRemoteViews)
-                .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setContentTitle("""L: ${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""} R: ${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""} C: ${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
+                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                    } else {
+                        ""
+                    }
+                } ?: ""}""")
                 .setCategory(Notification.CATEGORY_SERVICE)
-                .setOngoing(true)
+                .setPriority(NotificationCompat.PRIORITY_LOW)
                 .build()
+
         } else {
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
