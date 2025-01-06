@@ -319,23 +319,31 @@ class AirPodsService: Service() {
 
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
         bluetoothAdapter.bondedDevices.forEach { device ->
-            if (device.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
-                bluetoothAdapter.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
-                    override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
-                        if (profile == BluetoothProfile.A2DP) {
-                            val connectedDevices = proxy.connectedDevices
-                            if (connectedDevices.isNotEmpty()) {
-                                connectToSocket(device)
-                                this@AirPodsService.sendBroadcast(
-                                    Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
-                                )
+            device.fetchUuidsWithSdp()
+            if (device.uuids != null)
+            {
+                if (device.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                    bluetoothAdapter.getProfileProxy(
+                        this,
+                        object : BluetoothProfile.ServiceListener {
+                            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                                if (profile == BluetoothProfile.A2DP) {
+                                    val connectedDevices = proxy.connectedDevices
+                                    if (connectedDevices.isNotEmpty()) {
+                                        connectToSocket(device)
+                                        this@AirPodsService.sendBroadcast(
+                                            Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
+                                        )
+                                    }
+                                }
+                                bluetoothAdapter.closeProfileProxy(profile, proxy)
                             }
-                        }
-                        bluetoothAdapter.closeProfileProxy(profile, proxy)
-                    }
 
-                    override fun onServiceDisconnected(profile: Int) { }
-                }, BluetoothProfile.A2DP)
+                            override fun onServiceDisconnected(profile: Int) {}
+                        },
+                        BluetoothProfile.A2DP
+                    )
+                }
             }
         }
 
