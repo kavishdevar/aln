@@ -151,6 +151,7 @@ class AirPodsService: Service() {
             .setContentTitle("AirPods are not connected")
             .setCategory(Notification.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
+            .setOngoing(true)
             .build()
 
         try {
@@ -281,6 +282,7 @@ class AirPodsService: Service() {
                 } ?: ""}""")
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
                 .build()
 
         } else {
@@ -289,6 +291,7 @@ class AirPodsService: Service() {
                 .setContentTitle("AirPods are not connected")
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
+                .setOngoing(true)
                 .build()
         }
 
