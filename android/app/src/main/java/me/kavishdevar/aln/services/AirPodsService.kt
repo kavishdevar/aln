@@ -327,6 +327,10 @@ class AirPodsService: Service() {
                     device = intent.getParcelableExtra("device", BluetoothDevice::class.java)!!
                     val name = this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE)
                         .getString("name", device?.name)
+                    if (this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).getString("name", null) == null) {
+                        this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).edit()
+                            .putString("name", name).apply()
+                    }
                     Log.d("AirPodsService", "$name connected")
                     showPopup(this@AirPodsService, name.toString())
                     connectToSocket(device!!)
