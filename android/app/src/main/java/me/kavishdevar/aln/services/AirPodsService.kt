@@ -324,10 +324,10 @@ class AirPodsService: Service() {
         connectionReceiver = object: BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == AirPodsNotifications.Companion.AIRPODS_CONNECTION_DETECTED) {
+                    device = intent.getParcelableExtra("device", BluetoothDevice::class.java)!!
                     val name = this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE)
                         .getString("name", device?.name)
                     Log.d("AirPodsService", "$name connected")
-                    device = intent.getParcelableExtra("device", BluetoothDevice::class.java)!!
                     showPopup(this@AirPodsService, name.toString())
                     connectToSocket(device!!)
                     updateNotificationContent(true, name.toString(), batteryNotification.getBattery())
