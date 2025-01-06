@@ -127,21 +127,21 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
                         .fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
                 ) {
-                    if (left?.status != BatteryStatus.DISCONNECTED) {
+//                    if (left?.status != BatteryStatus.DISCONNECTED) {
                         BatteryIndicator(
                             left?.level ?: 0,
                             left?.status == BatteryStatus.CHARGING
                         )
-                    }
-                    if (left?.status != BatteryStatus.DISCONNECTED && right?.status != BatteryStatus.DISCONNECTED) {
+//                    }
+//                    if (left?.status != BatteryStatus.DISCONNECTED && right?.status != BatteryStatus.DISCONNECTED) {
                         Spacer(modifier = Modifier.width(16.dp))
-                    }
-                    if (right?.status != BatteryStatus.DISCONNECTED) {
+//                    }
+//                    if (right?.status != BatteryStatus.DISCONNECTED) {
                         BatteryIndicator(
                             right?.level ?: 0,
                             right?.status == BatteryStatus.CHARGING
                         )
-                    }
+//                    }
                 }
             }
         }
@@ -160,9 +160,9 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
                     .fillMaxWidth()
                     .scale(1.25f)
             )
-            if (case?.status != BatteryStatus.DISCONNECTED) {
+//            if (case?.status != BatteryStatus.DISCONNECTED) {
                 BatteryIndicator(case?.level ?: 0, case?.status == BatteryStatus.CHARGING)
-            }
+//            }
         }
     }
 }

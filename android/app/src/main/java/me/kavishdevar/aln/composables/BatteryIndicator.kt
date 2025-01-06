@@ -18,6 +18,8 @@
 
 package me.kavishdevar.aln.composables
 
+
+import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -33,18 +35,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kavishdevar.aln.R
-
 
 @Composable
 fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
@@ -52,12 +56,14 @@ fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
     val batteryFillColor = if (batteryPercentage > 30) Color(0xFF30D158) else Color(0xFFFC3C3C)
     val batteryTextColor = MaterialTheme.colorScheme.onSurface
 
-    // Battery indicator dimensions
     val batteryWidth = 40.dp
     val batteryHeight = 15.dp
     val batteryCornerRadius = 4.dp
     val tipWidth = 5.dp
     val tipHeight = batteryHeight * 0.375f
+
+    val animatedFillWidth by animateFloatAsState(targetValue = batteryPercentage / 100f)
+    val animatedScale by animateFloatAsState(targetValue = if (charging) 1.2f else 1f)
 
     Column(
         horizontalAlignment = Alignment.CenterHorizontally
@@ -65,42 +71,38 @@ fun BatteryIndicator(batteryPercentage: Int, charging: Boolean = false) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(0.dp),
-            modifier = Modifier.padding(bottom = 4.dp) // Padding between icon and percentage text
+            modifier = Modifier.padding(bottom = 4.dp)
         ) {
-            // Battery Icon
             Box(
                 modifier = Modifier
                     .width(batteryWidth)
                     .height(batteryHeight)
-                    .border(1.dp, batteryOutlineColor, RoundedCornerShape(batteryCornerRadius))
             ) {
+                Box (
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .border(1.dp, batteryOutlineColor, RoundedCornerShape(batteryCornerRadius))
+                )
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
                         .padding(2.dp)
-                        .width(batteryWidth * (batteryPercentage / 100f))
+                        .width(batteryWidth * animatedFillWidth)
                         .background(batteryFillColor, RoundedCornerShape(2.dp))
                 )
                 if (charging) {
-                    Box(
+                    Text(
+                        text = "\uDBC0\uDEE6",
+                        fontSize = 16.sp,
+                        fontFamily = FontFamily(Font(R.font.sf_pro)),
+                        color = Color.White,
                         modifier = Modifier
-                            .padding(0.dp)
+                            .scale(animatedScale)
                             .fillMaxSize(),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "\uDBC0\uDEE6",
-                            fontSize = 15.sp,
-                            fontFamily = FontFamily(Font(R.font.sf_pro)),
-                            color = Color.White,
-                            modifier = Modifier
-                                .align(Alignment.Center)
-                                .padding(0.dp)
-                        )
-                    }
+                        textAlign = TextAlign.Center
+                    )
                 }
             }
-
             Box(
                 modifier = Modifier
                     .width(tipWidth)
