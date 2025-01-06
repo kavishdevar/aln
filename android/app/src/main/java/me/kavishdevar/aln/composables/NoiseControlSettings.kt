@@ -60,6 +60,10 @@ import me.kavishdevar.aln.utils.NoiseControlMode
 @SuppressLint("UnspecifiedRegisterReceiverFlag")
 @Composable
 fun NoiseControlSettings(service: AirPodsService) {
+    val context = LocalContext.current
+    val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+    val offListeningMode = sharedPreferences.getBoolean("off_listening_mode", true)
+
     val isDarkTheme = isSystemInDarkTheme()
     val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFE3E3E8)
     val textColor = if (isDarkTheme) Color.White else Color.Black
@@ -68,15 +72,18 @@ fun NoiseControlSettings(service: AirPodsService) {
 
     val noiseControlMode = remember { mutableStateOf(NoiseControlMode.OFF) }
 
-
     val d1a = remember { mutableFloatStateOf(0f) }
     val d2a = remember { mutableFloatStateOf(0f) }
     val d3a = remember { mutableFloatStateOf(0f) }
 
     fun onModeSelected(mode: NoiseControlMode, received: Boolean = false) {
-        noiseControlMode.value = mode
-        if (!received) service.setANCMode(mode.ordinal+1)
-        when (mode) {
+        if (!received && !offListeningMode && mode == NoiseControlMode.OFF) {
+            noiseControlMode.value = NoiseControlMode.ADAPTIVE
+        } else {
+            noiseControlMode.value = mode
+        }
+        if (!received) service.setANCMode(mode.ordinal + 1)
+        when (noiseControlMode.value) {
             NoiseControlMode.NOISE_CANCELLATION -> {
                 d1a.floatValue = 1f
                 d2a.floatValue = 1f
@@ -106,8 +113,7 @@ fun NoiseControlSettings(service: AirPodsService) {
                 if (intent.action == AirPodsNotifications.ANC_DATA) {
                     noiseControlMode.value = NoiseControlMode.entries.toTypedArray()[intent.getIntExtra("data", 3) - 1]
                     onModeSelected(noiseControlMode.value, true)
-                }
-                else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
+                } else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
                     try {
                         context.unregisterReceiver(this)
                     } catch (e: IllegalArgumentException) {
@@ -118,16 +124,13 @@ fun NoiseControlSettings(service: AirPodsService) {
         }
     }
 
-    val context = LocalContext.current
-    val noiseControlIntentFilter = IntentFilter()
-        .apply {
-            addAction(AirPodsNotifications.ANC_DATA)
-            addAction(AirPodsNotifications.DISCONNECT_RECEIVERS)
-        }
+    val noiseControlIntentFilter = IntentFilter().apply {
+        addAction(AirPodsNotifications.ANC_DATA)
+        addAction(AirPodsNotifications.DISCONNECT_RECEIVERS)
+    }
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         context.registerReceiver(noiseControlReceiver, noiseControlIntentFilter, Context.RECEIVER_EXPORTED)
-    }
-    else {
+    } else {
         context.registerReceiver(noiseControlReceiver, noiseControlIntentFilter)
     }
 
@@ -157,20 +160,22 @@ fun NoiseControlSettings(service: AirPodsService) {
                     .fillMaxWidth()
                     .background(backgroundColor, RoundedCornerShape(14.dp))
             ) {
-                NoiseControlButton(
-                    icon = ImageBitmap.imageResource(R.drawable.noise_cancellation),
-                    onClick = { onModeSelected(NoiseControlMode.OFF) },
-                    textColor = if (noiseControlMode.value == NoiseControlMode.OFF) textColorSelected else textColor,
-                    backgroundColor = if (noiseControlMode.value == NoiseControlMode.OFF) selectedBackground else Color.Transparent,
-                    modifier = Modifier.weight(1f)
-                )
-                VerticalDivider(
-                    thickness = 1.dp,
-                    modifier = Modifier
-                        .padding(vertical = 10.dp)
-                        .alpha(d1a.floatValue),
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
-                )
+                if (offListeningMode) {
+                    NoiseControlButton(
+                        icon = ImageBitmap.imageResource(R.drawable.noise_cancellation),
+                        onClick = { onModeSelected(NoiseControlMode.OFF) },
+                        textColor = if (noiseControlMode.value == NoiseControlMode.OFF) textColorSelected else textColor,
+                        backgroundColor = if (noiseControlMode.value == NoiseControlMode.OFF) selectedBackground else Color.Transparent,
+                        modifier = Modifier.weight(1f)
+                    )
+                    VerticalDivider(
+                        thickness = 1.dp,
+                        modifier = Modifier
+                            .padding(vertical = 10.dp)
+                            .alpha(d1a.floatValue),
+                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
+                    )
+                }
                 NoiseControlButton(
                     icon = ImageBitmap.imageResource(R.drawable.transparency),
                     onClick = { onModeSelected(NoiseControlMode.TRANSPARENCY) },
@@ -214,13 +219,15 @@ fun NoiseControlSettings(service: AirPodsService) {
                 .padding(horizontal = 8.dp)
                 .padding(top = 1.dp)
         ) {
-            Text(
-                text = "Off",
-                style = TextStyle(fontSize = 12.sp, color = textColor),
-                textAlign = TextAlign.Center,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f)
-            )
+            if (offListeningMode) {
+                Text(
+                    text = "Off",
+                    style = TextStyle(fontSize = 12.sp, color = textColor),
+                    textAlign = TextAlign.Center,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.weight(1f)
+                )
+            }
             Text(
                 text = "Transparency",
                 style = TextStyle(fontSize = 12.sp, color = textColor),
