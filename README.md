@@ -6,7 +6,7 @@
 ## Tested device(s)
 - AirPods Pro 2
 
-Other devices might work too! Features like ear detection and battery should be available for any AirPods! Although the app will show unsupported features/settings! I will not be able test any other devices than the ones I already have (i.e. the AirPods Pro 2).
+Other devices might work too. Features like ear detection and battery should be available for any AirPods! Although the app will show unsupported features/settings. I will not be able test any other devices than the ones I already have (i.e. the AirPods Pro 2).
 
 ## Implemented Features
 
@@ -22,7 +22,8 @@ Other devices might work too! Features like ear detection and battery should be 
 > [!NOTE]
 > This just includes features that are already implemented for at least one of the platforms. There is no list for any planned features.
 
-## Linux
+## Linux — Deprecated, awaiting a rewrite!
+ANY ISSUES ABOUT THE LINUX VERSION WILL BE CLOSED.
 Check out the README file in [linux](/linux) folder for more info.
 
 This tray app communicates with a daemon with the help of a UNIX socket. The daemon is responsible for the actual communication with the AirPods. The tray app is just a frontend for the daemon, that does ear-detection, conversational awareness, setting the noise-cancellation mode, and more.
@@ -41,7 +42,7 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 | ![Long Press Configuration](/android/imgs/long-press.png) | ![Widget](/android/imgs/widget.png) | |
 ### Installation
 
-Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This repository provides a workaround for the bug, specifically tested on Android 14 and Android 15 (stock versions). 
+Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This repository provides a workaround for the bug, specifically for Android 14 QPR3 and Android 15 initial release and the QPR1 update (stock versions). 
 
 > [!CAUTION]
 > **This workaround requires root access** to implement and it might not work on other android OEM skins. Try at your own risk!!
