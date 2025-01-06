@@ -68,7 +68,7 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
                     try {
                         context.unregisterReceiver(this)
                     }
-                    catch (e: IllegalArgumentException) {
+                    catch (_: IllegalArgumentException) {
                         Log.wtf("BatteryReceiver", "Receiver already unregistered")
                     }
                 }
@@ -128,19 +128,27 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
                     horizontalArrangement = Arrangement.Center
                 ) {
 //                    if (left?.status != BatteryStatus.DISCONNECTED) {
+                    if (left?.level != null) {
                         BatteryIndicator(
-                            left?.level ?: 0,
-                            left?.status == BatteryStatus.CHARGING
+                            left.level,
+                            left.status == BatteryStatus.CHARGING
                         )
+                    }
 //                    }
 //                    if (left?.status != BatteryStatus.DISCONNECTED && right?.status != BatteryStatus.DISCONNECTED) {
+                    if (left?.level != null && right?.level != null)
+                    {
                         Spacer(modifier = Modifier.width(16.dp))
+                    }
 //                    }
 //                    if (right?.status != BatteryStatus.DISCONNECTED) {
+                    if (right?.level != null)
+                    {
                         BatteryIndicator(
-                            right?.level ?: 0,
-                            right?.status == BatteryStatus.CHARGING
+                            right.level,
+                            right.status == BatteryStatus.CHARGING
                         )
+                    }
 //                    }
                 }
             }
@@ -161,7 +169,9 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
                     .scale(1.25f)
             )
 //            if (case?.status != BatteryStatus.DISCONNECTED) {
-                BatteryIndicator(case?.level ?: 0, case?.status == BatteryStatus.CHARGING)
+                if (case?.level != null) {
+                    BatteryIndicator(case.level, case.status == BatteryStatus.CHARGING)
+                }
 //            }
         }
     }
