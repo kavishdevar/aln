@@ -40,12 +40,14 @@ import android.os.IBinder
 import android.os.ParcelUuid
 import android.util.Log
 import android.widget.RemoteViews
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.kavishdevar.aln.BatteryWidget
+import me.kavishdevar.aln.MainActivity
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.Battery
@@ -67,10 +69,18 @@ object ServiceManager {
     fun setService(service: AirPodsService?) {
         this.service = service
     }
+    @OptIn(ExperimentalMaterial3Api::class)
     @Synchronized
     fun restartService(context: Context) {
         service?.stopSelf()
-        context.startService(Intent(context, AirPodsService::class.java))
+        Log.d("ServiceManager", "Restarting service, service is null: ${service == null}")
+        val intent = Intent(context, AirPodsService::class.java)
+        context.stopService(intent)
+        CoroutineScope(Dispatchers.IO).launch {
+            delay(1000)
+            context.startService(intent)
+            context.startActivity(Intent(context, MainActivity::class.java))
+        }
     }
 }
 
@@ -118,13 +128,6 @@ class AirPodsService: Service() {
                         intent.putExtra("device", bluetoothDevice)
                         context?.sendBroadcast(intent)
                     }
-                }
-                if (BluetoothDevice.ACTION_ACL_DISCONNECTED == action
-                    || BluetoothDevice.ACTION_ACL_DISCONNECT_REQUESTED == action
-                ) {
-                    context?.sendBroadcast(
-                        Intent(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED)
-                    )
                 }
             }
         }
@@ -255,8 +258,6 @@ class AirPodsService: Service() {
 //                .setCategory(Notification.CATEGORY_SERVICE)
 //                .setOngoing(true)
 //                .build()
-
-//            Instead have something like L: 50% | R: 50% | C: 12% with the emojis, without using remote views, in thte title itself.
 
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
@@ -474,7 +475,6 @@ class AirPodsService: Service() {
                                     Log.d("AirPods Data", "Data received: $formattedHex")
                                 } else if (bytesRead == -1) {
                                     Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
-//                                socket.close()
                                     sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED))
                                     return@launch
                                 }
