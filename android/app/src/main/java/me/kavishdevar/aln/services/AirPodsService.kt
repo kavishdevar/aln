@@ -171,31 +171,31 @@ class AirPodsService: Service() {
             it.setTextViewText(
                 R.id.left_battery_widget,
                 batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
+//                    } else {
+//                        ""
+//                    }
                 } ?: ""
             )
             it.setTextViewText(
                 R.id.right_battery_widget,
                 batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
+//                    } else {
+//                        ""
+//                    }
                 } ?: ""
             )
             it.setTextViewText(
                 R.id.case_battery_widget,
                 batteryNotification.getBattery().find { it.component == BatteryComponent.CASE }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
+//                    } else {
+//                        ""
+//                    }
                 } ?: ""
             )
         }
@@ -205,7 +205,7 @@ class AirPodsService: Service() {
 
     fun updateNotificationContent(connected: Boolean, airpodsName: String? = null, batteryList: List<Battery>? = null) {
         val notificationManager = getSystemService(NotificationManager::class.java)
-        val textColor = this.getSharedPreferences("settings", MODE_PRIVATE).getLong("textColor", 0)
+//        val textColor = this.getSharedPreferences("settings", MODE_PRIVATE).getLong("textColor", 0)
         var updatedNotification: Notification? = null
 
         if (connected) {
@@ -262,23 +262,23 @@ class AirPodsService: Service() {
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
                 .setContentTitle("""L: ${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
+//                    } else {
+//                        ""
+//                    }
                 } ?: ""} R: ${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
+//                    } else {
+//                        ""
+//                    }
                 } ?: ""} C: ${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
+//                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
+//                    } else {
+//                        ""
+//                    }
                 } ?: ""}""")
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
