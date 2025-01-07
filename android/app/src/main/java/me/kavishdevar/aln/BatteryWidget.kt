@@ -56,27 +56,27 @@ internal fun updateAppWidget(
 
     views.setTextViewText(R.id.left_battery_widget,
         batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-            if (it.status != BatteryStatus.DISCONNECTED) {
+            // if (it.status != BatteryStatus.DISCONNECTED) {
                 "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-            } else {
-                ""
-            }
+            // } else {
+            //     ""
+            // }
         } ?: "")
     views.setTextViewText(R.id.right_battery_widget,
         batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-            if (it.status != BatteryStatus.DISCONNECTED) {
+            // if (it.status != BatteryStatus.DISCONNECTED) {
                 "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-            } else {
-                ""
-            }
+            // } else {
+            //     ""
+            // }
         } ?: "")
     views.setTextViewText(R.id.case_battery_widget,
         batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-            if (it.status != BatteryStatus.DISCONNECTED) {
+            // if (it.status != BatteryStatus.DISCONNECTED) {
                 "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-            } else {
-                ""
-            }
+            // } else {
+            //     ""
+            // }
         } ?: "")
 
     appWidgetManager.updateAppWidget(appWidgetId, views)
