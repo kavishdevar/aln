@@ -18,6 +18,7 @@
 
 package me.kavishdevar.aln
 
+import android.Manifest
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothDevice.TRANSPORT_LE
@@ -25,11 +26,13 @@ import android.bluetooth.BluetoothGatt
 import android.bluetooth.BluetoothGattCallback
 import android.bluetooth.BluetoothGattCharacteristic
 import android.bluetooth.BluetoothManager
+import android.os.Build
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.annotation.RequiresPermission
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -49,7 +52,7 @@ import org.lsposed.hiddenapibypass.HiddenApiBypass
 import java.util.UUID
 
 class CustomDevice : ComponentActivity() {
-    @SuppressLint("MissingPermission", "CoroutineCreationDuringComposition", "NewApi")
+    @SuppressLint("MissingPermission", "CoroutineCreationDuringComposition")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
@@ -152,7 +155,7 @@ class CustomDevice : ComponentActivity() {
     }
 }
 
-@SuppressLint("MissingPermission", "NewApi")
+@RequiresPermission(Manifest.permission.BLUETOOTH_CONNECT)
 fun sendWriteRequest(
     gatt: BluetoothGatt,
     characteristicUuid: String,
@@ -177,6 +180,10 @@ fun sendWriteRequest(
 
 
     // Send the write request
-    val success = gatt.writeCharacteristic(characteristic, value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+    val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        gatt.writeCharacteristic(characteristic, value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
+    } else {
+        gatt.writeCharacteristic(characteristic)
+    }
     Log.d("GATT", "Write request sent $success to UUID: $characteristicUuid")
 }
