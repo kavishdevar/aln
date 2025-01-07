@@ -33,7 +33,6 @@ jobs:
         with:
           name: Debug APK
           path: android/app/build/outputs/apk/**/*.apk
-
   nightly-release:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/release-nightly' || github.event_name == 'workflow_dispatch' && github.event.inputs.release == 'true'
@@ -56,9 +55,17 @@ jobs:
           apksigner sign --ks debug.keystore --ks-key-alias androiddebugkey --ks-pass pass:android --key-pass pass:android "./$APK_NAME"
       - name: Verify APK
         run: apksigner verify "./$APK_NAME"
+      - name: Fetch the latest non-nightly release tag
+        id: fetch-tag
+        run: echo "::set-output name=tag::$(git describe --tags $(git rev-list --tags --max-count=1))"
+      - name: Retrieve commits since the last release
+        id: get-commits
+        run: |
+          COMMITS=$(git log ${{ steps.fetch-tag.outputs.tag }}..HEAD --pretty=format:"- %s (%h)" --abbrev-commit)
+          echo "::set-output name=commits::${COMMITS}"
       - name: Delete release if exist then create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
-          gh release create "nightly" "./$APK_NAME" -p -t "Nightly Release" --generate-notes
+          gh release create "nightly" "./$APK_NAME" -p -t "Nightly Release" -n "${{ steps.get-commits.outputs.commits }}" --generate-notes
