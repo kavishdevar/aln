@@ -25,20 +25,14 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
 import android.os.Build
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
-import androidx.compose.foundation.gestures.Orientation
-import androidx.compose.foundation.gestures.draggable
-import androidx.compose.foundation.gestures.rememberDraggableState
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -59,14 +53,12 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
-import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.NoiseControlMode
-import kotlin.math.roundToInt
 
 @SuppressLint("UnspecifiedRegisterReceiverFlag")
 @Composable
@@ -74,7 +66,7 @@ fun NoiseControlSettings(service: AirPodsService) {
     val context = LocalContext.current
     val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val offListeningMode = remember { mutableStateOf(sharedPreferences.getBoolean("off_listening_mode", true)) }
-
+   
     val preferenceChangeListener = remember {
         SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "off_listening_mode") {
@@ -82,14 +74,13 @@ fun NoiseControlSettings(service: AirPodsService) {
             }
         }
     }
-
+    
     DisposableEffect(Unit) {
         sharedPreferences.registerOnSharedPreferenceChangeListener(preferenceChangeListener)
         onDispose {
             sharedPreferences.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
         }
     }
-
     val isDarkTheme = isSystemInDarkTheme()
     val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFE3E3E8)
     val textColor = if (isDarkTheme) Color.White else Color.Black
@@ -97,14 +88,10 @@ fun NoiseControlSettings(service: AirPodsService) {
     val selectedBackground = if (isDarkTheme) Color(0xFF5C5A5F) else Color(0xFFFFFFFF)
 
     val noiseControlMode = remember { mutableStateOf(NoiseControlMode.OFF) }
-    val selectedOffset = remember { mutableFloatStateOf(0f) }
-    val animatedOffset = animateFloatAsState(targetValue = selectedOffset.floatValue)
 
     val d1a = remember { mutableFloatStateOf(0f) }
     val d2a = remember { mutableFloatStateOf(0f) }
     val d3a = remember { mutableFloatStateOf(0f) }
-
-    val boxWidth = 200.dp.value
 
     fun onModeSelected(mode: NoiseControlMode, received: Boolean = false) {
         if (!received && !offListeningMode.value && mode == NoiseControlMode.OFF) {
@@ -113,12 +100,6 @@ fun NoiseControlSettings(service: AirPodsService) {
             noiseControlMode.value = mode
         }
         if (!received) service.setANCMode(mode.ordinal + 1)
-        selectedOffset.floatValue = when (noiseControlMode.value) {
-            NoiseControlMode.NOISE_CANCELLATION -> 3 * boxWidth
-            NoiseControlMode.OFF -> 0f
-            NoiseControlMode.ADAPTIVE -> 2 * boxWidth
-            NoiseControlMode.TRANSPARENCY -> 1 * boxWidth
-        }
         when (noiseControlMode.value) {
             NoiseControlMode.NOISE_CANCELLATION -> {
                 d1a.floatValue = 1f
@@ -140,15 +121,6 @@ fun NoiseControlSettings(service: AirPodsService) {
                 d2a.floatValue = 0f
                 d3a.floatValue = 1f
             }
-        }
-    }
-
-    LaunchedEffect(noiseControlMode.value) {
-        selectedOffset.value = when (noiseControlMode.value) {
-            NoiseControlMode.NOISE_CANCELLATION -> 3 * boxWidth
-            NoiseControlMode.OFF -> 0f
-            NoiseControlMode.ADAPTIVE -> 2 * boxWidth
-            NoiseControlMode.TRANSPARENCY -> 1 * boxWidth
         }
     }
 
@@ -199,25 +171,12 @@ fun NoiseControlSettings(service: AirPodsService) {
                 .fillMaxWidth()
                 .height(75.dp)
                 .padding(8.dp)
-                .draggable(
-                    orientation = Orientation.Horizontal,
-                    state = rememberDraggableState { delta ->
-                        selectedOffset.floatValue = (selectedOffset.floatValue + delta).coerceIn(0f, 3 * boxWidth)
-                    }
-                )
         ) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .background(backgroundColor, RoundedCornerShape(14.dp))
             ) {
-                Box(
-                    modifier = Modifier
-                        .offset { IntOffset(animatedOffset.value.roundToInt(), 0) }
-                        .width(boxWidth.dp)
-                        .height(75.dp)
-                        .background(selectedBackground, RoundedCornerShape(14.dp))
-                )
                 if (offListeningMode.value) {
                     NoiseControlButton(
                         icon = ImageBitmap.imageResource(R.drawable.noise_cancellation),
