@@ -148,7 +148,7 @@ class AirPodsService: Service() {
         notificationManager.createNotificationChannel(notificationChannel)
         val notification = NotificationCompat.Builder(this, "background_service_status")
             .setSmallIcon(R.drawable.airpods)
-            .setContentTitle("AirPods are not connected")
+            .setContentTitle("AirPods not connected")
             .setCategory(Notification.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -261,24 +261,24 @@ class AirPodsService: Service() {
 
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
-                .setContentTitle("""AirPods  –${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-                    // if (it.status != BatteryStatus.DISCONNECTED) {
+                .setContentTitle("""$airpodsName  –${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "  L:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    // } else {
-                    //     ""
-                    // }
+                    } else {
+                        ""
+                    }
                 } ?: ""}${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-                    // if (it.status != BatteryStatus.DISCONNECTED) {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "  R:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    // } else {
-                    //     ""
-                    // }
+                    } else {
+                        ""
+                    }
                 } ?: ""}${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-                    // if (it.status != BatteryStatus.DISCONNECTED) {
+                    if (it.status != BatteryStatus.DISCONNECTED) {
                         "  C:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    // } else {
-                    //     ""
-                    // }
+                    } else {
+                        ""
+                    }
                 } ?: ""}""")
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
@@ -288,7 +288,7 @@ class AirPodsService: Service() {
         } else {
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
-                .setContentTitle("AirPods are not connected")
+                .setContentTitle("AirPods not connected")
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
