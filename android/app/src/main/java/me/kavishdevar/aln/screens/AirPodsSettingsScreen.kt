@@ -86,7 +86,7 @@ import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
-@SuppressLint("MissingPermission", "NewApi")
+@SuppressLint("MissingPermission")
 @Composable
 fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                           navController: NavController, isConnected: Boolean) {

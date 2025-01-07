@@ -88,7 +88,7 @@ import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.utils.AirPodsNotifications
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
-@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
+@SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnspecifiedRegisterReceiverFlag")
 @Composable
 fun DebugScreen(navController: NavController) {
     val hazeState = remember { HazeState() }
@@ -158,6 +158,8 @@ fun DebugScreen(navController: NavController) {
             val intentFilter = IntentFilter(AirPodsNotifications.Companion.AIRPODS_DATA)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 context.registerReceiver(receiver, intentFilter, Context.RECEIVER_EXPORTED)
+            } else {
+                context.registerReceiver(receiver, intentFilter)
             }
         }
 

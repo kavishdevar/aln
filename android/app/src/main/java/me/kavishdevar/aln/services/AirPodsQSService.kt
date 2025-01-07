@@ -23,6 +23,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.Build
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
 import android.util.Log
@@ -35,7 +36,7 @@ class AirPodsQSService: TileService() {
     private lateinit var ancStatusReceiver: BroadcastReceiver
     private lateinit var availabilityReceiver: BroadcastReceiver
 
-    @SuppressLint("InlinedApi")
+    @SuppressLint("InlinedApi", "UnspecifiedRegisterReceiverFlag")
     override fun onStartListening() {
         super.onStartListening()
         currentModeIndex = (ServiceManager.getService()?.getANC()?.minus(1)) ?: -1
@@ -77,9 +78,17 @@ class AirPodsQSService: TileService() {
             }
         }
 
-        registerReceiver(ancStatusReceiver,
-            IntentFilter(AirPodsNotifications.Companion.ANC_DATA), RECEIVER_EXPORTED)
-
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                ancStatusReceiver,
+                IntentFilter(AirPodsNotifications.Companion.ANC_DATA), RECEIVER_EXPORTED
+            )
+        } else {
+            registerReceiver(
+                ancStatusReceiver,
+                IntentFilter(AirPodsNotifications.Companion.ANC_DATA)
+            )
+        }
         qsTile.state = if (ServiceManager.getService()?.isConnected == true) Tile.STATE_ACTIVE else Tile.STATE_UNAVAILABLE
         val ancIndex = ServiceManager.getService()?.getANC()
         currentModeIndex = if (ancIndex != null) { if (ancIndex == 2) 0 else if (ancIndex == 3) 1 else if (ancIndex == 4) 2 else 2 } else 0

@@ -22,9 +22,11 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.Context.RECEIVER_EXPORTED
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -110,7 +112,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-@SuppressLint("MissingPermission", "InlinedApi")
+@SuppressLint("MissingPermission", "InlinedApi", "UnspecifiedRegisterReceiverFlag")
 @OptIn(ExperimentalPermissionsApi::class)
 @Composable
 fun Main() {
@@ -146,7 +148,12 @@ fun Main() {
             addAction(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
         }
         Log.d("MainActivity", "Registering Receiver")
-        context.registerReceiver(connectionStatusReceiver, filter, Context.RECEIVER_EXPORTED)
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            context.registerReceiver(connectionStatusReceiver, filter, RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(connectionStatusReceiver, filter)
+        }
         Log.d("MainActivity", "Registered Receiver")
 
         NavHost(

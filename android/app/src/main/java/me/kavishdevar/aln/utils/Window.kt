@@ -48,7 +48,6 @@ class Window (context: Context) {
     private val mView: View
 
     @Suppress("DEPRECATION")
-    @SuppressLint("NewApi")
     private val mParams: WindowManager.LayoutParams = WindowManager.LayoutParams().apply {
         height = WindowManager.LayoutParams.WRAP_CONTENT
         width = WindowManager.LayoutParams.MATCH_PARENT
