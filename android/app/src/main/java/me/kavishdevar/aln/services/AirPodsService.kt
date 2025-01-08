@@ -115,22 +115,26 @@ class AirPodsService: Service() {
                 } else {
                     intent.getParcelableExtra("android.bluetooth.device.extra.DEVICE") as BluetoothDevice?
                 }
+            Log.d("AirPodsService", "Received bluetooth connection broadcast")
             val action = intent.action
             val context = context?.applicationContext
             val name = context?.getSharedPreferences("settings", MODE_PRIVATE)?.getString("name", bluetoothDevice?.name)
             if (bluetoothDevice != null && action != null && !action.isEmpty()) {
-                Log.d("AirPodsService", "Received bluetooth connection broadcast")
                 if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
+                    Log.d("AirPodsService", "Received bluetooth connection broadcast")
                     if (ServiceManager.getService()?.isConnected == true) {
+                        Log.d("AirPodsService", "Already connected to AirPods, checking if I need to disconnect the audio again.")
                         ServiceManager.getService()?.manuallyCheckForAudioSource()
                         return
                     }
                     val uuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
                     if (bluetoothDevice.uuids.contains(uuid)) {
+                        Log.d("AirPodsService", "Found AirPods, sending broadcast.")
                         val intent = Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTION_DETECTED)
                         intent.putExtra("name", name)
                         intent.putExtra("device", bluetoothDevice)
                         context?.sendBroadcast(intent)
+                        Log.d("AirPodsService", "Broadcasted AirPods connection detected.")
                     }
                 }
             }
@@ -416,6 +420,7 @@ class AirPodsService: Service() {
 
         if (isConnected != true) {
             try {
+                Log.d("AirPodsService", "Opening a socket with first method")
                 socket = HiddenApiBypass.newInstance(
                     BluetoothSocket::class.java,
                     3,
@@ -430,6 +435,7 @@ class AirPodsService: Service() {
             ) {
                 e.printStackTrace()
                 try {
+                    Log.d("AirPodsService", "Failed to open socket, trying again with different method")
                     socket = HiddenApiBypass.newInstance(
                         BluetoothSocket::class.java,
                         3,
@@ -448,7 +454,9 @@ class AirPodsService: Service() {
             }
 
             try {
+                Log.d("AirPodsService", "Connecting to socket")
                 socket.connect()
+                Log.d("AirPodsService", "Connected to socket")
                 this@AirPodsService.device = device
                 isConnected = true
                 socket.let { it ->
@@ -456,6 +464,7 @@ class AirPodsService: Service() {
                     // i though i move it to the coroutine
                     // but, the socket sometimes disconnects if i don't send a packet outside of the routine first
                     // so, sending *again*, with a delay, in the coroutine
+                    Log.d("AirPodsService", "Sending packets")
                     it.outputStream.write(Enums.HANDSHAKE.value)
                     it.outputStream.flush()
                     it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
@@ -473,11 +482,12 @@ class AirPodsService: Service() {
                         it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
                         it.outputStream.flush()
                         delay(200)
+                        Log.d("AirPodsService", "Packets sent, sending broadcast to UI for successful connection.")
                         sendBroadcast(
                             Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
                                 .putExtra("device", device)
                         )
-
+                        Log.d("AirPodsService", "Broadcast sent. Listening for incoming packets.")
                         while (socket.isConnected == true) {
                             socket.let {
                                 val audioManager =
