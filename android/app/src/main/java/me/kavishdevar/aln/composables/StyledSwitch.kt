@@ -42,14 +42,23 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun StyledSwitch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit
+    onCheckedChange: (Boolean) -> Unit,
+    enabled: Boolean = true,
 ) {
     val isDarkTheme = isSystemInDarkTheme()
 
     val thumbColor = Color.White
-    val trackColor = if (checked) Color(0xFF34C759) else if (isDarkTheme) Color(0xFF5B5B5E) else Color(0xFFD1D1D6)
+    val trackColor = if (enabled) (
+        if (isDarkTheme) {
+            if (checked) Color(0xFF34C759) else Color(0xFF5B5B5E)
+        } else {
+            if (checked) Color(0xFF34C759) else Color(0xFFD1D1D6)
+        }
+    ) else {
+        if (isDarkTheme) Color(0xFF5B5B5E) else Color(0xFFD1D1D6)
+    }
 
-    // Animate the horizontal offset of the thumb
+
     val thumbOffsetX by animateDpAsState(targetValue = if (checked) 20.dp else 0.dp, label = "Test")
 
     Box(
@@ -63,11 +72,11 @@ fun StyledSwitch(
     ) {
         Box(
             modifier = Modifier
-                .offset(x = thumbOffsetX) // Animate the offset for smooth transition
+                .offset(x = thumbOffsetX)
                 .size(27.dp)
                 .clip(CircleShape)
-                .background(thumbColor) // Dynamic thumb color
-                .clickable { onCheckedChange(!checked) } // Make the switch clickable
+                .background(thumbColor)
+                .clickable { if (enabled) onCheckedChange(!checked) }
         )
     }
 }

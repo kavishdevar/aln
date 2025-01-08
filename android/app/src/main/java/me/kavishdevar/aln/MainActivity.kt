@@ -55,8 +55,10 @@ import androidx.navigation.compose.rememberNavController
 import com.google.accompanist.permissions.ExperimentalPermissionsApi
 import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import me.kavishdevar.aln.screens.AirPodsSettingsScreen
+import me.kavishdevar.aln.screens.AppSettingsScreen
 import me.kavishdevar.aln.screens.DebugScreen
 import me.kavishdevar.aln.screens.LongPress
+import me.kavishdevar.aln.screens.RenameScreen
 import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
@@ -158,7 +160,7 @@ fun Main() {
 
         NavHost(
             navController = navController,
-            startDestination = "settings",
+            startDestination = "app_settings",
             enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) },
             exitTransition = { slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(300)) },
             popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(300)) },
@@ -182,6 +184,12 @@ fun Main() {
                     navController = navController,
                     name = navBackStackEntry.arguments?.getString("bud")!!
                 )
+            }
+            composable("rename") { navBackStackEntry ->
+                RenameScreen(navController)
+            }
+            composable("app_settings") {
+                AppSettingsScreen(navController)
             }
         }
 

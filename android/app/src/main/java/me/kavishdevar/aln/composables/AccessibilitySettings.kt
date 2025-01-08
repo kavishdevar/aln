@@ -31,11 +31,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
 
 @Composable
@@ -44,7 +46,7 @@ fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPref
     val textColor = if (isDarkTheme) Color.White else Color.Black
 
     Text(
-        text = "ACCESSIBILITY",
+        text = stringResource(R.string.accessibility).uppercase(),
         style = TextStyle(
             fontSize = 14.sp,
             fontWeight = FontWeight.Light,
@@ -68,7 +70,7 @@ fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPref
                 .padding(12.dp)
         ) {
             Text(
-                text = "Tone Volume",
+                text = stringResource(R.string.tone_volume),
                 modifier = Modifier
                     .padding(end = 8.dp, bottom = 2.dp, start = 2.dp)
                     .fillMaxWidth(),

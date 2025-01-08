@@ -19,14 +19,20 @@
 package me.kavishdevar.aln.composables
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,15 +45,18 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.navigation.NavController
+import androidx.navigation.compose.rememberNavController
 
 @Composable
-fun StyledTextField(
+fun NameField(
     name: String,
     value: String,
-    onValueChange: (String) -> Unit
+    navController: NavController
 ) {
     var isFocused by remember { mutableStateOf(false) }
 
@@ -61,53 +70,72 @@ fun StyledTextField(
         Color.Transparent
     }
 
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
+    Box (
         modifier = Modifier
-            .fillMaxWidth()
-            .height(55.dp)
-            .background(
-                backgroundColor,
-                RoundedCornerShape(14.dp)
-            )
-            .padding(horizontal = 16.dp, vertical = 8.dp)
-    ) {
-        Text(
-            text = name,
-            style = TextStyle(
-                fontSize = 16.sp,
-                color = textColor
-            )
-        )
-        BasicTextField(
-            value = value,
-            onValueChange = onValueChange,
-            textStyle = TextStyle(
-                color = textColor,
-                fontSize = 16.sp,
-            ),
-            singleLine = true,
-            cursorBrush = SolidColor(cursorColor), // Dynamic cursor color based on focus
-            decorationBox = { innerTextField ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.End
-                ) {
-                    innerTextField()
+            .clickable(
+                onClick = {
+                    navController.navigate("rename")
                 }
-            },
+            )
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 8.dp)
-                .onFocusChanged { focusState ->
-                    isFocused = focusState.isFocused // Update focus state
+                .height(55.dp)
+                .background(
+                    backgroundColor,
+                    RoundedCornerShape(14.dp)
+                )
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+
+        ) {
+            Text(
+                text = name,
+                style = TextStyle(
+                    fontSize = 16.sp,
+                    color = textColor
+                )
+            )
+            BasicTextField(
+                value = value,
+                textStyle = TextStyle(
+                    color = textColor.copy(alpha = 0.75f),
+                    fontSize = 16.sp,
+                    textAlign = TextAlign.End
+                ),
+                onValueChange = {},
+                singleLine = true,
+                enabled = false,
+                cursorBrush = SolidColor(cursorColor),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp)
+                    .onFocusChanged { focusState ->
+                        isFocused = focusState.isFocused
+                    },
+                decorationBox = { innerTextField ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.End
+                    ) {
+                        innerTextField()
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                            contentDescription = "Edit name",
+                            tint = textColor.copy(alpha = 0.75f),
+                            modifier = Modifier
+                                .size(32.dp)
+                        )
+                    }
                 }
-        )
+            )
+        }
     }
 }
 
 @Preview
 @Composable
 fun StyledTextFieldPreview() {
-    StyledTextField(name = "Name", value = "AirPods Pro", onValueChange = {})
+    NameField(name = "Name", value = "AirPods Pro", rememberNavController())
 }

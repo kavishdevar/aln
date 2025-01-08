@@ -39,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -49,6 +48,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -81,6 +81,7 @@ fun NoiseControlSettings(service: AirPodsService) {
             sharedPreferences.unregisterOnSharedPreferenceChangeListener(preferenceChangeListener)
         }
     }
+
     val isDarkTheme = isSystemInDarkTheme()
     val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFE3E3E8)
     val textColor = if (isDarkTheme) Color.White else Color.Black
@@ -151,12 +152,12 @@ fun NoiseControlSettings(service: AirPodsService) {
         context.registerReceiver(noiseControlReceiver, noiseControlIntentFilter)
     }
 
-    Text(
-        text = "NOISE CONTROL",
+    Text(// all caps
+        text = stringResource(R.string.noise_control).uppercase(),
         style = TextStyle(
             fontSize = 14.sp,
             fontWeight = FontWeight.Light,
-            color = textColor.copy(alpha = 0.6f)
+            color = textColor.copy(alpha = 0.6f),
         ),
         modifier = Modifier.padding(8.dp, bottom = 2.dp)
     )
@@ -238,7 +239,7 @@ fun NoiseControlSettings(service: AirPodsService) {
         ) {
             if (offListeningMode.value) {
                 Text(
-                    text = "Off",
+                    text = stringResource(R.string.off),
                     style = TextStyle(fontSize = 12.sp, color = textColor),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
@@ -246,21 +247,21 @@ fun NoiseControlSettings(service: AirPodsService) {
                 )
             }
             Text(
-                text = "Transparency",
+                text = stringResource(R.string.transparency),
                 style = TextStyle(fontSize = 12.sp, color = textColor),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "Adaptive",
+                text = stringResource(R.string.adaptive),
                 style = TextStyle(fontSize = 12.sp, color = textColor),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "Noise Cancellation",
+                text = stringResource(R.string.noise_cancellation),
                 style = TextStyle(fontSize = 12.sp, color = textColor),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,

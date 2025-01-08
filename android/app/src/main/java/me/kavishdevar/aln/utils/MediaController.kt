@@ -18,6 +18,7 @@
 
 package me.kavishdevar.aln.utils
 
+import android.content.SharedPreferences
 import android.media.AudioManager
 import android.media.AudioPlaybackConfiguration
 import android.os.Handler
@@ -30,10 +31,35 @@ object MediaController {
     private lateinit var audioManager: AudioManager
     var iPausedTheMedia = false
     var userPlayedTheMedia = false
+    private lateinit var sharedPreferences: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
 
-    fun initialize(audioManager: AudioManager) {
+    private var relativeVolume: Boolean = false
+    private var conversationalAwarenessVolume: Int = 1/12
+    private var conversationalAwarenessPauseMusic: Boolean = false
+
+    fun initialize(audioManager: AudioManager, sharedPreferences: SharedPreferences) {
         this.audioManager = audioManager
+        this.sharedPreferences = sharedPreferences
+
+        relativeVolume = sharedPreferences.getBoolean("relative_conversational_awareness_volume", false)
+        conversationalAwarenessVolume = sharedPreferences.getInt("conversational_awareness_volume", 100/12)
+        conversationalAwarenessPauseMusic = sharedPreferences.getBoolean("conversational_awareness_pause_music", false)
+
+        sharedPreferences.registerOnSharedPreferenceChangeListener { _, key ->
+            when (key) {
+                "relative_conversational_awareness_volume" -> {
+                    relativeVolume = sharedPreferences.getBoolean("relative_conversational_awareness_volume", false)
+                }
+                "conversational_awareness_volume" -> {
+                    conversationalAwarenessVolume = sharedPreferences.getInt("conversational_awareness_volume", 100/12)
+                }
+                "conversational_awareness_pause_music" -> {
+                    conversationalAwarenessPauseMusic = sharedPreferences.getBoolean("conversational_awareness_pause_music", false)
+                }
+            }
+        }
+
         audioManager.registerAudioPlaybackCallback(cb, null)
     }
 
@@ -46,15 +72,15 @@ object MediaController {
                 handler.postDelayed({
                     iPausedTheMedia = !audioManager.isMusicActive
                     userPlayedTheMedia = audioManager.isMusicActive
-                }, 7) // i have no idea why, but android sends a pause event a hundred times after the user does something.
+                }, 7) // i have no idea why android sends an event a hundred times after the user does something.
             }
         }
     }
 
     @Synchronized
-    fun sendPause() {
+    fun sendPause(force: Boolean = false) {
         Log.d("MediaController", "Sending pause with iPausedTheMedia: $iPausedTheMedia, userPlayedTheMedia: $userPlayedTheMedia")
-        if (audioManager.isMusicActive && !userPlayedTheMedia) {
+        if ((audioManager.isMusicActive && !userPlayedTheMedia) || force) {
             iPausedTheMedia = true
             userPlayedTheMedia = false
             audioManager.dispatchMediaKeyEvent(
@@ -99,8 +125,11 @@ object MediaController {
         if (initialVolume == null) {
             initialVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
             Log.d("MediaController", "Initial Volume Set: $initialVolume")
-            val targetVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * 1 / 12
-            smoothVolumeTransition(initialVolume!!, targetVolume)
+            val targetVolume = if (relativeVolume) initialVolume!! * conversationalAwarenessVolume * 1/100 else if ( initialVolume!! > audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * conversationalAwarenessVolume * 1/100) audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC) * conversationalAwarenessVolume * 1/100 else initialVolume!!
+            smoothVolumeTransition(initialVolume!!, targetVolume.toInt())
+            if (conversationalAwarenessPauseMusic) {
+                sendPause(force = true)
+            }
         }
         Log.d("MediaController", "Initial Volume: $initialVolume")
     }
@@ -110,13 +139,16 @@ object MediaController {
         Log.d("MediaController", "Stopping speaking, initialVolume: $initialVolume")
         if (initialVolume != null) {
             smoothVolumeTransition(audioManager.getStreamVolume(AudioManager.STREAM_MUSIC), initialVolume!!)
+            if (conversationalAwarenessPauseMusic) {
+                sendPlay()
+            }
             initialVolume = null
         }
     }
 
     private fun smoothVolumeTransition(fromVolume: Int, toVolume: Int) {
         val step = if (fromVolume < toVolume) 1 else -1
-        val delay = 50L // 50 milliseconds delay between each step
+        val delay = 50L
         var currentVolume = fromVolume
 
         handler.post(object : Runnable {

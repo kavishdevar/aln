@@ -36,7 +36,9 @@ import android.content.IntentFilter
 import android.media.AudioManager
 import android.os.Binder
 import android.os.Build
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
 import android.widget.RemoteViews
@@ -473,6 +475,15 @@ class AirPodsService: Service() {
                         it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
                         it.outputStream.flush()
                         delay(200)
+                        // just in case this doesn't work, send all three after 5 seconds again
+                        Handler(Looper.getMainLooper()).postDelayed({
+                            it.outputStream.write(Enums.HANDSHAKE.value)
+                            it.outputStream.flush()
+                            it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
+                            it.outputStream.flush()
+                            it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
+                            it.outputStream.flush()
+                        }, 5000)
                         sendBroadcast(
                             Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
                                 .putExtra("device", device)
@@ -482,7 +493,7 @@ class AirPodsService: Service() {
                             socket.let {
                                 val audioManager =
                                     this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
-                                MediaController.initialize(audioManager)
+                                MediaController.initialize(audioManager, this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE))
                                 val buffer = ByteArray(1024)
                                 val bytesRead = it.inputStream.read(buffer)
                                 var data: ByteArray = byteArrayOf()
@@ -889,6 +900,7 @@ class AirPodsService: Service() {
         socket.outputStream?.write(bytes)
         socket.outputStream?.flush()
         val hex = bytes.joinToString(" ") { "%02X".format(it) }
+        updateNotificationContent(true, name, batteryNotification.getBattery())
         Log.d("AirPodsService", "setName: $name, sent packet: $hex")
     }
 

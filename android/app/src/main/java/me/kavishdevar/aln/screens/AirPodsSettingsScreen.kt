@@ -22,6 +22,7 @@ import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
 import android.content.Context.MODE_PRIVATE
 import android.content.Intent
+import android.content.SharedPreferences
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -33,7 +34,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -43,6 +44,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -55,6 +57,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -76,12 +79,11 @@ import me.kavishdevar.aln.composables.AccessibilitySettings
 import me.kavishdevar.aln.composables.AudioSettings
 import me.kavishdevar.aln.composables.BatteryView
 import me.kavishdevar.aln.composables.IndependentToggle
+import me.kavishdevar.aln.composables.NameField
 import me.kavishdevar.aln.composables.NavigationButton
 import me.kavishdevar.aln.composables.NoiseControlSettings
 import me.kavishdevar.aln.composables.PressAndHoldSettings
-import me.kavishdevar.aln.composables.StyledTextField
 import me.kavishdevar.aln.services.AirPodsService
-import me.kavishdevar.aln.services.ServiceManager
 import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
 
@@ -99,6 +101,23 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
             )
         )
     }
+
+    val nameChangeListener = remember {
+        SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "name") {
+                deviceName = TextFieldValue(sharedPreferences.getString("name", "AirPods Pro").toString())
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        sharedPreferences.registerOnSharedPreferenceChangeListener(nameChangeListener)
+        onDispose {
+            sharedPreferences.unregisterOnSharedPreferenceChangeListener(nameChangeListener)
+        }
+    }
+
+
     val verticalScrollState  = rememberScrollState()
     val hazeState = remember { HazeState() }
 
@@ -150,10 +169,9 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                         containerColor = Color.Transparent
                     ),
                     actions = {
-                        val context = LocalContext.current
                         IconButton(
                             onClick = {
-                                ServiceManager.restartService(context)
+                                navController.navigate("app_settings")
                             },
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Transparent,
@@ -161,7 +179,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                             )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Refresh,
+                                imageVector = Icons.Default.Settings,
                                 contentDescription = "Settings",
                             )
                         }
@@ -199,14 +217,10 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                StyledTextField(
-                    name = "Name",
+                NameField(
+                    name = stringResource(R.string.name),
                     value = deviceName.text,
-                    onValueChange = {
-                        deviceName = TextFieldValue(it)
-                        sharedPreferences.edit().putString("name", it).apply()
-                        service.setName(it)
-                    }
+                    navController = navController
                 )
 
                 Spacer(modifier = Modifier.height(32.dp))
