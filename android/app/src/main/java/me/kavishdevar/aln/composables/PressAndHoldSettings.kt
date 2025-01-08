@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -56,7 +57,7 @@ fun PressAndHoldSettings(navController: NavController) {
     val textColor = if (isDarkTheme) Color.White else Color.Black
 
     Text(
-        text = "PRESS AND HOLD AIRPODS",
+        text = stringResource(R.string.press_and_hold_airpods),
         style = TextStyle(
             fontSize = 14.sp,
             fontWeight = FontWeight.Light,
@@ -95,7 +96,7 @@ fun PressAndHoldSettings(navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Left",
+                    text = stringResource(R.string.left),
                     style = TextStyle(
                         fontSize = 18.sp,
                         color = textColor,
@@ -105,7 +106,7 @@ fun PressAndHoldSettings(navController: NavController) {
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     // TODO: Implement voice assistant on long press; for now, it's noise control
-                    text = "Noise Control",
+                    text = stringResource(R.string.noise_control),
                     style = TextStyle(
                         fontSize = 18.sp,
                         color = textColor.copy(alpha = 0.6f),
@@ -152,7 +153,7 @@ fun PressAndHoldSettings(navController: NavController) {
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Right",
+                    text = stringResource(R.string.right),
                     style = TextStyle(
                         fontSize = 18.sp,
                         color = textColor,
@@ -162,7 +163,7 @@ fun PressAndHoldSettings(navController: NavController) {
                 Spacer(modifier = Modifier.weight(1f))
                 Text(
                     // TODO: Implement voice assistant on long press; for now, it's noise control
-                    text = "Noise Control",
+                    text = stringResource(R.string.noise_control),
                     style = TextStyle(
                         fontSize = 18.sp,
                         color = textColor.copy(alpha = 0.6f),

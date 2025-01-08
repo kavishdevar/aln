@@ -3,6 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("kotlin-parcelize")
+    id("com.crowdin.platform")
 }
 
 android {
@@ -38,6 +39,22 @@ android {
     buildFeatures {
         compose = true
         viewBinding = true
+    }
+}
+
+tasks.register("crowdinUpload") {
+    doLast {
+        exec {
+            commandLine("crowdin", "upload", "sources")
+        }
+    }
+}
+
+tasks.register("crowdinDownload") {
+    doLast {
+        exec {
+            commandLine("crowdin", "download")
+        }
     }
 }
 

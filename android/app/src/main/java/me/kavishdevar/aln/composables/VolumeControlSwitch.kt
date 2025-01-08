@@ -42,9 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
 
 @Composable
@@ -96,13 +98,13 @@ fun VolumeControlSwitch(service: AirPodsService, sharedPreferences: SharedPrefer
                 .padding(end = 4.dp)
         ) {
             Text(
-                text = "Volume Control",
+                text = stringResource(R.string.volume_control),
                 fontSize = 16.sp,
                 color = textColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Adjust the volume by swiping up or down on the sensor located on the AirPods Pro stem.",
+                text = stringResource(R.string.volume_control_description),
                 fontSize = 12.sp,
                 color = textColor.copy(0.6f),
                 lineHeight = 14.sp,

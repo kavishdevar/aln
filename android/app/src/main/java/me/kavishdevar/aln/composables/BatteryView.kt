@@ -41,6 +41,7 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.kavishdevar.aln.R
@@ -110,7 +111,7 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
         ) {
             Image (
                 bitmap = ImageBitmap.imageResource(R.drawable.pro_2_buds),
-                contentDescription = "Buds",
+                contentDescription = stringResource(R.string.buds),
                 modifier = Modifier
                     .fillMaxWidth()
                     .scale(0.80f)
@@ -163,7 +164,7 @@ fun BatteryView(service: AirPodsService, preview: Boolean = false) {
 
             Image(
                 bitmap = ImageBitmap.imageResource(R.drawable.pro_2_case),
-                contentDescription = "Case",
+                contentDescription = stringResource(R.string.case),
                 modifier = Modifier
                     .fillMaxWidth()
                     .scale(1.25f)

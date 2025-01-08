@@ -1,0 +1,12 @@
+"project_identifier": "aln",
+"api_key": {
+  "env": "CROWDIN_API_KEY"
+},
+"base_path": ".",
+"base_url": "https://api.crowdin.com/api/v2",
+"files": [
+  {
+    "source": "/android/app/src/main/res/values/strings.xml",
+    "translation": "/android/app/src/main/res/values-%two_letters_code%/strings.xml"
+  }
+]

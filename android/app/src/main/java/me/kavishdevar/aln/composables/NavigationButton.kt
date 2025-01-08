@@ -37,9 +37,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import me.kavishdevar.aln.R
 
 
 @Composable
@@ -84,5 +86,5 @@ fun NavigationButton(to: String, name: String, navController: NavController) {
 @Preview
 @Composable
 fun NavigationButtonPreview() {
-    NavigationButton("to", "Name", NavController(LocalContext.current))
+    NavigationButton("to", stringResource(R.string.name), NavController(LocalContext.current))
 }

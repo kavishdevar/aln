@@ -42,9 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
 
 @Composable
@@ -97,13 +99,13 @@ fun ConversationalAwarenessSwitch(service: AirPodsService, sharedPreferences: Sh
                 .padding(end = 4.dp)
         ) {
             Text(
-                text = "Conversational Awareness",
+                text = stringResource(R.string.conversational_awareness),
                 fontSize = 16.sp,
                 color = textColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Lowers media volume and reduces background noise when you start speaking to other people.",
+                text = stringResource(R.string.conversational_awareness_description),
                 fontSize = 12.sp,
                 color = textColor.copy(0.6f),
                 lineHeight = 14.sp,

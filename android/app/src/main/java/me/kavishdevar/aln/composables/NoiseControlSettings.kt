@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.imageResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -152,7 +153,7 @@ fun NoiseControlSettings(service: AirPodsService) {
     }
 
     Text(
-        text = "NOISE CONTROL",
+        text = stringResource(R.string.noise_control),
         style = TextStyle(
             fontSize = 14.sp,
             fontWeight = FontWeight.Light,
@@ -238,7 +239,7 @@ fun NoiseControlSettings(service: AirPodsService) {
         ) {
             if (offListeningMode.value) {
                 Text(
-                    text = "Off",
+                    text = stringResource(R.string.off),
                     style = TextStyle(fontSize = 12.sp, color = textColor),
                     textAlign = TextAlign.Center,
                     fontWeight = FontWeight.Bold,
@@ -246,21 +247,21 @@ fun NoiseControlSettings(service: AirPodsService) {
                 )
             }
             Text(
-                text = "Transparency",
+                text = stringResource(R.string.transparency),
                 style = TextStyle(fontSize = 12.sp, color = textColor),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "Adaptive",
+                text = stringResource(R.string.adaptive),
                 style = TextStyle(fontSize = 12.sp, color = textColor),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.weight(1f)
             )
             Text(
-                text = "Noise Cancellation",
+                text = stringResource(R.string.noise_cancellation),
                 style = TextStyle(fontSize = 12.sp, color = textColor),
                 textAlign = TextAlign.Center,
                 fontWeight = FontWeight.Bold,

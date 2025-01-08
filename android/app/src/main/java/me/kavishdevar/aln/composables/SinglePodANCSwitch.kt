@@ -42,9 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
 
 @Composable
@@ -97,13 +99,13 @@ fun SinglePodANCSwitch(service: AirPodsService, sharedPreferences: SharedPrefere
                 .padding(end = 4.dp)
         ) {
             Text(
-                text = "Noise Cancellation with Single AirPod",
+                text = stringResource(R.string.noise_cancellation_single_airpod),
                 fontSize = 16.sp,
                 color = textColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Allow AirPods to be put in noise cancellation mode when only one AirPods is in your ear.",
+                text = stringResource(R.string.noise_cancellation_single_airpod_description),
                 fontSize = 12.sp,
                 color = textColor.copy(0.6f),
                 lineHeight = 14.sp,

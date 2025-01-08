@@ -42,9 +42,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
 
 @Composable
@@ -97,13 +99,13 @@ fun PersonalizedVolumeSwitch(service: AirPodsService, sharedPreferences: SharedP
                 .padding(end = 4.dp)
         ) {
             Text(
-                text = "Personalized Volume",
+                text = stringResource(R.string.personalized_volume),
                 fontSize = 16.sp,
                 color = textColor
             )
             Spacer(modifier = Modifier.height(4.dp))
             Text(
-                text = "Adjusts the volume of media in response to your environment.",
+                text = stringResource(R.string.personalized_volume_description),
                 fontSize = 12.sp,
                 color = textColor.copy(0.6f),
                 lineHeight = 14.sp,

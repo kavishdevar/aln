@@ -55,6 +55,7 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -257,7 +258,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                 verticalArrangement = Arrangement.Center
             ) {
                 Text(
-                    text = "AirPods not connected",
+                    text = stringResource(R.string.airpods_not_connected),
                     style = TextStyle(
                         fontSize = 24.sp,
                         fontWeight = FontWeight.Medium,
@@ -269,7 +270,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Please connect your AirPods to access settings. If you're stuck here, then try reopening the app again after closing it from the recents.\n(DO NOT KILL THE APP!)",
+                    text = stringResource(R.string.airpods_not_connected_description),
                     style = TextStyle(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Light,
