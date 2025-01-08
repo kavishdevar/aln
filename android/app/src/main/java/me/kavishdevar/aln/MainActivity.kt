@@ -160,7 +160,7 @@ fun Main() {
 
         NavHost(
             navController = navController,
-            startDestination = "app_settings",
+            startDestination = "settings",
             enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) },
             exitTransition = { slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(300)) },
             popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(300)) },
