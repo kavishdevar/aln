@@ -283,6 +283,52 @@ def patch():
 
     return jsonify({'permalink': f'/download/{permalink_id}'})
 
+@app.route('/api', methods=['POST'])
+def api():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not file.filename.endswith('.so'):
+        return jsonify({"error": "Invalid file type. Only .so files are allowed."}), 400
+
+    # Generate a unique file path
+    file_uuid = str(uuid.uuid4())
+    file_path = os.path.join('uploads', f"{file_uuid}_{file.filename}")
+    file.save(file_path)
+
+    # Determine the library name based on the request data
+    data = request.form
+    library_name = data.get('library_name', 'libbluetooth_jni.so')
+
+    # Patch the file
+    try:
+        l2c_fcr_chk_chan_modes_address = get_symbol_address(file_path, "l2c_fcr_chk_chan_modes")
+        patch_address(file_path, l2c_fcr_chk_chan_modes_address, "20008052c0035fd6")
+        l2cu_send_peer_info_req_address = get_symbol_address(file_path, "l2cu_send_peer_info_req")
+        patch_address(file_path, l2cu_send_peer_info_req_address, "c0035fd6")
+    except Exception as e:
+        logger.error(f"Error patching file: {str(e)}")
+        return jsonify({"error": f"Error patching file: {str(e)}"}), 500
+
+    # Create permalink
+    permalink_id = str(uuid.uuid4())
+    PATCHED_LIBRARIES[permalink_id] = {
+        'file_path': file_path,
+        'library_name': library_name,
+        'timestamp': time.time()
+    }
+
+    # Save patch info
+    save_patch_info(permalink_id, file_path)
+
+    # Schedule deletion
+    threading.Timer(PERMALINK_EXPIRY, delete_expired_permalink, args=[permalink_id]).start()
+    logger.info(f"Permalink {permalink_id} created, will expire in {PERMALINK_EXPIRY} seconds")
+
+    return jsonify({'permalink': f'/download/{permalink_id}'})
+
 @app.route('/download/<permalink_id>', methods=['GET'])
 def download(permalink_id):
     if permalink_id not in PATCHED_LIBRARIES:
