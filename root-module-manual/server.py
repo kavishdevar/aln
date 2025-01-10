@@ -170,6 +170,18 @@ def index():
             .download-link a:hover {
                 color: #3700b3;
             }
+            .source-link {
+                margin-top: 20px;
+                font-size: 14px;
+                color: #bbb;
+            }
+            .source-link a {
+                color: #6200ea;
+                text-decoration: none;
+            }
+            .source-link a:hover {
+                color: #3700b3;
+            }
         </style>
     </head>
     <body>
@@ -191,6 +203,9 @@ def index():
             <div class="progress-text" id="progress-text"></div>
             <div class="download-link" id="download-link">
                 <a href="#" id="download-url">Download patched file</a>
+            </div>
+            <div class="source-link">
+                Are you curious about what's happening here? <a href="https://github.com/kavishdevar/aln/blob/main/root-module-manual/server.py" target="_blank">Check out the source code</a>
             </div>
         </div>
         <script>
