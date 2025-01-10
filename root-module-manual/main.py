@@ -102,6 +102,12 @@ def copy_file_to_src(file_path, library_name):
         file_path (str): The path to the file to copy.
         library_name (str): The name to use for the copied library.
     """
+    if os.path.exists('btl2capfix.zip'):
+        os.remove('btl2capfix.zip')
+    if os.path.exists('src/libbluetooth_jni.so'):
+        os.remove('src/libbluetooth_jni.so')
+    if os.path.exists('src/libbluetooth_qti.so'):
+        os.remove('src/libbluetooth_qti.so')
     src_dir = 'src/'
     if not os.path.exists(src_dir):
         os.makedirs(src_dir)
@@ -112,15 +118,7 @@ def copy_file_to_src(file_path, library_name):
 def zip_src_files():
     """
     Zips all files in the 'src/' directory into 'btl2capfix.zip', preserving symlinks.
-    """
-
-    if os.path.exists('btl2capfix.zip'):
-        os.remove('btl2capfix.zip')
-    if os.path.exists('src/libbluetooth_jni.so'):
-        os.remove('src/libbluetooth_jni.so')
-    if os.path.exists('src/libbluetooth_qti.so'):
-        os.remove('src/libbluetooth_qti.so')
-                
+    """         
     with zipfile.ZipFile('btl2capfix.zip', 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
         for root, dirs, files in os.walk('src/'):
             for file in files:
