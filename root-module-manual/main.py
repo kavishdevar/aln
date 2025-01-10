@@ -94,18 +94,20 @@ def patch_address(file_path, address, patch_bytes):
     run_command(f"radare2 -q -e bin.cache=true -w -c 's {address}; wx {patch_bytes}; wci' {file_path}")
     logging.info(f"Successfully patched address {address}")
 
-def copy_file_to_src(file_path):
+def copy_file_to_src(file_path, library_name):
     """
-    Copies a file to the 'src/' directory.
+    Copies a file to the 'src/' directory with the specified library name.
 
     Args:
         file_path (str): The path to the file to copy.
+        library_name (str): The name to use for the copied library.
     """
     src_dir = 'src/'
     if not os.path.exists(src_dir):
         os.makedirs(src_dir)
-    shutil.copy(file_path, src_dir)
-    logging.info(f"Copied {file_path} to {src_dir}")
+    dest_path = os.path.join(src_dir, library_name)
+    shutil.copy(file_path, dest_path)
+    logging.info(f"Copied {file_path} to {dest_path}")
 
 def zip_src_files():
     """
@@ -115,8 +117,6 @@ def zip_src_files():
         for root, dirs, files in os.walk('src/'):
             for file in files:
                 file_path = os.path.join(root, file)
-                if file_path == os.path.join('src', os.path.basename(file_path)):
-                    continue  # Skip the original uploaded file
                 if os.path.islink(file_path):
                     link_target = os.readlink(file_path)
                     zip_info = zipfile.ZipInfo(os.path.relpath(file_path, 'src/'))
@@ -140,11 +140,12 @@ def main():
     handler = logger.handlers[0]
     handler.setFormatter(ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s'))
 
-    if len(sys.argv) != 2:
-        logging.error("Usage: python main.py <file_path>")
+    if len(sys.argv) != 3:
+        logging.error("Usage: python main.py <file_path> <library_name>")
         sys.exit(1)
 
     file_path = sys.argv[1]
+    library_name = sys.argv[2]
 
     # Patch l2c_fcr_chk_chan_modes
     l2c_fcr_chk_chan_modes_address = get_symbol_address(file_path, "l2c_fcr_chk_chan_modes")
@@ -155,7 +156,7 @@ def main():
     patch_address(file_path, l2cu_send_peer_info_req_address, "c0035fd6")
 
     # Copy file to src/
-    copy_file_to_src(file_path)
+    copy_file_to_src(file_path, library_name)
 
     # Zip files under src/
     zip_src_files()

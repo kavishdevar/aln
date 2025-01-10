@@ -13,8 +13,34 @@ PERMALINK_EXPIRY = 600  # 10 minutes
 PATCHES_JSON = 'patches.json'
 
 # Configure logging
+class LogColors:
+    HEADER = '\033[95m'
+    OKBLUE = '\033[94m'
+    OKCYAN = '\033[96m'
+    OKGREEN = '\033[92m'
+    WARNING = '\033[93m'
+    FAIL = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+class ColoredFormatter(logging.Formatter):
+    def format(self, record):
+        log_colors = {
+            'DEBUG': LogColors.OKCYAN,
+            'INFO': LogColors.OKGREEN,
+            'WARNING': LogColors.WARNING,
+            'ERROR': LogColors.FAIL,
+            'CRITICAL': LogColors.FAIL + LogColors.BOLD
+        }
+        log_color = log_colors.get(record.levelname, LogColors.ENDC)
+        record.msg = f"{log_color}{record.msg}{LogColors.ENDC}"
+        return super().format(record)
+
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger()
+handler = logger.handlers[0]
+handler.setFormatter(ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 def save_patch_info(permalink_id, file_path):
     patch_info = {
@@ -154,6 +180,9 @@ def index():
                     <input type="file" name="file" onchange="updateFileName(this)">
                     <span class="file-upload-text">Click to upload a file<span id="file-name"></span></span>
                 </div>
+                <label>
+                    <input type="checkbox" name="qti" id="qti-checkbox"> Qualcomm library (qti)
+                </label>
                 <input type="submit" value="Patch" id="patch-button">
             </form>
             <div class="progress" id="progress">
@@ -218,8 +247,14 @@ def patch():
         return jsonify({"error": "No selected file"}), 400
     if not file.filename.endswith('.so'):
         return jsonify({"error": "Invalid file type. Only .so files are allowed."}), 400
-    file_path = os.path.join('uploads', file.filename)
+
+    # Generate a unique file path
+    file_uuid = str(uuid.uuid4())
+    file_path = os.path.join('uploads', f"{file_uuid}_{file.filename}")
     file.save(file_path)
+
+    # Determine the library name based on the checkbox
+    library_name = "libbluetooth_qti.so" if 'qti' in request.form else "libbluetooth_jni.so"
 
     # Patch the file
     try:
@@ -235,6 +270,7 @@ def patch():
     permalink_id = str(uuid.uuid4())
     PATCHED_LIBRARIES[permalink_id] = {
         'file_path': file_path,
+        'library_name': library_name,
         'timestamp': time.time()
     }
 
@@ -243,6 +279,7 @@ def patch():
 
     # Schedule deletion
     threading.Timer(PERMALINK_EXPIRY, delete_expired_permalink, args=[permalink_id]).start()
+    logger.info(f"Permalink {permalink_id} created, will expire in {PERMALINK_EXPIRY} seconds")
 
     return jsonify({'permalink': f'/download/{permalink_id}'})
 
@@ -252,11 +289,12 @@ def download(permalink_id):
         return "Permalink expired or invalid", 404
 
     file_path = PATCHED_LIBRARIES[permalink_id]['file_path']
+    library_name = PATCHED_LIBRARIES[permalink_id]['library_name']
     if not os.path.exists(file_path):
         return "File not found", 404
 
     try:
-        copy_file_to_src(file_path)
+        copy_file_to_src(file_path, library_name)
         zip_src_files()
     except Exception as e:
         logger.error(f"Error preparing download: {str(e)}")
@@ -268,9 +306,12 @@ def download(permalink_id):
 
 def delete_expired_permalink(permalink_id):
     if permalink_id in PATCHED_LIBRARIES:
-        if os.path.exists(PATCHED_LIBRARIES[permalink_id]['file_path']):
-            os.remove(PATCHED_LIBRARIES[permalink_id]['file_path'])
+        file_path = PATCHED_LIBRARIES[permalink_id]['file_path']
+        if os.path.exists(file_path):
+            os.remove(file_path)
+            logger.info(f"Deleted file: {file_path}")
         del PATCHED_LIBRARIES[permalink_id]
+        logger.info(f"Permalink {permalink_id} expired and removed from PATCHED_LIBRARIES")
 
 if not os.path.exists('uploads'):
     os.makedirs('uploads')
