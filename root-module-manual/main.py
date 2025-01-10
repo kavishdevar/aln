@@ -109,22 +109,18 @@ def copy_file_to_src(file_path, library_name):
     shutil.copy(file_path, dest_path)
     logging.info(f"Copied {file_path} to {dest_path}")
 
-def remove_library_from_src(library_name):
-    """
-    Removes the specified library file from the 'src/' directory.
-
-    Args:
-        library_name (str): The name of the library file to remove.
-    """
-    file_path = os.path.join('src', library_name)
-    if os.path.exists(file_path):
-        os.remove(file_path)
-        logging.info(f"Removed {file_path} from src/")
-
 def zip_src_files():
     """
     Zips all files in the 'src/' directory into 'btl2capfix.zip', preserving symlinks.
     """
+
+    if os.path.exists('btl2capfix.zip'):
+        os.remove('btl2capfix.zip')
+    if os.path.exists('src/libbluetooth_jni.so'):
+        os.remove('src/libbluetooth_jni.so')
+    if os.path.exists('src/libbluetooth_qti.so'):
+        os.remove('src/libbluetooth_qti.so')
+                
     with zipfile.ZipFile('btl2capfix.zip', 'w', zipfile.ZIP_DEFLATED, allowZip64=True) as zipf:
         for root, dirs, files in os.walk('src/'):
             for file in files:
@@ -145,7 +141,6 @@ def main():
     Main function to execute the script. It performs the following steps:
     1. Copies the input file to the 'src/' directory.
     2. Patches specific addresses in the binary file.
-    3. Removes the specified library file from the 'src/' directory.
     4. Zips the files in the 'src/' directory into 'btl2capfix.zip'.
     """
     logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -170,9 +165,6 @@ def main():
 
     # Copy file to src/
     copy_file_to_src(file_path, library_name)
-
-    # Remove the specified library file from src/
-    remove_library_from_src(library_name)
 
     # Zip files under src/
     zip_src_files()
