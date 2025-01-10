@@ -320,7 +320,7 @@ def api():
 
     # Return the patched file directly
     try:
-        return send_file(file_path, as_attachment=True, attachment_filename=library_name)
+        return send_file(file_path, as_attachment=True, download_name=library_name)
     except Exception as e:
         logger.error(f"Error sending file: {str(e)}")
         return jsonify({"error": f"Error sending file: {str(e)}"}), 500

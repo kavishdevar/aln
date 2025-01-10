@@ -1,6 +1,5 @@
 #!/system/bin/sh
 
-
 # Define variables
 API_URL="https://aln.kavishdevar.me/api"
 TEMP_DIR="$TMPDIR/aln_patch"
