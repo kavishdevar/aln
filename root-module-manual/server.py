@@ -3,7 +3,7 @@ import os
 import json
 import uuid
 import time
-import threading
+import shutil
 import logging
 from main import get_symbol_address, patch_address, copy_file_to_src, zip_src_files
 
@@ -293,18 +293,59 @@ def patch():
         logger.error(f"Error sending patched file: {str(e)}")
         return jsonify({"error": f"Error sending patched file: {str(e)}"}), 500
 
-# Remove or comment out the '/download/<permalink_id>' route as it's no longer needed
-# @app.route('/download/<permalink_id>', methods=['GET'])
-# def download(permalink_id):
-#     # ...existing code...
-#     pass
+@app.route('/api', methods=['POST'])
+def api():
+    if 'file' not in request.files:
+        return jsonify({"error": "No file part"}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"error": "No selected file"}), 400
+    if not file.filename.endswith('.so'):
+        return jsonify({"error": "Invalid file type. Only .so files are allowed."}), 400
 
-# Remove the '/api' endpoint if it's redundant
-# @app.route('/api', methods=['POST'])
-# def api():
-#     # ...existing code...
-#     pass
+    # Generate a unique file path
+    file_uuid = str(uuid.uuid4())
+    file_path = os.path.join('uploads', f"{file_uuid}_{file.filename}")
+    file.save(file_path)
 
+    # Determine the library name based on the request data
+    data = request.form
+    library_name = data.get('library_name', 'libbluetooth_jni.so')
+
+    # Patch the file
+    try:
+        l2c_fcr_chk_chan_modes_address = get_symbol_address(file_path, "l2c_fcr_chk_chan_modes")
+        patch_address(file_path, l2c_fcr_chk_chan_modes_address, "20008052c0035fd6")
+        l2cu_send_peer_info_req_address = get_symbol_address(file_path, "l2cu_send_peer_info_req")
+        patch_address(file_path, l2cu_send_peer_info_req_address, "c0035fd6")
+    except Exception as e:
+        logger.error(f"Error patching file: {str(e)}")
+        return jsonify({"error": f"Error patching file: {str(e)}"}), 500
+
+    # Send the patched .so file directly
+    patched_filename = f"patched_{library_name}"
+    patched_file_path = os.path.join('uploads', patched_filename)
+    shutil.copy(file_path, patched_file_path)
+
+    try:
+        resp = make_response(send_file(
+            patched_file_path,
+            mimetype='application/octet-stream',
+            as_attachment=True,
+            attachment_filename=patched_filename
+        ))        
+        os.remove(file_path)
+        os.remove(patched_file_path)
+        return resp
+    
+    except Exception as e:
+        logger.error(f"Error sending patched file: {str(e)}")        
+        
+        os.remove(file_path)
+        os.remove(patched_file_path)
+        
+        return jsonify({"error": f"Error sending patched file: {str(e)}"}), 500
+    
 def delete_expired_permalink(permalink_id):
     if permalink_id in PATCHED_LIBRARIES:
         file_path = PATCHED_LIBRARIES[permalink_id]['file_path']

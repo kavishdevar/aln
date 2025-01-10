@@ -117,22 +117,9 @@ def copy_file_to_src(file_path, library_name):
 
 def zip_src_files():
     """
-    Zips all files in the 'src/' directory into 'btl2capfix.zip', preserving symlinks without compression.
+    Zips all files in the 'src/' directory into 'btl2capfix.zip' using the shell zip command.
     """
-    with zipfile.ZipFile('btl2capfix.zip', 'w', zipfile.ZIP_STORED, allowZip64=True) as zipf:
-        for root, dirs, files in os.walk('src/'):
-            for file in files:
-                file_path = os.path.join(root, file)
-                if os.path.islink(file_path):
-                    link_target = os.readlink(file_path)
-                    zip_info = zipfile.ZipInfo(os.path.relpath(file_path, 'src/'))
-                    zip_info.create_system = 3  # Unix
-                    zip_info.external_attr = 0o777 << 16
-                    zip_info.external_attr |= 0xA000
-                    zipf.writestr(zip_info, link_target)
-                else:
-                    zipf.write(file_path, os.path.relpath(file_path, 'src/'))
-    logging.info("Zipped files under src/ into btl2capfix.zip")
+    run_command('cd src && zip -r ../btl2capfix *')
 
 def main():
     """
