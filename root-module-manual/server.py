@@ -5,6 +5,7 @@ import uuid
 import time
 import shutil
 import logging
+import zipfile
 from main import get_symbol_address, patch_address, copy_file_to_src, zip_src_files
 
 app = Flask(__name__)
@@ -281,17 +282,30 @@ def patch():
         logger.error(f"Error patching file: {str(e)}")
         return jsonify({"error": f"Error patching file: {str(e)}"}), 500
 
-    # Send the patched file directly
+    # Create a zip file containing the patched .so
+    try:
+        zip_filename = f"patched_{library_name}.zip"
+        zip_path = os.path.join('uploads', zip_filename)
+        with zipfile.ZipFile(zip_path, 'w') as zipf:
+            zipf.write(file_path, arcname=library_name)
+    except Exception as e:
+        logger.error(f"Error creating zip file: {str(e)}")
+        return jsonify({"error": f"Error creating zip file: {str(e)}"}), 500
+
+    # Send the zip file
     try:
         return send_file(
-            file_path,
-            mimetype='application/octet-stream',
+            zip_path,
+            mimetype='application/zip',
             as_attachment=True,
-            download_name=f"patched_{library_name}"
+            download_name=zip_filename
         )
     except Exception as e:
-        logger.error(f"Error sending patched file: {str(e)}")
-        return jsonify({"error": f"Error sending patched file: {str(e)}"}), 500
+        logger.error(f"Error sending zip file: {str(e)}")
+        return jsonify({"error": f"Error sending zip file: {str(e)}"}), 500
+    finally:
+        os.remove(file_path)
+        os.remove(zip_path)
 
 @app.route('/api', methods=['POST'])
 def api():
