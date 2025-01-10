@@ -287,7 +287,7 @@ def patch():
             file_path,
             mimetype='application/octet-stream',
             as_attachment=True,
-            attachment_filename=f"patched_{library_name}"
+            download_name=f"patched_{library_name}"
         )
     except Exception as e:
         logger.error(f"Error sending patched file: {str(e)}")
@@ -332,7 +332,7 @@ def api():
             patched_file_path,
             mimetype='application/octet-stream',
             as_attachment=True,
-            attachment_filename=patched_filename
+            download_name=patched_filename
         ))        
         os.remove(file_path)
         os.remove(patched_file_path)
