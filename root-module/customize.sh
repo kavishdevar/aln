@@ -52,7 +52,7 @@ if [ -f "$TEMP_DIR/$PATCHED_FILE_NAME" ]; then
     mkdir -p "$MODPATH/system/lib/"
     cp "$TEMP_DIR/$PATCHED_FILE_NAME" "$MODPATH/$LIBRARY_NAME"
     chmod 644 "$MODPATH/$LIBRARY_NAME"
-    log "Patched file has been successfully installed at $MODPATH/system/lib/$PATCHED_FILE_NAME"
+    log "Patched file has been successfully installed at $MODPATH/$LIBRARY_NAME"
 else
     ERROR_MESSAGE=$(grep -oP '(?<="error": ")[^"]+' "$TEMP_DIR/headers.txt")
     log "API Error: $ERROR_MESSAGE"
