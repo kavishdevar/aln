@@ -3,9 +3,8 @@ import os
 import json
 import uuid
 import time
-import shutil
+import threading
 import logging
-import zipfile
 from main import get_symbol_address, patch_address, copy_file_to_src, zip_src_files
 
 app = Flask(__name__)
@@ -44,21 +43,8 @@ handler = logger.handlers[0]
 handler.setFormatter(ColoredFormatter('%(asctime)s - %(levelname)s - %(message)s'))
 
 def save_patch_info(permalink_id, file_path):
-    patch_info = {
-        'permalink_id': permalink_id,
-        'file_path': file_path,
-        'timestamp': time.time()
-    }
-    if os.path.exists(PATCHES_JSON):
-        with open(PATCHES_JSON, 'r') as f:
-            patches = json.load(f)
-    else:
-        patches = []
-
-    patches.append(patch_info)
-
-    with open(PATCHES_JSON, 'w') as f:
-        json.dump(patches, f, indent=4)
+    # Dummy function to maintain logs
+    logger.info(f"Patch info saved for permalink_id: {permalink_id}, file_path: {file_path}")
 
 @app.route('/')
 def index():
@@ -282,30 +268,22 @@ def patch():
         logger.error(f"Error patching file: {str(e)}")
         return jsonify({"error": f"Error patching file: {str(e)}"}), 500
 
-    # Create a zip file containing the patched .so
-    try:
-        zip_filename = f"patched_{library_name}.zip"
-        zip_path = os.path.join('uploads', zip_filename)
-        with zipfile.ZipFile(zip_path, 'w') as zipf:
-            zipf.write(file_path, arcname=library_name)
-    except Exception as e:
-        logger.error(f"Error creating zip file: {str(e)}")
-        return jsonify({"error": f"Error creating zip file: {str(e)}"}), 500
+    # Create permalink
+    permalink_id = str(uuid.uuid4())
+    PATCHED_LIBRARIES[permalink_id] = {
+        'file_path': file_path,
+        'library_name': library_name,
+        'timestamp': time.time()
+    }
 
-    # Send the zip file
-    try:
-        return send_file(
-            zip_path,
-            mimetype='application/zip',
-            as_attachment=True,
-            download_name=zip_filename
-        )
-    except Exception as e:
-        logger.error(f"Error sending zip file: {str(e)}")
-        return jsonify({"error": f"Error sending zip file: {str(e)}"}), 500
-    finally:
-        os.remove(file_path)
-        os.remove(zip_path)
+    # Save patch info
+    save_patch_info(permalink_id, file_path)
+
+    # Schedule deletion
+    threading.Timer(PERMALINK_EXPIRY, delete_expired_permalink, args=[permalink_id]).start()
+    logger.info(f"Permalink {permalink_id} created, will expire in {PERMALINK_EXPIRY} seconds")
+
+    return jsonify({'permalink': f'/download/{permalink_id}'})
 
 @app.route('/api', methods=['POST'])
 def api():
@@ -336,30 +314,38 @@ def api():
         logger.error(f"Error patching file: {str(e)}")
         return jsonify({"error": f"Error patching file: {str(e)}"}), 500
 
-    # Send the patched .so file directly
-    patched_filename = f"patched_{library_name}"
-    patched_file_path = os.path.join('uploads', patched_filename)
-    shutil.copy(file_path, patched_file_path)
+    # Log patch info
+    permalink_id = str(uuid.uuid4())
+    save_patch_info(permalink_id, file_path)
+
+    # Return the patched file directly
+    try:
+        return send_file(file_path, as_attachment=True, attachment_filename=library_name)
+    except Exception as e:
+        logger.error(f"Error sending file: {str(e)}")
+        return jsonify({"error": f"Error sending file: {str(e)}"}), 500
+
+@app.route('/download/<permalink_id>', methods=['GET'])
+def download(permalink_id):
+    if permalink_id not in PATCHED_LIBRARIES:
+        return "Permalink expired or invalid", 404
+
+    file_path = PATCHED_LIBRARIES[permalink_id]['file_path']
+    library_name = PATCHED_LIBRARIES[permalink_id]['library_name']
+    if not os.path.exists(file_path):
+        return "File not found", 404
 
     try:
-        resp = make_response(send_file(
-            patched_file_path,
-            mimetype='application/octet-stream',
-            as_attachment=True,
-            download_name=patched_filename
-        ))        
-        os.remove(file_path)
-        os.remove(patched_file_path)
-        return resp
-    
+        copy_file_to_src(file_path, library_name)
+        zip_src_files()
     except Exception as e:
-        logger.error(f"Error sending patched file: {str(e)}")        
-        
-        os.remove(file_path)
-        os.remove(patched_file_path)
-        
-        return jsonify({"error": f"Error sending patched file: {str(e)}"}), 500
-    
+        logger.error(f"Error preparing download: {str(e)}")
+        return f"Error preparing download: {str(e)}", 500
+
+    resp = make_response(send_file('btl2capfix.zip', as_attachment=True))
+    resp.headers['Content-Disposition'] = f'attachment; filename=btl2capfix.zip'
+    return resp
+
 def delete_expired_permalink(permalink_id):
     if permalink_id in PATCHED_LIBRARIES:
         file_path = PATCHED_LIBRARIES[permalink_id]['file_path']
