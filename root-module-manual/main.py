@@ -119,7 +119,7 @@ def zip_src_files():
     """
     Zips all files in the 'src/' directory into 'btl2capfix.zip' using the shell zip command.
     """
-    run_command('cd src && zip -r ../btl2capfix *')
+    run_command('cd src && zip -y -r ../btl2capfix *')
 
 def main():
     """
