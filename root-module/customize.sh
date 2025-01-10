@@ -1,21 +1,16 @@
 #!/system/bin/sh
 
-# Define variables
 API_URL="https://aln.kavishdevar.me/api"
 TEMP_DIR="$TMPDIR/aln_patch"
 PATCHED_FILE_NAME=""
 SOURCE_FILE=""
-LIBRARY_NAME=""  # To store the name of the library being patched
-
-# Create temporary directory
+LIBRARY_NAME=""
 mkdir -p "$TEMP_DIR"
 
-# Function to log messages
 log() {
-    echo "[ALN Patch] $1"
+    echo "[Bluetooth L2CAP Patch] $1"
 }
 
-# Identify the library type
 if [ -f "/apex/com.android.btservices/lib64/libbluetooth_jni.so" ]; then
     SOURCE_FILE="/apex/com.android.btservices/lib64/libbluetooth_jni.so"
     LIBRARY_NAME="libbluetooth_jni.so"
@@ -41,8 +36,8 @@ else
     exit 1
 fi
 
-# Upload the library to the API
 log "Uploading $LIBRARY_NAME to the API for patching..."
+log "If you're concerened about privacy, you can review the source code of the API at https://github.com/kavishdevar/aln/blob/main/root-module-manual/server.py"
 PATCHED_FILE_NAME="patched_$LIBRARY_NAME"
 
 curl -s -X POST "$API_URL" \
@@ -51,18 +46,12 @@ curl -s -X POST "$API_URL" \
     -o "$TEMP_DIR/$PATCHED_FILE_NAME" \
     -D "$TEMP_DIR/headers.txt"
 
-# Check if the patched file was downloaded successfully
 if [ -f "$TEMP_DIR/$PATCHED_FILE_NAME" ]; then
     log "Received patched file from the API."
-
-    # Move the patched file to the module's directory
     log "Installing patched file to the module's directory..."
     mkdir -p "$MODPATH/system/lib/"
-    cp "$TEMP_DIR/$PATCHED_FILE_NAME" "$MODPATH/system/lib/"
-
-    # Set permissions
-    chmod 644 "$MODPATH/system/lib/$PATCHED_FILE_NAME"
-
+    cp "$TEMP_DIR/$PATCHED_FILE_NAME" "$MODPATH/$LIBRARY_NAME"
+    chmod 644 "$MODPATH/$LIBRARY_NAME"
     log "Patched file has been successfully installed at $MODPATH/system/lib/$PATCHED_FILE_NAME"
 else
     ERROR_MESSAGE=$(grep -oP '(?<="error": ")[^"]+' "$TEMP_DIR/headers.txt")
@@ -71,7 +60,5 @@ else
     exit 1
 fi
 
-# Cleanup
 rm -rf "$TEMP_DIR"
-
 exit 0
