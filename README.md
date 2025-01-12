@@ -8,19 +8,10 @@
 
 Other devices might work too. Features like ear detection and battery should be available for any AirPods! Although the app will show unsupported features/settings. I will not be able test any other devices than the ones I already have (i.e. the AirPods Pro 2).
 
-## Implemented Features
+## Features
 
-| Feature | Linux | Android |
-| --- | --- | --- |
-| Ear Detection | ✅ | ✅ |
-| Battery Levels | ✅ | ✅ |
-| Conversational Awareness | ✅ | ✅ |
-| Changing Noise Control modes | ✅ | ✅ |
-| Configure AirPods' Settings | ❌ | ✅ |
-| Popup | ❌ | ✅ |
+Check the [pinned issue](https://github.com/kavishdevar/aln/issues/20) for a list. 
 
-> [!NOTE]
-> This just includes features that are already implemented for at least one of the platforms. There is no list for any planned features.
 
 ## Linux — Deprecated, awaiting a rewrite!
 ANY ISSUES ABOUT THE LINUX VERSION WILL BE CLOSED.
@@ -43,55 +34,15 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ### Installation
 
-Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This repository provides a workaround for the bug, specifically for Android 14 QPR3 and Android 15 initial release and the QPR1 update (stock versions). 
+Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This project provides a root module which patches the bug.
 
 > [!CAUTION]
-> **This workaround requires root access** to implement and it might not work on other android OEM skins. Try at your own risk!!
+> **This workaround requires root access.** Try at your own risk.
 
-### Workaround
+To install it, just download the `btl2capfix.zip` from the latest release and install it from your root manager app.
 
-#### Step 1: Download the Required Files
-- Go to the [first release](https://github.com/kavishdevar/aln/releases/tag/v0.0.1).
-- Download the required files depending upon your Android version - `bt.sh`, `module.prop`, and `libbluetooth_jni-a14.so` (for android 14) or `libbluetooth_jni-a15.so` (for android 15).
-
-#### Step 2: Set Up the Directory Structure
-
-- Use a file manager with root access (eg. Solid FIle Explorer or MT manager) or a shell (using adb, or a terminal app like Termux) and create a folder structure like this (`upper` and `work` are also folders):
-
-```
-/data/local/tmp/overlay:
-upper
-work
-```
-- Rename the appropriate file to `libbluetooth_jni.so` and place it in the `upper` folder
-```
-/data/local/tmp/overlay/upper:
-libbluetooth_jni.so
-```
-- Create a duplicate of the overlay folder inside tmp  and name it overlay2.
-
-#### Step 3: Add the Boot Script
-
-- Place the `bt.sh` script in `/data/adb/post-fs-data.d/`.
-- This script ensures the fix is applied during system startup.
-
-#### Step 4: Create a Magisk Module
-- Create a `btl2capfix` folder in `/data/adb/modules/` and copy the `module.prop`into the folder.
-```
-/data/adb/modules/btl2capfix:
-module.prop
-```
-- Create `system/lib64` under `btl2capfix` and copy the `libbluetooth_jni.so` into `lib64`
-```
-/data/adb/modules/btl2capfix/system/lib64:
-libbluetooth_jni.so
-```
-
-#### Step 5: Verify the Fix
-- Reboot your device.
-- The Bluetooth bug should now be resolved.
-  
-Once the issue is resolved by Google developers or you've addressed it through the above root-based method, download and install the `app-release.apk` from the releases, and you're good to go!
+Tested with 
+- KernelSU
 
 ### Features
 
