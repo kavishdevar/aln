@@ -39,7 +39,7 @@ Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.g
 > [!CAUTION]
 > **This workaround requires root access.** Try at your own risk.
 
-To install it, just download the `btl2capfix.zip` from [here](https://raw.githubusercontent.com/kavishdevar/aln/refs/heads/main/btl2capfix.zip) and install it from your root manager app.
+To install it, just download the `btl2capfix.zip` from [a release](https://github.com/kavishdevar/aln/releases) and install it from your root manager app.
 
 Tested with 
 - KernelSU
