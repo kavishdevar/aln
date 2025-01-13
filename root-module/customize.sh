@@ -2,15 +2,51 @@
 
 API_URL="https://aln.kavishdevar.me/api"
 TEMP_DIR="$TMPDIR/aln_patch"
+UNZIP_DIR="/data/local/tmp/aln_unzip"
 PATCHED_FILE_NAME=""
 SOURCE_FILE=""
 LIBRARY_NAME=""
 APEX_DIR=false
 
 mkdir -p "$TEMP_DIR"
+mkdir -p "$UNZIP_DIR"
 
-CURL_CMD=$(command -v curl || echo "$MODPATH/system/bin/curl")
-export LD_LIBRARY_PATH="$MODPATH/system/lib64:$LD_LIBRARY_PATH"
+# Manually extract the $ZIPFILE to a temporary directory
+ui_print "Extracting $ZIPFILE to $UNZIP_DIR"
+unzip -o "$ZIPFILE" -d "$UNZIP_DIR" > /dev/null 2>&1
+if [ $? -ne 0 ]; then
+    ui_print "Failed to unzip $ZIPFILE"
+    abort "Failed to unzip $ZIPFILE"
+fi
+
+ui_print "Extracted module files to $UNZIP_DIR"
+
+# Determine architecture
+IS64BIT=false
+if [ "$(uname -m)" = "aarch64" ]; then
+    IS64BIT=true
+fi
+
+if [ "$IS64BIT" = true ]; then
+    export LD_LIBRARY_PATH="$UNZIP_DIR/libcurl-android/libs/arm64-v8a"
+    export PATH="$UNZIP_DIR/libcurl-android/bin/arm64-v8a:$PATH"
+    export CURL_CMD="$UNZIP_DIR/libcurl-android/bin/arm64-v8a/curl"
+    ln -s "$UNZIP_DIR/libcurl-android/libs/arm64-v8a/libz.so" "$UNZIP_DIR/libcurl-android/libs/arm64-v8a/libz.so.1"
+else
+    export LD_LIBRARY_PATH="$UNZIP_DIR/libcurl-android/libs/armeabi-v7a"
+    export PATH="$UNZIP_DIR/libcurl-android/bin/armeabi-v7a:$PATH"
+    export CURL_CMD="$UNZIP_DIR/libcurl-android/bin/armeabi-v7a/curl"
+    ln -s "$UNZIP_DIR/libcurl-android/libs/armeabi-v7a/libz.so" "$UNZIP_DIR/libcurl-android/libs/armeabi-v7a/libz.so.1"
+fi
+
+set_perm "$CURL_CMD" 0 0 755
+
+if [ -f "$CURL_CMD" ]; then
+    ui_print "curl binary found."
+else
+    ui_print "curl binary not found. Exiting."
+    abort "curl binary not found."
+fi
 
 if [ -f "/apex/com.android.btservices/lib64/libbluetooth_jni.so" ]; then
     SOURCE_FILE="/apex/com.android.btservices/lib64/libbluetooth_jni.so"
@@ -41,11 +77,9 @@ ui_print "Uploading $LIBRARY_NAME to the API for patching..."
 ui_print "If you're concerned about privacy, review the source code of the API at https://github.com/kavishdevar/aln/blob/main/root-module-manual/server.py"
 PATCHED_FILE_NAME="patched_$LIBRARY_NAME"
 
-$CURL_CMD -s -X POST "$API_URL" \
-    -F "file=@$SOURCE_FILE" \
-    -F "library_name=$LIBRARY_NAME" \
-    -o "$TEMP_DIR/$PATCHED_FILE_NAME" \
-    -D "$TEMP_DIR/headers.txt"
+ui_print "calling command $CURL_CMD --verbose -k -X POST $API_URL -F file=@$SOURCE_FILE -F library_name=$LIBRARY_NAME -o $TEMP_DIR/$PATCHED_FILE_NAME"
+
+$CURL_CMD --verbose -k -X POST $API_URL -F file=@"$SOURCE_FILE" -F library_name="$LIBRARY_NAME" -o "$TEMP_DIR/$PATCHED_FILE_NAME" > "$TEMP_DIR/headers.txt" 2>&1
 
 if [ -f "$TEMP_DIR/$PATCHED_FILE_NAME" ]; then
     ui_print "Received patched file from the API."
@@ -87,10 +121,7 @@ EOF
         ui_print "Created post-data-fs.sh script for apex library handling."
     fi
 else
-    ERROR_MESSAGE=$(grep -oP '(?<="error": ")[^"]+' "$TEMP_DIR/headers.txt")
-    ui_print "API Error: $ERROR_MESSAGE"
+    ui_print "Failed to receive patched file from the API."
     rm -rf "$TEMP_DIR"
     abort "Failed to patch the library."
 fi
-
-rm -rf "$TEMP_DIR"
