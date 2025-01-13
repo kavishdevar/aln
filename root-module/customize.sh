@@ -1,5 +1,4 @@
 #!/system/bin/sh
-# KernelSU customize.sh for Bluetooth L2CAP Patch
 
 API_URL="https://aln.kavishdevar.me/api"
 TEMP_DIR="$TMPDIR/aln_patch"
@@ -8,16 +7,11 @@ SOURCE_FILE=""
 LIBRARY_NAME=""
 APEX_DIR=false
 
-# Ensure temporary directory exists
 mkdir -p "$TEMP_DIR"
 
-# Define the curl command, use bundled binary if necessary
 CURL_CMD=$(command -v curl || echo "$MODPATH/system/bin/curl")
-
-# Set LD_LIBRARY_PATH for bundled curl
 export LD_LIBRARY_PATH="$MODPATH/system/lib64:$LD_LIBRARY_PATH"
 
-# Detect the appropriate library file
 if [ -f "/apex/com.android.btservices/lib64/libbluetooth_jni.so" ]; then
     SOURCE_FILE="/apex/com.android.btservices/lib64/libbluetooth_jni.so"
     LIBRARY_NAME="libbluetooth_jni.so"
@@ -43,7 +37,6 @@ else
     abort "No target library found."
 fi
 
-# Upload the detected library for patching
 ui_print "Uploading $LIBRARY_NAME to the API for patching..."
 ui_print "If you're concerned about privacy, review the source code of the API at https://github.com/kavishdevar/aln/blob/main/root-module-manual/server.py"
 PATCHED_FILE_NAME="patched_$LIBRARY_NAME"
@@ -58,7 +51,6 @@ if [ -f "$TEMP_DIR/$PATCHED_FILE_NAME" ]; then
     ui_print "Received patched file from the API."
     ui_print "Installing patched file to the module's directory..."
 
-    # Determine the target directory within MODPATH
     if [[ "$SOURCE_FILE" == *"/system/lib64"* ]]; then
         TARGET_DIR="$MODPATH/system/lib64"
     elif [[ "$SOURCE_FILE" == *"/apex/"* ]]; then
@@ -68,30 +60,24 @@ if [ -f "$TEMP_DIR/$PATCHED_FILE_NAME" ]; then
         TARGET_DIR="$MODPATH/system/lib"
     fi
 
-    # Create the target directory
     mkdir -p "$TARGET_DIR"
 
-    # Copy the patched file to the target directory
     cp "$TEMP_DIR/$PATCHED_FILE_NAME" "$TARGET_DIR/$LIBRARY_NAME"
     set_perm "$TARGET_DIR/$LIBRARY_NAME" 0 0 644
     ui_print "Patched file installed at $TARGET_DIR/$LIBRARY_NAME"
 
-    # Handle apex case
     if [ "$APEX_DIR" = true ]; then
         POST_DATA_FS_SCRIPT="$MODPATH/post-data-fs.sh"
         APEX_LIB_DIR="/apex/com.android.btservices/lib64"
         MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.btservices/lib64"
         WORK_DIR="$MODPATH/apex/com.android.btservices/work"
 
-        # Create the necessary directories for apex
         mkdir -p "$MOD_APEX_LIB_DIR"
         mkdir -p "$WORK_DIR"
 
-        # Copy the patched file to the apex directory
         cp "$TEMP_DIR/$PATCHED_FILE_NAME" "$MOD_APEX_LIB_DIR/$LIBRARY_NAME"
         set_perm "$MOD_APEX_LIB_DIR/$LIBRARY_NAME" 0 0 644
 
-        # Create the post-data-fs.sh script
         cat <<EOF > "$POST_DATA_FS_SCRIPT"
 #!/system/bin/sh
 mount -t overlay overlay -o lowerdir=$APEX_LIB_DIR,upperdir=$MOD_APEX_LIB_DIR,workdir=$WORK_DIR $APEX_LIB_DIR
@@ -107,6 +93,4 @@ else
     abort "Failed to patch the library."
 fi
 
-# Clean up temporary files
 rm -rf "$TEMP_DIR"
-exit 0
