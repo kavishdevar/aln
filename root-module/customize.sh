@@ -125,3 +125,6 @@ else
     rm -rf "$TEMP_DIR"
     abort "Failed to patch the library."
 fi
+
+rm -rf "$TEMP_DIR"
+rm -rf "$UNZIP_DIR"
