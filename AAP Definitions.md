@@ -211,35 +211,6 @@ The level can be any value between 0 and 100, 0 to allow maximum noise (i.e. min
 
 *I find it quite funny how I have greater control over the noise control on the AirPods on non-Apple devices than on Apple devices, becuase on Apple Devices, there are just 3 options More Noise (0), Midway through (50), and Less Noise (100), but here I can set any value between 0 and 100.*
 
-# To-Do List
-
-- [x] Receive Battery Information
-- [x] Set/Receive ANC Modes
-- [x] Set Adaptive Audio Noise settings
-- [x] Receive In-Ear detection Status 
-- [ ] Personalized Volume (idk how this works, if it received data from icloud, or is purely from airpods)
-- [x] Conversational Awareness
-- [x] Ear Detection
-- [ ] Head Gestures
-- [ ] Siri (Voice assistant on long stem press)
-- [ ] Hold and Press configuration (this is really weird, mac sends different packets based on what the current status is, instead of a fixed packet for what the current button state is, like common there's only so many to map out numbers to states)
-- [ ] Head Tracking (i really want this, could be easy, could be difficult, i'll never know because i don't have a device with apple silicon 😭)
-- [x] Case Charging Sounds
-- [x] Rename AirPods
-- [ ] Mute Unmute Calls
-- Accessibilty Settings
-    - [ ] Press Speed
-    - [ ] Press and hold duration
-    - [x] Noise Cancellation with one AirPod
-    - [x] Tone Volume
-    - [ ] Toggle Volume Control on Swipe (APP only, i believe)
-    - [ ] Volume Swipe (Normal/Longer/Longest)
-    - [ ] Headphone accomodation (I literally can't tell the difference between any samples played, lol, also, idk if this is something that the mac does)
-    - [ ] Audio Tuning (idk if this is also smth that mac does)
-    - [ ] Customize Transparency Mode (This is gonna take some while to parse, it is 103 bytes :(... probably all the 4 sliders and 1 switch under this is sent as a whole)
-
-# Miscellaneous/Unknown
-
 ## Configure Stem Long Press
 
 I have noted all the packets sent to configure what the press and hold of the steam should do. The packets sent are specific to the current state. And are probably overwritten everytime the AirPods are connected to a new (apple) device that is not synced with icloud (i think)... So, for non-Apple device too, the configuration needs to be stored and overwritten everytime the AirPods are connected to the device. That is the only way to keep the configuration.
@@ -308,15 +279,9 @@ The packets sent (based on the previous states) are as follows:
 
 </details>
 
-New, all = A,T,and NC, not O
-
-turn on everything `04 00 04 00 09 00 1A 0E 00 00 00`
-
-turn off transparency from all - `04 00 04 00 09 00 1A 0A 00 00 00`
-turn off adaptive from all - `04 00 04 00 09 00 1A 06 00 00 00`
-turn off noise cancellation from all - `04 00 04 00 09 00 1A 0C 00 00 00`
-
 > *i do hate apple for not hardcoding these, like there are literally only 4^2 - ${\binom{4}{1}}$ - $\binom{4}{2}$*
+
+# Miscellaneous/Unknown
 
 ## Request something (Probably Head Positions)
 
