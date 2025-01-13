@@ -37,12 +37,9 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This project provides a root module which patches the bug.
 
 > [!CAUTION]
-> **This workaround requires root access.** Try at your own risk.
+> **This workaround requires root access.** Try at your own risk. It may break your bluetooth, and I am not responsible for any damage caused by this module.
 
 To install it, just download the `btl2capfix.zip` from [a release](https://github.com/kavishdevar/aln/releases) and install it from your root manager app.
-
-Tested with 
-- KernelSU
 
 ### Features
 
