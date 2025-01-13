@@ -128,3 +128,4 @@ fi
 
 rm -rf "$TEMP_DIR"
 rm -rf "$UNZIP_DIR"
+rm -rf "$MODPATH/libcurl-android"
