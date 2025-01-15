@@ -2,83 +2,54 @@
 
 API_URL="https://aln.kavishdevar.me/api"
 TEMP_DIR="$TMPDIR/aln_patch"
-UNZIP_DIR="/data/local/tmp/aln_unzip"
 PATCHED_FILE_NAME=""
 SOURCE_FILE=""
 LIBRARY_NAME=""
 APEX_DIR=false
 
 mkdir -p "$TEMP_DIR"
-mkdir -p "$UNZIP_DIR"
 
-# Manually extract the $ZIPFILE to a temporary directory
-ui_print "Extracting module files..."
-unzip -o "$ZIPFILE" -d "$UNZIP_DIR" > /dev/null 2>&1
-if [ $? -ne 0 ]; then
-    ui_print "Error: Failed to extract module files."
-    abort "Failed to unzip $ZIPFILE"
-fi
-
-# Determine architecture
-IS64BIT=false
-if [ "$(uname -m)" = "aarch64" ]; then
-    IS64BIT=true
-fi
-
-if [ "$IS64BIT" = true ]; then
-    export LD_LIBRARY_PATH="$UNZIP_DIR/libcurl-android/libs/arm64-v8a"
-    export PATH="$UNZIP_DIR/libcurl-android/bin/arm64-v8a:$PATH"
-    export CURL_CMD="$UNZIP_DIR/libcurl-android/bin/arm64-v8a/curl"
-    ln -s "$UNZIP_DIR/libcurl-android/libs/arm64-v8a/libz.so" "$UNZIP_DIR/libcurl-android/libs/arm64-v8a/libz.so.1"
-else
-    export LD_LIBRARY_PATH="$UNZIP_DIR/libcurl-android/libs/armeabi-v7a"
-    export PATH="$UNZIP_DIR/libcurl-android/bin/armeabi-v7a:$PATH"
-    export CURL_CMD="$UNZIP_DIR/libcurl-android/bin/armeabi-v7a/curl"
-    ln -s "$UNZIP_DIR/libcurl-android/libs/armeabi-v7a/libz.so" "$UNZIP_DIR/libcurl-android/libs/armeabi-v7a/libz.so.1"
-fi
-
-set_perm "$CURL_CMD" 0 0 755
-
-if [ -f "$CURL_CMD" ]; then
-    ui_print "curl binary is ready."
-else
-    ui_print "Error: curl binary not found."
-    abort "curl binary not found."
-fi
+CURL_CMD=$(command -v curl || echo "$MODPATH/system/bin/curl")
+export LD_LIBRARY_PATH="$MODPATH/system/lib64:$LD_LIBRARY_PATH"
 
 if [ -f "/apex/com.android.btservices/lib64/libbluetooth_jni.so" ]; then
     SOURCE_FILE="/apex/com.android.btservices/lib64/libbluetooth_jni.so"
     LIBRARY_NAME="libbluetooth_jni.so"
     PATCHED_FILE_NAME="libbluetooth_jni_patched.so"
-    ui_print "Detected library: libbluetooth_jni.so"
+    ui_print "Detected library: libbluetooth_jni.so in /apex/com.android.btservices/lib64/"
 elif [ -f "/system/lib64/libbluetooth_jni.so" ]; then
     SOURCE_FILE="/system/lib64/libbluetooth_jni.so"
     LIBRARY_NAME="libbluetooth_jni.so"
     PATCHED_FILE_NAME="libbluetooth_jni_patched.so"
-    ui_print "Detected library: libbluetooth_jni.so"
+    ui_print "Detected library: libbluetooth_jni.so in /system/lib64/"
 elif [ -f "/system/lib64/libbluetooth_qti.so" ]; then
     SOURCE_FILE="/system/lib64/libbluetooth_qti.so"
     LIBRARY_NAME="libbluetooth_qti.so"
     PATCHED_FILE_NAME="libbluetooth_qti_patched.so"
-    ui_print "Detected QTI library: libbluetooth_qti.so"
+    ui_print "Detected QTI library: libbluetooth_qti.so in /system/lib64/"
 elif [ -f "/system_ext/lib64/libbluetooth_qti.so" ]; then
     SOURCE_FILE="/system_ext/lib64/libbluetooth_qti.so"
     LIBRARY_NAME="libbluetooth_qti.so"
     PATCHED_FILE_NAME="libbluetooth_qti_patched.so"
-    ui_print "Detected QTI library: libbluetooth_qti.so"
+    ui_print "Detected QTI library: libbluetooth_qti.so in /system_ext/lib64/"
 else
-    ui_print "Error: No target library found."
+    ui_print "No target library found. Exiting."
     abort "No target library found."
 fi
 
-ui_print "Uploading $LIBRARY_NAME for patching..."
+ui_print "Uploading $LIBRARY_NAME to the API for patching..."
+ui_print "If you're concerned about privacy, review the source code of the API at https://github.com/kavishdevar/aln/blob/main/root-module-manual/server.py"
 PATCHED_FILE_NAME="patched_$LIBRARY_NAME"
 
-$CURL_CMD -k -X POST $API_URL -F file=@"$SOURCE_FILE" -F library_name="$LIBRARY_NAME" -o "$TEMP_DIR/$PATCHED_FILE_NAME" > "$TEMP_DIR/headers.txt" 2>&1
+$CURL_CMD -s -X POST "$API_URL" \
+    -F "file=@$SOURCE_FILE" \
+    -F "library_name=$LIBRARY_NAME" \
+    -o "$TEMP_DIR/$PATCHED_FILE_NAME" \
+    -D "$TEMP_DIR/headers.txt"
 
 if [ -f "$TEMP_DIR/$PATCHED_FILE_NAME" ]; then
-    ui_print "Patched file received."
-    ui_print "Installing patched file..."
+    ui_print "Received patched file from the API."
+    ui_print "Installing patched file to the module's directory..."
 
     if [[ "$SOURCE_FILE" == *"/system/lib64"* ]]; then
         TARGET_DIR="$MODPATH/system/lib64"
@@ -113,14 +84,13 @@ mount -t overlay overlay -o lowerdir=$APEX_LIB_DIR,upperdir=$MOD_APEX_LIB_DIR,wo
 EOF
 
         set_perm "$POST_DATA_FS_SCRIPT" 0 0 755
-        ui_print "Created script for apex library handling."
+        ui_print "Created post-data-fs.sh script for apex library handling."
     fi
 else
-    ui_print "Error: Failed to receive patched file."
+    ERROR_MESSAGE=$(grep -oP '(?<="error": ")[^"]+' "$TEMP_DIR/headers.txt")
+    ui_print "API Error: $ERROR_MESSAGE"
     rm -rf "$TEMP_DIR"
     abort "Failed to patch the library."
 fi
 
 rm -rf "$TEMP_DIR"
-rm -rf "$UNZIP_DIR"
-rm -rf "$MODPATH/libcurl-android"
