@@ -7,19 +7,24 @@ ApplicationWindow {
     height: 300
     title: "AirPods Settings"
     property bool ignoreNoiseControlChange: false
+    property bool isPlaying: false
+
+    Component.onCompleted: {
+        caToggle.checked = airPodsTrayApp.loadConversationalAwarenessState()
+    }
 
     Column {
         spacing: 20
         padding: 20
 
         Text {
-            text: "Ear Detection Status: "
-            id: earDetectionStatus
+            text: "Battery Status: "
+            id: batteryStatus
         }
 
         Text {
-            text: "Battery Status: "
-            id: batteryStatus
+            text: "Ear Detection Status: "
+            id: earDetectionStatus
         }
 
         ComboBox {
@@ -33,7 +38,7 @@ ApplicationWindow {
             }
             Connections {
                 target: airPodsTrayApp
-                function onNoiseControlModeChanged(mode) {
+                onNoiseControlModeChanged: {
                     ignoreNoiseControlChange = true
                     noiseControlMode.currentIndex = mode;
                     ignoreNoiseControlChange = false
@@ -44,8 +49,10 @@ ApplicationWindow {
         Switch {
             id: caToggle
             text: "Conversational Awareness"
+            checked: isPlaying
             onCheckedChanged: {
                 airPodsTrayApp.setConversationalAwareness(checked)
+                airPodsTrayApp.saveConversationalAwarenessState(checked)
             }
         }
     }
