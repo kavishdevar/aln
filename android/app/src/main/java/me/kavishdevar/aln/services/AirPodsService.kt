@@ -86,7 +86,7 @@ object ServiceManager {
     }
 }
 
-@Suppress("unused")
+//@Suppress("unused")
 class AirPodsService: Service() {
     inner class LocalBinder : Binder() {
         fun getService(): AirPodsService = this@AirPodsService
@@ -211,60 +211,9 @@ class AirPodsService: Service() {
 
     fun updateNotificationContent(connected: Boolean, airpodsName: String? = null, batteryList: List<Battery>? = null) {
         val notificationManager = getSystemService(NotificationManager::class.java)
-//        val textColor = this.getSharedPreferences("settings", MODE_PRIVATE).getLong("textColor", 0)
         var updatedNotification: Notification? = null
 
         if (connected) {
-//            val collapsedRemoteViews = RemoteViews(packageName, R.layout.notification)
-//            val expandedRemoteViews = RemoteViews(packageName, R.layout.notification_expanded)
-//            collapsedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
-//
-//            collapsedRemoteViews.setTextViewText(R.id.notification_title, "Connected to $airpodsName")
-//            expandedRemoteViews.setTextViewText(
-//                R.id.notification_title,
-//                "Connected to $airpodsName"
-//            )
-//            expandedRemoteViews.setTextViewText(
-//                R.id.left_battery_notification,
-//                batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-//                        "Left ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
-//                } ?: "")
-//            expandedRemoteViews.setTextViewText(
-//                R.id.right_battery_notification,
-//                batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-//                        "Right ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
-//                } ?: "")
-//            expandedRemoteViews.setTextViewText(
-//                R.id.case_battery_notification,
-//                batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-//                        "Case ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
-//                } ?: "")
-//            expandedRemoteViews.setTextColor(R.id.notification_title, textColor.toInt())
-//            expandedRemoteViews.setTextColor(R.id.left_battery_notification, textColor.toInt())
-//            expandedRemoteViews.setTextColor(R.id.right_battery_notification, textColor.toInt())
-//            expandedRemoteViews.setTextColor(R.id.case_battery_notification, textColor.toInt())
-//            updatedNotification = NotificationCompat.Builder(this, "background_service_status")
-//                .setSmallIcon(R.drawable.airpods)
-//                .setStyle(NotificationCompat.DecoratedCustomViewStyle())
-//                .setCustomContentView(collapsedRemoteViews)
-//                .setCustomBigContentView(expandedRemoteViews)
-//                .setPriority(NotificationCompat.PRIORITY_LOW)
-//                .setCategory(Notification.CATEGORY_SERVICE)
-//                .setOngoing(true)
-//                .build()
-
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
                 .setContentTitle("""$airpodsName  –${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
@@ -757,13 +706,23 @@ class AirPodsService: Service() {
     }
 
     fun setPressSpeed(speed: Int) {
+        // 0x00 = default, 0x01 = slower, 0x02 = slowest
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x17, speed.toByte(), 0x00, 0x00, 0x00)
         socket.outputStream?.write(bytes)
         socket.outputStream?.flush()
     }
 
     fun setPressAndHoldDuration(speed: Int) {
+        // 0 - default, 1 - slower, 2 - slowest
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x18, speed.toByte(), 0x00, 0x00, 0x00)
+        socket.outputStream?.write(bytes)
+        socket.outputStream?.flush()
+    }
+
+    fun setVolumeSwipeSpeed(speed: Int) {
+        // 0 - default, 1 - longer, 2 - longest
+        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x23, speed.toByte(), 0x00, 0x00, 0x00)
+        Log.d("AirPodsService", "Setting volume swipe speed to $speed by packet ${bytes.joinToString(" ") { "%02X".format(it) }}")
         socket.outputStream?.write(bytes)
         socket.outputStream?.flush()
     }
@@ -776,12 +735,6 @@ class AirPodsService: Service() {
 
     fun setVolumeControl(enabled: Boolean) {
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x25, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00)
-        socket.outputStream?.write(bytes)
-        socket.outputStream?.flush()
-    }
-
-    fun setVolumeSwipeSpeed(speed: Int) {
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x23, speed.toByte(), 0x00, 0x00, 0x00)
         socket.outputStream?.write(bytes)
         socket.outputStream?.flush()
     }
