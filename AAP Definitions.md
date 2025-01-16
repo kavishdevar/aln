@@ -28,7 +28,7 @@ It also enables the Adaptive Transparency feature. (We can set Adaptive Transpar
 
 # Requesting notifications
 
-This packet is necessary to receive notifications from the AirPods like ear detection, noise control mode, conversation awareness, battery status, etc.
+This packet is necessary to receive notifications from the AirPods like ear detection, noise control mode, conversational awareness, battery status, etc.
 
 *Captured using PacketLogger on an Intel Mac running macOS Sequoia 15.0.1*
 ```plaintext
