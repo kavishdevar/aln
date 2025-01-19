@@ -37,6 +37,8 @@ Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
 #define LOG_ERROR(msg) qCCritical(airpodsApp) << "\033[31m" << msg << "\033[0m"
 #define LOG_DEBUG(msg) qCDebug(airpodsApp) << "\033[34m" << msg << "\033[0m"
 
+#define PHONE_MAC_ADDRESS "22:22:F5:BB:1C:A0"
+
 class AirPodsTrayApp : public QObject {
     Q_OBJECT
 
@@ -104,6 +106,7 @@ public:
             }
         }
         initializeMprisInterface();
+        connect(phoneSocket, &QBluetoothSocket::readyRead, this, &AirPodsTrayApp::onPhoneDataReceived);
     }
 
 public slots:
@@ -340,6 +343,10 @@ public slots:
             qint64 bytesWritten = localSocket->write(handshakePacket);
             LOG_DEBUG("Handshake packet written: " << handshakePacket.toHex() << ", bytes written: " << bytesWritten);
 
+            QByteArray airpodsConnectedPacket = QByteArray::fromHex("000400010001");
+            phoneSocket->write(airpodsConnectedPacket);
+            LOG_DEBUG("AIRPODS_CONNECTED packet written: " << airpodsConnectedPacket.toHex());
+
             connect(localSocket, &QBluetoothSocket::bytesWritten, this, [this, localSocket, setSpecificFeaturesPacket, requestNotificationsPacket](qint64 bytes) {
                 LOG_INFO("Bytes written: " << bytes);
                 if (bytes > 0) {
@@ -363,6 +370,7 @@ public slots:
                 QByteArray data = localSocket->readAll();
                 LOG_DEBUG("Data received: " << data.toHex());
                 parseData(data);
+                relayPacketToPhone(data);
             });
         });
 
@@ -403,6 +411,7 @@ public slots:
                 .arg(caseLevel);
             LOG_INFO("Battery status: " << batteryStatus);
             emit batteryStatusChanged(batteryStatus);
+            relayPacketToPhone(data);
                                                                     
         } else if (data.size() == 10 && data.startsWith(QByteArray::fromHex("040004004B00020001"))) {
             LOG_INFO("Received conversational awareness data");
@@ -471,6 +480,67 @@ public slots:
         } else {
             LOG_WARN("No active MPRIS media players found");
         }
+        connectToPhone();
+    }
+
+    void connectToPhone() {
+        if (phoneSocket && phoneSocket->isOpen()) {
+            LOG_INFO("Already connected to the phone");
+            return;
+        }
+
+        QBluetoothAddress phoneAddress(PHONE_MAC_ADDRESS);
+        phoneSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
+        connect(phoneSocket, &QBluetoothSocket::connected, this, [this]() {
+            LOG_INFO("Connected to phone");
+        });
+
+        connect(phoneSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred), this, [this](QBluetoothSocket::SocketError error) {
+            LOG_ERROR("Phone socket error: " << error << ", " << phoneSocket->errorString());
+        });
+
+        phoneSocket->connectToService(phoneAddress, QBluetoothUuid("1abbb9a4-10e4-4000-a75c-8953c5471342"));
+    }
+
+    void relayPacketToPhone(const QByteArray &packet) {
+        if (phoneSocket && phoneSocket->isOpen()) {
+            QByteArray header = QByteArray::fromHex("00040001");
+            phoneSocket->write(header + packet);
+            LOG_DEBUG("Relayed packet to phone with header: " << (header + packet).toHex());
+        } else {
+            LOG_WARN("Phone socket is not open, cannot relay packet");
+        }
+    }
+
+    void handlePhonePacket(const QByteArray &packet) {
+        if (packet.startsWith(QByteArray::fromHex("00040001"))) {
+            QByteArray airpodsPacket = packet.mid(4); // Remove the header
+            if (socket && socket->isOpen()) {
+                socket->write(airpodsPacket);
+                LOG_DEBUG("Relayed packet to AirPods: " << airpodsPacket.toHex());
+            } else {
+                LOG_ERROR("Socket is not open, cannot relay packet to AirPods");
+            }
+        } else if (packet.startsWith(QByteArray::fromHex("00010001"))) {
+            LOG_INFO("AirPods connected");
+            // Handle AirPods connected
+        } else if (packet.startsWith(QByteArray::fromHex("00010000"))) {
+            LOG_INFO("AirPods disconnected");
+            // Handle AirPods disconnected
+        } else {
+            if (socket && socket->isOpen()) {
+                socket->write(packet);
+                LOG_DEBUG("Relayed packet to AirPods: " << packet.toHex());
+            } else {
+                LOG_ERROR("Socket is not open, cannot relay packet to AirPods");
+            }
+        }
+    }
+
+    void onPhoneDataReceived() {
+        QByteArray data = phoneSocket->readAll();
+        LOG_DEBUG("Data received from phone: " << data.toHex());
+        handlePhonePacket(data);
     }
 
 signals:
@@ -483,6 +553,7 @@ private:
     QMenu *trayMenu;
     QBluetoothDeviceDiscoveryAgent *discoveryAgent;
     QBluetoothSocket *socket = nullptr;
+    QBluetoothSocket *phoneSocket = nullptr;
     QDBusInterface *mprisInterface;
     QString connectedDeviceMacAddress;
 };

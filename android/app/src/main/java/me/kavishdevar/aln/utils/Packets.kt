@@ -22,6 +22,7 @@
 package me.kavishdevar.aln.utils
 
 import android.os.Parcelable
+import android.util.Log
 import kotlinx.parcelize.Parcelize
 
 enum class Enums(val value: ByteArray) {
@@ -133,6 +134,9 @@ class AirPodsNotifications {
         }
 
         fun setStatus(data: ByteArray) {
+            if (data.size != 11) {
+                return
+            }
             status = data[7].toInt()
         }
 
@@ -154,13 +158,17 @@ class AirPodsNotifications {
 
         fun isBatteryData(data: ByteArray): Boolean {
             if (data.size != 22) {
+                Log.d("BatteryNotification", "Battery data size is not 22")
                 return false
             }
-            return data[0] == 0x04.toByte() && data[1] == 0x00.toByte() && data[2] == 0x04.toByte() &&
-                    data[3] == 0x00.toByte() && data[4] == 0x04.toByte() && data[5] == 0x00.toByte()
+            Log.d("BatteryNotification", data.joinToString("") { "%02x".format(it) }.startsWith("040004000400").toString())
+            return data.joinToString("") { "%02x".format(it) }.startsWith("040004000400")
         }
 
         fun setBattery(data: ByteArray) {
+            if (data.size != 22) {
+                return
+            }
             first = if (data[10].toInt() == BatteryStatus.DISCONNECTED) {
                 Battery(first.component, first.level, data[10].toInt())
             } else {
@@ -186,6 +194,7 @@ class AirPodsNotifications {
     }
 
     class ConversationalAwarenessNotification {
+        @Suppress("PrivatePropertyName")
         private val NOTIFICATION_PREFIX = Enums.CONVERSATION_AWARENESS_RECEIVE_PREFIX.value
 
         var status: Byte = 0

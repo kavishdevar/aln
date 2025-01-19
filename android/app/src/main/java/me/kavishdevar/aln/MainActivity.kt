@@ -22,10 +22,12 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
+import android.content.Context.MODE_PRIVATE
 import android.content.Context.RECEIVER_EXPORTED
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.ServiceConnection
+import android.content.SharedPreferences
 import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
@@ -147,6 +149,16 @@ fun Main() {
             }
         }
 
+        val sharedPreferences = context.getSharedPreferences("settings", MODE_PRIVATE)
+        val isAvailableChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key == "CrossDeviceIsAvailable") {
+                Log.d("MainActivity", "CrossDeviceIsAvailable changed")
+                isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)
+            }
+        }
+        sharedPreferences.registerOnSharedPreferenceChangeListener(isAvailableChangeListener)
+        Log.d("MainActivity", "CrossDeviceIsAvailable: ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | isAvailable: ${CrossDevice.isAvailable}")
+        isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false) || CrossDevice.isAvailable
         val filter = IntentFilter().apply {
             addAction(AirPodsNotifications.AIRPODS_CONNECTED)
             addAction(AirPodsNotifications.AIRPODS_DISCONNECTED)
