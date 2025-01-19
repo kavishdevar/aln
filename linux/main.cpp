@@ -24,6 +24,11 @@
 #include <QFile>
 #include <QTextStream>
 #include <QStandardPaths>
+#include <QBluetoothServer>
+#include <QBluetoothSocket>
+#include <QBluetoothDeviceDiscoveryAgent>
+#include <QBluetoothLocalDevice>
+#include <QBluetoothUuid>
 
 Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
 
@@ -266,8 +271,7 @@ public slots:
             file.close();
         }
     }
-
-private slots:
+    private slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger) {
             LOG_INFO("Tray icon activated");
@@ -549,5 +553,6 @@ int main(int argc, char *argv[]) {
 
     return app.exec();
 }
+
 
 #include "main.moc"

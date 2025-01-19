@@ -48,7 +48,7 @@ class AirPodsQSService: TileService() {
             qsTile.state = Tile.STATE_UNAVAILABLE
             qsTile.updateTile()
         }
-        if (ServiceManager.getService()?.isConnected == true) {
+        if (ServiceManager.getService()?.isConnectedLocally == true) {
             qsTile.state = Tile.STATE_ACTIVE
             qsTile.updateTile()
         }
@@ -89,7 +89,7 @@ class AirPodsQSService: TileService() {
                 IntentFilter(AirPodsNotifications.Companion.ANC_DATA)
             )
         }
-        qsTile.state = if (ServiceManager.getService()?.isConnected == true) Tile.STATE_ACTIVE else Tile.STATE_UNAVAILABLE
+        qsTile.state = if (ServiceManager.getService()?.isConnectedLocally == true) Tile.STATE_ACTIVE else Tile.STATE_UNAVAILABLE
         val ancIndex = ServiceManager.getService()?.getANC()
         currentModeIndex = if (ancIndex != null) { if (ancIndex == 2) 0 else if (ancIndex == 3) 1 else if (ancIndex == 4) 2 else 2 } else 0
         updateTile()

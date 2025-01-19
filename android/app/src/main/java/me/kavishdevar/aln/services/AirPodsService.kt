@@ -24,10 +24,15 @@ import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
 import android.appwidget.AppWidgetManager
+import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
+import android.bluetooth.le.ScanCallback
+import android.bluetooth.le.ScanFilter
+import android.bluetooth.le.ScanResult
+import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -46,7 +51,10 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import me.kavishdevar.aln.BatteryWidget
 import me.kavishdevar.aln.MainActivity
@@ -55,11 +63,13 @@ import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.Battery
 import me.kavishdevar.aln.utils.BatteryComponent
 import me.kavishdevar.aln.utils.BatteryStatus
+import me.kavishdevar.aln.utils.CrossDevice
 import me.kavishdevar.aln.utils.Enums
 import me.kavishdevar.aln.utils.LongPressPackets
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.Window
 import org.lsposed.hiddenapibypass.HiddenApiBypass
+import java.io.OutputStream
 
 object ServiceManager {
     private var service: AirPodsService? = null
@@ -88,6 +98,7 @@ object ServiceManager {
 
 //@Suppress("unused")
 class AirPodsService: Service() {
+    private var macAddress = ""
     inner class LocalBinder : Binder() {
         fun getService(): AirPodsService = this@AirPodsService
     }
@@ -107,6 +118,30 @@ class AirPodsService: Service() {
         popupShown = true
     }
 
+    private fun handleMessage(message: String, outputStream: OutputStream) {
+        when (message) {
+            "PAUSE_MEDIA" -> MediaController.sendPause()
+            "PLAY_MEDIA" -> MediaController.sendPlay()
+            "CONNECT_AIRPODS" -> connectToAirPods()
+            "DISCONNECT_AIRPODS" -> disconnectFromAirPods()
+            else -> {
+                forwardPacket(message, outputStream)
+            }
+        }
+    }
+    private fun forwardPacket(packet: String, outputStream: OutputStream) {
+        outputStream.write(packet.toByteArray())
+    }
+
+    private fun connectToAirPods() {
+        Log.d("AirPodsQuickSwitchService", "Should connect to AirPods now.")
+    }
+
+    private fun disconnectFromAirPods() {
+        Log.d("AirPodsQuickSwitchService", "Should disconnect from AirPods now.")
+    }
+
+
     @Suppress("ClassName")
     private object bluetoothReceiver: BroadcastReceiver() {
         @SuppressLint("MissingPermission")
@@ -123,7 +158,7 @@ class AirPodsService: Service() {
             if (bluetoothDevice != null && action != null && !action.isEmpty()) {
                 Log.d("AirPodsService", "Received bluetooth connection broadcast")
                 if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
-                    if (ServiceManager.getService()?.isConnected == true) {
+                    if (ServiceManager.getService()?.isConnectedLocally == true) {
                         ServiceManager.getService()?.manuallyCheckForAudioSource()
                         return
                     }
@@ -139,10 +174,46 @@ class AirPodsService: Service() {
         }
     }
 
-    var isConnected = false
+    var isConnectedLocally = false
     var device: BluetoothDevice? = null
 
     private lateinit var earReceiver: BroadcastReceiver
+
+    @SuppressLint("MissingPermission")
+    fun scanForAirPods(bluetoothAdapter: BluetoothAdapter): Flow<List<ScanResult>> = callbackFlow {
+        val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
+            ?: throw IllegalStateException("Bluetooth adapter unavailable")
+
+        val scanCallback = object : ScanCallback() {
+            override fun onScanResult(callbackType: Int, result: ScanResult) {
+                if (result.device != null) {
+                    trySend(listOf(result))
+                }
+            }
+
+            override fun onBatchScanResults(results: List<ScanResult>) {
+                trySend(results)
+            }
+
+            override fun onScanFailed(errorCode: Int) {
+                close(Exception("Scan failed with error: $errorCode"))
+            }
+        }
+
+        val scanSettings = ScanSettings.Builder()
+            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
+            .build()
+
+        val scanFilters = listOf<ScanFilter>(
+            ScanFilter.Builder()
+                .setManufacturerData(0x004C, byteArrayOf())
+                .build()
+        )
+
+        bluetoothLeScanner.startScan(scanFilters, scanSettings, scanCallback)
+        awaitClose { bluetoothLeScanner.stopScan(scanCallback) }
+    }
+
 
     fun startForegroundNotification() {
         val notificationChannel = NotificationChannel(
@@ -261,6 +332,11 @@ class AirPodsService: Service() {
         Log.d("AirPodsService", "Service started")
         ServiceManager.setService(this)
         startForegroundNotification()
+
+        Log.d("AirPodsService", "Initializing CrossDevice")
+        CrossDevice.init(this)
+        Log.d("AirPodsService", "CrossDevice initialized")
+
         val serviceIntentFilter = IntentFilter().apply {
             addAction("android.bluetooth.device.action.ACL_CONNECTED")
             addAction("android.bluetooth.device.action.ACL_DISCONNECTED")
@@ -294,14 +370,19 @@ class AirPodsService: Service() {
                         this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).edit()
                             .putString("name", name).apply()
                     }
-                    Log.d("AirPodsService", "$name connected")
-                    showPopup(this@AirPodsService, name.toString())
-                    connectToSocket(device!!)
-                    updateNotificationContent(true, name.toString(), batteryNotification.getBattery())
+                    Log.d("AirPodsQuickSwitchServices", CrossDevice.isAvailable.toString())
+                    if (!CrossDevice.isAvailable) {
+                        Log.d("AirPodsService", "$name connected")
+                        showPopup(this@AirPodsService, name.toString())
+                        connectToSocket(device!!)
+                        isConnectedLocally = true
+                        macAddress = device!!.address
+                        updateNotificationContent(true, name.toString(), batteryNotification.getBattery())
+                    }
                 }
                 else if (intent?.action == AirPodsNotifications.Companion.AIRPODS_DISCONNECTED) {
                     device = null
-                    isConnected = false
+                    isConnectedLocally = false
                     popupShown = false
                     updateNotificationContent(false)
                 }
@@ -319,6 +400,28 @@ class AirPodsService: Service() {
         }
 
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
+        if (bluetoothAdapter.isEnabled) {
+            CoroutineScope(Dispatchers.IO).launch {
+                var lastData = byteArrayOf()
+                scanForAirPods(bluetoothAdapter).collect { scanResults ->
+                    scanResults.forEach { scanResult ->
+                        val device = scanResult.device
+                        device.fetchUuidsWithSdp()
+                        val manufacturerData = scanResult.scanRecord?.manufacturerSpecificData?.get(0x004C)
+                        if (manufacturerData != null && manufacturerData != lastData) {
+                            lastData = manufacturerData
+                            val formattedHex = manufacturerData.joinToString(" ") { "%02X".format(it) }
+                            val rssi = scanResult.rssi
+                            Log.d(
+                                "AirPodsBLEService",
+                                "Received broadcast of size ${manufacturerData.size} from ${device.address} | $rssi | $formattedHex"
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         bluetoothAdapter.bondedDevices.forEach { device ->
             device.fetchUuidsWithSdp()
             if (device.uuids != null)
@@ -331,7 +434,9 @@ class AirPodsService: Service() {
                                 if (profile == BluetoothProfile.A2DP) {
                                     val connectedDevices = proxy.connectedDevices
                                     if (connectedDevices.isNotEmpty()) {
-                                        connectToSocket(device)
+                                        if (!CrossDevice.isAvailable) {
+                                            connectToSocket(device)
+                                        }
                                         this@AirPodsService.sendBroadcast(
                                             Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
                                         )
@@ -365,7 +470,7 @@ class AirPodsService: Service() {
         HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
         val uuid: ParcelUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
 
-        if (isConnected != true) {
+        if (isConnectedLocally != true) {
             try {
                 socket = HiddenApiBypass.newInstance(
                     BluetoothSocket::class.java,
@@ -401,7 +506,7 @@ class AirPodsService: Service() {
             try {
                 socket.connect()
                 this@AirPodsService.device = device
-                isConnected = true
+                isConnectedLocally = true
                 socket.let { it ->
                     // sometimes doesn't work ;-;
                     // i though i move it to the coroutine
@@ -437,7 +542,6 @@ class AirPodsService: Service() {
                             Intent(AirPodsNotifications.Companion.AIRPODS_CONNECTED)
                                 .putExtra("device", device)
                         )
-
                         while (socket.isConnected == true) {
                             socket.let {
                                 val audioManager =
@@ -453,6 +557,7 @@ class AirPodsService: Service() {
                                     })
                                     val bytes = buffer.copyOfRange(0, bytesRead)
                                     val formattedHex = bytes.joinToString(" ") { "%02X".format(it) }
+                                    CrossDevice.sendReceivedPacket(bytes)
                                     Log.d("AirPods Data", "Data received: $formattedHex")
                                 } else if (bytesRead == -1) {
                                     Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
@@ -565,15 +670,11 @@ class AirPodsService: Service() {
                                                 if (inEar == true) {
                                                     if (!justEnabledA2dp) {
                                                         justEnabledA2dp = false
-//                                                        if (audioManager.activePlaybackConfigurations.any { it.audioDeviceInfo?.address == device.address }) {
                                                         MediaController.sendPlay()
                                                         MediaController.iPausedTheMedia = false
-//                                                        }
                                                     }
                                                 } else {
-//                                                    if (audioManager.activePlaybackConfigurations.any { it.audioDeviceInfo?.address == device.address }) {
                                                         MediaController.sendPause()
-//                                                    }
                                                 }
                                             }
                                         }
@@ -593,12 +694,16 @@ class AirPodsService: Service() {
                                         )
                                     }
                                 } else if (ancNotification.isANCData(data)) {
+                                    CrossDevice.sendRemotePacket(data)
+                                    CrossDevice.ancBytes = data
                                     ancNotification.setStatus(data)
                                     sendBroadcast(Intent(AirPodsNotifications.Companion.ANC_DATA).apply {
                                         putExtra("data", ancNotification.status)
                                     })
                                     Log.d("AirPods Parser", "ANC: ${ancNotification.status}")
                                 } else if (batteryNotification.isBatteryData(data)) {
+                                    CrossDevice.sendRemotePacket(data)
+                                    CrossDevice.batteryBytes = data
                                     batteryNotification.setBattery(data)
                                     sendBroadcast(Intent(AirPodsNotifications.Companion.BATTERY_DATA).apply {
                                         putParcelableArrayListExtra(
@@ -651,7 +756,7 @@ class AirPodsService: Service() {
                             }
                         }
                         Log.d("AirPods Service", "Socket closed")
-                        isConnected = false
+                        isConnectedLocally = false
                         socket.close()
                         sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED))
                     }
@@ -663,10 +768,42 @@ class AirPodsService: Service() {
         }
     }
 
+    fun disconnect() {
+        socket.close()
+        val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
+        bluetoothAdapter.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
+            override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
+                if (profile == BluetoothProfile.A2DP) {
+                    val connectedDevices = proxy.connectedDevices
+                    if (connectedDevices.isNotEmpty()) {
+                        MediaController.sendPause()
+                    }
+                }
+                bluetoothAdapter.closeProfileProxy(profile, proxy)
+            }
+
+            override fun onServiceDisconnected(profile: Int) {}
+        }, BluetoothProfile.A2DP)
+        HiddenApiBypass.invoke(BluetoothDevice::class.java, device, "disconnect")
+        isConnectedLocally = false
+    }
 
     fun sendPacket(packet: String) {
         val fromHex = packet.split(" ").map { it.toInt(16).toByte() }
+        if (!isConnectedLocally && CrossDevice.isAvailable) {
+            CrossDevice.sendRemotePacket(fromHex.toByteArray())
+            return
+        }
         socket.outputStream?.write(fromHex.toByteArray())
+        socket.outputStream?.flush()
+    }
+    
+    fun sendPacket(packet: ByteArray) {
+        if (!isConnectedLocally && CrossDevice.isAvailable) {
+            CrossDevice.sendRemotePacket(packet)
+            return
+        }
+        socket.outputStream?.write(packet)
         socket.outputStream?.flush()
     }
 
@@ -674,48 +811,48 @@ class AirPodsService: Service() {
         Log.d("AirPodsService", "setANCMode: $mode")
         when (mode) {
             1 -> {
-                socket.outputStream?.write(Enums.NOISE_CANCELLATION_OFF.value)
+                sendPacket(Enums.NOISE_CANCELLATION_OFF.value)
             }
             2 -> {
-                socket.outputStream?.write(Enums.NOISE_CANCELLATION_ON.value)
+                sendPacket(Enums.NOISE_CANCELLATION_ON.value)
             }
             3 -> {
-                socket.outputStream?.write(Enums.NOISE_CANCELLATION_TRANSPARENCY.value)
+                sendPacket(Enums.NOISE_CANCELLATION_TRANSPARENCY.value)
             }
             4 -> {
-                socket.outputStream?.write(Enums.NOISE_CANCELLATION_ADAPTIVE.value)
+                sendPacket(Enums.NOISE_CANCELLATION_ADAPTIVE.value)
             }
         }
         socket.outputStream?.flush()
     }
 
     fun setCAEnabled(enabled: Boolean) {
-        socket.outputStream?.write(if (enabled) Enums.SET_CONVERSATION_AWARENESS_ON.value else Enums.SET_CONVERSATION_AWARENESS_OFF.value)
+        sendPacket(if (enabled) Enums.SET_CONVERSATION_AWARENESS_ON.value else Enums.SET_CONVERSATION_AWARENESS_OFF.value)
         socket.outputStream?.flush()
     }
 
     fun setOffListeningMode(enabled: Boolean) {
-        socket.outputStream?.write(byteArrayOf(0x04, 0x00 ,0x04, 0x00, 0x09, 0x00, 0x34, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00))
+        sendPacket(byteArrayOf(0x04, 0x00 ,0x04, 0x00, 0x09, 0x00, 0x34, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00))
         socket.outputStream?.flush()
     }
 
     fun setAdaptiveStrength(strength: Int) {
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x2E, strength.toByte(), 0x00, 0x00, 0x00)
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
     fun setPressSpeed(speed: Int) {
         // 0x00 = default, 0x01 = slower, 0x02 = slowest
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x17, speed.toByte(), 0x00, 0x00, 0x00)
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
     fun setPressAndHoldDuration(speed: Int) {
         // 0 - default, 1 - slower, 2 - slowest
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x18, speed.toByte(), 0x00, 0x00, 0x00)
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
@@ -723,25 +860,25 @@ class AirPodsService: Service() {
         // 0 - default, 1 - longer, 2 - longest
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x23, speed.toByte(), 0x00, 0x00, 0x00)
         Log.d("AirPodsService", "Setting volume swipe speed to $speed by packet ${bytes.joinToString(" ") { "%02X".format(it) }}")
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
     fun setNoiseCancellationWithOnePod(enabled: Boolean) {
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x1B, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00)
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
     fun setVolumeControl(enabled: Boolean) {
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x25, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00)
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
     fun setToneVolume(volume: Int) {
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x1F, volume.toByte(), 0x50, 0x00, 0x00)
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
@@ -754,7 +891,7 @@ class AirPodsService: Service() {
 
     fun setCaseChargingSounds(enabled: Boolean) {
         val bytes = byteArrayOf(0x12, 0x3a, 0x00, 0x01, 0x00, 0x08, if (enabled) 0x00 else 0x01)
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
@@ -763,16 +900,21 @@ class AirPodsService: Service() {
     }
 
     fun getBattery(): List<Battery> {
+        if (!isConnectedLocally && CrossDevice.isAvailable) {
+            batteryNotification.setBattery(CrossDevice.batteryBytes)
+        }
         return batteryNotification.getBattery()
     }
 
     fun getANC(): Int {
+        if (!isConnectedLocally && CrossDevice.isAvailable) {
+            ancNotification.setStatus(CrossDevice.ancBytes)
+        }
         return ancNotification.status
     }
 
     fun disconnectAudio(context: Context, device: BluetoothDevice?) {
         val bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
-
         bluetoothAdapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                 if (profile == BluetoothProfile.A2DP) {
@@ -850,7 +992,7 @@ class AirPodsService: Service() {
         val nameBytes = name.toByteArray()
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x1a, 0x00, 0x01,
             nameBytes.size.toByte(), 0x00) + nameBytes
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
         val hex = bytes.joinToString(" ") { "%02X".format(it) }
         updateNotificationContent(true, name, batteryNotification.getBattery())
@@ -860,18 +1002,18 @@ class AirPodsService: Service() {
     fun setPVEnabled(enabled: Boolean) {
         var hex = "04 00 04 00 09 00 26 ${if (enabled) "01" else "02"} 00 00 00"
         var bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
         hex = "04 00 04 00 17 00 00 00 10 00 12 00 08 E${if (enabled) "6" else "5"} 05 10 02 42 0B 08 50 10 02 1A 05 02 ${if (enabled) "32" else "00"} 00 00 00"
         bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
 
     fun setLoudSoundReduction(enabled: Boolean) {
         val hex = "52 1B 00 0${if (enabled) "1" else "0"}"
         val bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
-        socket.outputStream?.write(bytes)
+        sendPacket(bytes)
         socket.outputStream?.flush()
     }
     fun findChangedIndex(oldArray: BooleanArray, newArray: BooleanArray): Int {

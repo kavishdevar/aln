@@ -62,6 +62,7 @@ import me.kavishdevar.aln.screens.RenameScreen
 import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
+import me.kavishdevar.aln.utils.CrossDevice
 
 lateinit var serviceConnection: ServiceConnection
 lateinit var connectionStatusReceiver: BroadcastReceiver
@@ -119,13 +120,14 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun Main() {
     val isConnected = remember { mutableStateOf(false) }
+    val isRemotelyConnected = remember { mutableStateOf(false) }
     val permissionState = rememberMultiplePermissionsState(
         permissions = listOf(
             "android.permission.BLUETOOTH_CONNECT",
+            "android.permission.BLUETOOTH_SCAN",
             "android.permission.POST_NOTIFICATIONS"
         )
     )
-
     val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
     if (permissionState.allPermissionsGranted) {
         val context = LocalContext.current
@@ -139,6 +141,7 @@ fun Main() {
                 }
                 else if (intent.action == AirPodsNotifications.AIRPODS_DISCONNECTED) {
                     Log.d("MainActivity", "AirPods Disconnected intent received")
+                    isRemotelyConnected.value = CrossDevice.isAvailable
                     isConnected.value = false
                 }
             }
@@ -172,7 +175,8 @@ fun Main() {
                         dev = airPodsService.value?.device,
                         service = airPodsService.value!!,
                         navController = navController,
-                        isConnected = isConnected.value
+                        isConnected = isConnected.value,
+                        isRemotelyConnected = isRemotelyConnected.value
                     )
                 }
             }
@@ -208,7 +212,7 @@ fun Main() {
 
         context.bindService(Intent(context, AirPodsService::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
 
-        if (airPodsService.value?.isConnected == true) {
+        if (airPodsService.value?.isConnectedLocally == true) {
             isConnected.value = true
         }
     } else {

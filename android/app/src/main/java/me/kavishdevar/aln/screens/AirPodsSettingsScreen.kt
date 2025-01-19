@@ -91,7 +91,7 @@ import me.kavishdevar.aln.utils.AirPodsNotifications
 @SuppressLint("MissingPermission")
 @Composable
 fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
-                          navController: NavController, isConnected: Boolean) {
+                          navController: NavController, isConnected: Boolean, isRemotelyConnected: Boolean) {
     val sharedPreferences = LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE)
     var device by remember { mutableStateOf(dev) }
     var deviceName by remember {
@@ -187,7 +187,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                 )
         }
     ) { paddingValues ->
-        if (isConnected == true) {
+        if (isConnected == true || isRemotelyConnected == true) {
             Column(
                 modifier = Modifier
                     .haze(hazeState)
@@ -308,7 +308,7 @@ fun AirPodsSettingsScreenPreview() {
         ALNTheme (
             darkTheme = true
         ) {
-            AirPodsSettingsScreen(dev = null, service = AirPodsService(), navController = rememberNavController(), isConnected = true)
+            AirPodsSettingsScreen(dev = null, service = AirPodsService(), navController = rememberNavController(), isConnected = true, isRemotelyConnected = false)
         }
     }
 }
