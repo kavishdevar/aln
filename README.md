@@ -37,11 +37,22 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This project provides a root module which patches the bug.
 
 > [!CAUTION]
-> **This workaround requires root access.** Try at your own risk. It may break your bluetooth, and I am not responsible for any damage caused by this module.
+> **This workaround requires root access.** Try at your own risk. It may break your bluetooth, and I am not responsible for any damage caused by tehemodule.
 
-To install it, just download the `btl2capfix.zip` from [a release](https://github.com/kavishdevar/aln/releases) and install it from your root manager app.
+As root run the following command:
+```sh
+lsof | grep libbluetooth
+```
 
-### Features
+Send me the files (in the [support channel](https://t.me/airpodslikenormal_discussion))along with the paths, whichever are listed. The paths will be one of the following:
+```
+/system/lib64/libbluetooth_jni.so
+/apex/com.android.btservices/lib64/libbluetooth_jni.so
+```
+
+If the command lists a file named `libbluetooth_qti.so`, unfortuntaely, I won't be able to patch the library. 
+
+### Android – features
 
 #### Renaming the Airpods
 When you rename the Airpods using the app, you'll need to re-pair it with your phone. Currently, user-level apps cannot directly rename a Bluetooth device. After re-pairing, your phone will display the updated name!

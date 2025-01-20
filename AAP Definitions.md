@@ -211,6 +211,48 @@ The level can be any value between 0 and 100, 0 to allow maximum noise (i.e. min
 
 *I find it quite funny how I have greater control over the noise control on the AirPods on non-Apple devices than on Apple devices, becuase on Apple Devices, there are just 3 options More Noise (0), Midway through (50), and Less Noise (100), but here I can set any value between 0 and 100.*
 
+## Accessiblity Settings
+
+## Headphone Accomodation
+```
+04 00 04 00 53 00 84 00 02 02 [Phone] [Media]
+[EQ1][EQ2][EQ3][EQ4][EQ5][EQ6][EQ7][EQ8]
+duplicated thrice for some reason
+```
+
+| Data                | Type          | Value range                 |
+|---------------------|---------------|-----------------------------|
+| Phone               | Decimal       | 1 (Enabled) or 2 (Disabled) |
+| Media               | Decimal       | 1 (Enabled) or 2 (Disabled) |
+| EQ                  | Little Endian | 0 to 100                    |
+
+## Customize Transparency mode
+
+```
+52 18 00
+For left bud
+[Enabled]
+[EQ1][EQ2][EQ3][EQ4][EQ5][EQ6][EQ7][EQ8]
+[Amplification]
+[Tone]
+[Conversation Boost]
+[Ambient Noise Reduction]
+00 0080 3F
+<same for the right bud>
+```
+All values are formatted as Little Endian from float values.
+| Data                | Type          | Value range |
+|---------------------|---------------|-------------|
+| Enabled             | Little Endian | 0 or 1      |
+| EQ                  | Little Endian | 0 to 100    |
+| Amplification       | Little Endian | -1 to 1     |
+| Tone                | Little Endian | -1 to 1     |
+| Conversation Boost  | Little Endian | 0 or 1      |
+
+> [!IMPORTANT]
+> Also send the [Headphone Accomodation](#headphone-accomodation) after this.
+
+
 ## Configure Stem Long Press
 
 I have noted all the packets sent to configure what the press and hold of the steam should do. The packets sent are specific to the current state. And are probably overwritten everytime the AirPods are connected to a new (apple) device that is not synced with icloud (i think)... So, for non-Apple device too, the configuration needs to be stored and overwritten everytime the AirPods are connected to the device. That is the only way to keep the configuration.
