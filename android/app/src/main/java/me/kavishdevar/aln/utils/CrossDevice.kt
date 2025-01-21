@@ -45,7 +45,7 @@ object CrossDevice {
 
     @SuppressLint("MissingPermission")
     fun startServer() {
-        serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord("AirPodsSwitch", uuid)
+        serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord("ALNCrossDevice", uuid)
         Log.d("AirPodsQuickSwitchService", "Server started")
         CoroutineScope(Dispatchers.IO).launch {
             while (serverSocket != null) {

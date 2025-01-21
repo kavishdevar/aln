@@ -322,6 +322,11 @@ public slots:
             socket->close();
             socket = nullptr;
         }
+        if (phoneSocket && phoneSocket->isOpen()) {
+            QByteArray airpodsDisconnectedPacket = QByteArray::fromHex("00010000");
+            phoneSocket->write(airpodsDisconnectedPacket);
+            LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << airpodsDisconnectedPacket.toHex());
+        }
     }
 
     void connectToDevice(const QBluetoothDeviceInfo &device) {
