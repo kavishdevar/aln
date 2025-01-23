@@ -278,7 +278,8 @@ public slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason) {
         if (reason == QSystemTrayIcon::Trigger) {
             LOG_INFO("Tray icon activated");
-            QQuickWindow *window = qobject_cast<QQuickWindow *>(QGuiApplication::topLevelWindows().first());
+            QQuickWindow *window = qobject_cast<QQuickWindow *>(
+                QGuiApplication::topLevelWindows().constFirst());
             if (window) {
                 window->show();
                 window->raise();
@@ -290,7 +291,7 @@ public slots:
     void onDeviceDiscovered(const QBluetoothDeviceInfo &device) {
         LOG_INFO("Device discovered: " << device.name() << " (" << device.address().toString() << ")");
         if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
-            LOG_DEBUG("Found AirPods device" + device.name());
+            LOG_DEBUG("Found AirPods device: " + device.name());
             connectToDevice(device);
         }
     }
@@ -571,10 +572,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("airPodsTrayApp", &trayApp);
     engine.loadFromModule("linux", "Main");
 
-    QObject::connect(&trayApp, &AirPodsTrayApp::noiseControlModeChanged, [&engine](int mode) {
+    QObject::connect(&trayApp, &AirPodsTrayApp::noiseControlModeChanged, &engine, [&engine](int mode) {
         LOG_DEBUG("Received noiseControlModeChanged signal with mode: " << mode);
-        QObject *rootObject = engine.rootObjects().first();
-    
+        QObject *rootObject = engine.rootObjects().constFirst();
+
         if (rootObject) {
             LOG_DEBUG("Root object found");
             QObject *noiseControlMode = rootObject->findChild<QObject*>("noiseControlMode");
