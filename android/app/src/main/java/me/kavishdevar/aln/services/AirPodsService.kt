@@ -23,6 +23,7 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.appwidget.AppWidgetManager
 import android.bluetooth.BluetoothAdapter
@@ -57,6 +58,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import me.kavishdevar.aln.BatteryWidget
@@ -73,7 +76,6 @@ import me.kavishdevar.aln.utils.LongPressPackets
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.Window
 import org.lsposed.hiddenapibypass.HiddenApiBypass
-import java.io.OutputStream
 
 object ServiceManager {
     private var service: AirPodsService? = null
@@ -110,10 +112,13 @@ class AirPodsService: Service() {
 
     private lateinit var sharedPreferences: SharedPreferences
     private val packetLogKey = "packet_log"
+    private val _packetLogsFlow = MutableStateFlow<Set<String>>(emptySet())
+    val packetLogsFlow: StateFlow<Set<String>> get() = _packetLogsFlow
+
 
     override fun onCreate() {
         super.onCreate()
-        sharedPreferences = getSharedPreferences("packet_logs", Context.MODE_PRIVATE)
+        sharedPreferences = getSharedPreferences("packet_logs", MODE_PRIVATE)
     }
 
     private fun logPacket(packet: ByteArray, source: String) {
@@ -121,6 +126,7 @@ class AirPodsService: Service() {
         val logEntry = "$source: $packetHex"
         val logs = sharedPreferences.getStringSet(packetLogKey, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         logs.add(logEntry)
+        _packetLogsFlow.value = logs
         sharedPreferences.edit().putStringSet(packetLogKey, logs).apply()
     }
 
@@ -134,6 +140,7 @@ class AirPodsService: Service() {
 
     fun clearLogs() {
         clearPacketLogs() // Expose a method to clear logs
+        _packetLogsFlow.value = emptySet()
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -150,32 +157,6 @@ class AirPodsService: Service() {
         window.open(name, batteryNotification)
         popupShown = true
     }
-
-    private fun handleMessage(message: String, outputStream: OutputStream) {
-        when (message) {
-            "PAUSE_MEDIA" -> MediaController.sendPause()
-            "PLAY_MEDIA" -> MediaController.sendPlay()
-            "CONNECT_AIRPODS" -> connectToAirPods()
-            "DISCONNECT_AIRPODS" -> disconnectFromAirPods()
-            else -> {
-                forwardPacket(message, outputStream)
-            }
-        }
-    }
-    private fun forwardPacket(packet: String, outputStream: OutputStream) {
-        val byteArray = packet.toByteArray()
-        outputStream.write(byteArray)
-        logPacket(byteArray, "Sent")
-    }
-
-    private fun connectToAirPods() {
-        Log.d("AirPodsQuickSwitchService", "Should connect to AirPods now.")
-    }
-
-    private fun disconnectFromAirPods() {
-        Log.d("AirPodsQuickSwitchService", "Should disconnect from AirPods now.")
-    }
-
 
     @Suppress("ClassName")
     private object bluetoothReceiver: BroadcastReceiver() {
@@ -254,6 +235,7 @@ class AirPodsService: Service() {
     }
 
 
+    @OptIn(ExperimentalMaterial3Api::class)
     fun startForegroundNotification() {
         val notificationChannel = NotificationChannel(
             "background_service_status",
@@ -262,9 +244,17 @@ class AirPodsService: Service() {
         )
         val notificationManager = getSystemService(NotificationManager::class.java)
         notificationManager.createNotificationChannel(notificationChannel)
+
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val notification = NotificationCompat.Builder(this, "background_service_status")
             .setSmallIcon(R.drawable.airpods)
             .setContentTitle("AirPods not connected")
+            .setContentText("Tap to open app")
+            .setContentIntent(pendingIntent)
             .setCategory(Notification.CATEGORY_SERVICE)
             .setPriority(NotificationCompat.PRIORITY_LOW)
             .setOngoing(true)
@@ -272,8 +262,7 @@ class AirPodsService: Service() {
 
         try {
             startForeground(1, notification)
-        }
-        catch (e: Exception) {
+        } catch (e: Exception) {
             e.printStackTrace()
         }
     }
@@ -309,73 +298,88 @@ class AirPodsService: Service() {
             it.setTextViewText(
                 R.id.left_battery_widget,
                 batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
+                    "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                 } ?: ""
+            )
+            it.setProgressBar(
+                R.id.left_battery_progress,
+                100,
+                batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT }?.level ?: 0,
+                false
             )
             it.setTextViewText(
                 R.id.right_battery_widget,
                 batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
+                    "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                 } ?: ""
+            )
+            it.setProgressBar(
+                R.id.right_battery_progress,
+                100,
+                batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT }?.level ?: 0,
+                false
             )
             it.setTextViewText(
                 R.id.case_battery_widget,
                 batteryNotification.getBattery().find { it.component == BatteryComponent.CASE }?.let {
-//                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-//                    } else {
-//                        ""
-//                    }
+                    "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                 } ?: ""
+            )
+            it.setProgressBar(
+                R.id.case_battery_progress,
+                100,
+                batteryNotification.getBattery().find { it.component == BatteryComponent.CASE }?.level ?: 0,
+                false
             )
         }
         Log.d("AirPodsService", "Updating battery widget")
         appWidgetManager.updateAppWidget(widgetIds, remoteViews)
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     fun updateNotificationContent(connected: Boolean, airpodsName: String? = null, batteryList: List<Battery>? = null) {
         val notificationManager = getSystemService(NotificationManager::class.java)
         var updatedNotification: Notification? = null
 
+        val notificationIntent = Intent(this, MainActivity::class.java)
+        val pendingIntent = PendingIntent.getActivity(
+            this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         if (connected) {
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
-                .setContentTitle("""$airpodsName  –${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+                .setContentTitle(airpodsName)
+                .setContentText("""${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
                     if (it.status != BatteryStatus.DISCONNECTED) {
-                        "  L:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                        "L: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                     } else {
                         ""
                     }
-                } ?: ""}${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+                } ?: ""} ${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
                     if (it.status != BatteryStatus.DISCONNECTED) {
-                        "  R:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                        "R: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                     } else {
                         ""
                     }
-                } ?: ""}${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+                } ?: ""} ${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
                     if (it.status != BatteryStatus.DISCONNECTED) {
-                        "  C:${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                        "Case: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
                     } else {
                         ""
                     }
                 } ?: ""}""")
+                    .setContentIntent(pendingIntent)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
                 .build()
-
         } else {
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
                 .setContentTitle("AirPods not connected")
+                .setContentText("Tap to open app")
+                .setContentIntent(pendingIntent)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
@@ -951,11 +955,6 @@ class AirPodsService: Service() {
     val conversationAwarenessNotification = AirPodsNotifications.ConversationalAwarenessNotification()
 
     var earDetectionEnabled = true
-
-    fun setCaseChargingSounds(enabled: Boolean) {
-        val bytes = byteArrayOf(0x12, 0x3a, 0x00, 0x01, 0x00, 0x08, if (enabled) 0x00 else 0x01)
-        sendPacket(bytes)
-    }
 
     fun setEarDetection(enabled: Boolean) {
         earDetectionEnabled = enabled

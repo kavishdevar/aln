@@ -283,7 +283,7 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                 )
                 Spacer(Modifier.height(24.dp))
                 Text(
-                    text = "Please connect your AirPods to access settings. If you're stuck here, then try reopening the app again after closing it from the recents.\n(DO NOT KILL THE APP!)",
+                    text = "Please connect your AirPods to access settings.",
                     style = TextStyle(
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Light,

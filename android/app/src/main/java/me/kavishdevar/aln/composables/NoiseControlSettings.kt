@@ -170,7 +170,7 @@ fun NoiseControlSettings(service: AirPodsService) {
         context.registerReceiver(noiseControlReceiver, noiseControlIntentFilter)
     }
 
-    Text(// all caps
+    Text(
         text = stringResource(R.string.noise_control).uppercase(),
         style = TextStyle(
             fontSize = 14.sp,
@@ -182,7 +182,7 @@ fun NoiseControlSettings(service: AirPodsService) {
     BoxWithConstraints(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp) // Adjusted padding
+            .padding(vertical = 8.dp)
     ) {
         val density = LocalDensity.current
         val buttonCount = if (offListeningMode.value) 4 else 3
@@ -229,10 +229,9 @@ fun NoiseControlSettings(service: AirPodsService) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp) // Adjusted height
+                    .height(60.dp)
                     .background(backgroundColor, RoundedCornerShape(14.dp))
             ) {
-                // First: Background Row (just for visual)
                 Row(
                     modifier = Modifier.fillMaxWidth()
                 ) {
@@ -327,7 +326,6 @@ fun NoiseControlSettings(service: AirPodsService) {
                     )
                 }
 
-                // Button row (top layer)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -387,12 +385,11 @@ fun NoiseControlSettings(service: AirPodsService) {
                 }
             }
 
-            // Labels row
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 8.dp)
-                    .padding(top = 2.dp)
+                    .padding(horizontal = 4.dp)
+                    .padding(top = 4.dp)
             ) {
                 if (offListeningMode.value) {
                     Text(
@@ -429,8 +426,8 @@ fun NoiseControlSettings(service: AirPodsService) {
     }
 }
 
-@Preview@Composable
+@Preview()
+@Composable
 fun NoiseControlSettingsPreview() {
     NoiseControlSettings(AirPodsService())
 }
-

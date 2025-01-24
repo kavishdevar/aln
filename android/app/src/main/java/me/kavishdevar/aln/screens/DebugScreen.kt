@@ -21,12 +21,7 @@
 package me.kavishdevar.aln.screens
 
 import android.annotation.SuppressLint
-import android.content.ComponentName
 import android.content.Context
-import android.content.Intent
-import android.content.ServiceConnection
-import android.os.IBinder
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -65,6 +60,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -87,7 +84,7 @@ import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import me.kavishdevar.aln.R
-import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.services.ServiceManager
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnspecifiedRegisterReceiverFlag")
@@ -96,24 +93,13 @@ fun DebugScreen(navController: NavController) {
     val hazeState = remember { HazeState() }
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val scrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
     val packetLogsFlow = remember { MutableStateFlow(emptySet<String>()) }
     val expandedItems = remember { mutableStateOf(setOf<Int>()) }
 
-    LaunchedEffect(context) {
-        val serviceConnection = object : ServiceConnection {
-            override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                val binder = service as AirPodsService.LocalBinder
-                val airPodsService = binder.getService()
-                packetLogsFlow.value = airPodsService.getPacketLogs()
-            }
-
-            override fun onServiceDisconnected(name: ComponentName) {}
-        }
-
-        val intent = Intent(context, AirPodsService::class.java)
-        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    LaunchedEffect(Unit) {
+        ServiceManager.getService()?.packetLogsFlow?.collect { packetLogsFlow.value = it }
     }
-
     val packetLogs = packetLogsFlow.collectAsState(setOf()).value
 
     Scaffold(
@@ -150,7 +136,7 @@ fun DebugScreen(navController: NavController) {
                         state = hazeState,
                         style = CupertinoMaterials.thick(),
                         block = {
-                            alpha = if (listState.firstVisibleItemIndex > 0) {
+                            alpha = if (scrollOffset > 0) {
                                 1f
                             } else {
                                 0f
@@ -170,7 +156,7 @@ fun DebugScreen(navController: NavController) {
                 .fillMaxSize()
                 .imePadding()
                 .haze(hazeState)
-                .padding(top = 0.dp)
+                .padding(top = paddingValues.calculateTopPadding())
         ) {
             LazyColumn(
                 state = listState,
@@ -186,7 +172,7 @@ fun DebugScreen(navController: NavController) {
                         Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(vertical = 2.dp, horizontal = 4.dp) // Reduced padding
+                                .padding(vertical = 2.dp, horizontal = 4.dp)
                                 .clickable {
                                     expandedItems.value = if (isExpanded) {
                                         expandedItems.value - index
@@ -194,21 +180,21 @@ fun DebugScreen(navController: NavController) {
                                         expandedItems.value + index
                                     }
                                 },
-                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // Reduced elevation
-                            shape = RoundedCornerShape(4.dp), // Reduced corner radius
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
+                            shape = RoundedCornerShape(4.dp),
                             colors = CardDefaults.cardColors(
                                 containerColor = Color.Transparent
                             )
                         ) {
-                            Column(modifier = Modifier.padding(8.dp)) { // Reduced padding
+                            Column(modifier = Modifier.padding(8.dp)) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Icon(
                                         imageVector = if (isSent) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.AutoMirrored.Filled.KeyboardArrowRight,
                                         contentDescription = null,
                                         tint = if (isSent) Color.Green else Color.Red,
-                                        modifier = Modifier.size(24.dp) // Reduced icon size
+                                        modifier = Modifier.size(24.dp)
                                     )
-                                    Spacer(modifier = Modifier.width(4.dp)) // Reduced spacing
+                                    Spacer(modifier = Modifier.width(4.dp))
                                     Column {
                                         Text(
                                             text =
@@ -217,7 +203,7 @@ fun DebugScreen(navController: NavController) {
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                         if (isExpanded) {
-                                            Spacer(modifier = Modifier.height(4.dp)) // Reduced spacing
+                                            Spacer(modifier = Modifier.height(4.dp))
                                             Text(
                                                 text = message.substring(if (isSent) 5 else 9),
                                                 style = MaterialTheme.typography.bodySmall,
@@ -232,22 +218,7 @@ fun DebugScreen(navController: NavController) {
                 }
             )
             Spacer(modifier = Modifier.height(8.dp))
-            val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
-
-            val serviceConnection = object : ServiceConnection {
-                override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                    val binder = service as AirPodsService.LocalBinder
-                    airPodsService.value = binder.getService()
-                    Log.d("AirPodsService", "Service connected")
-                }
-
-                override fun onServiceDisconnected(name: ComponentName) {
-                    airPodsService.value = null
-                }
-            }
-
-            val intent = Intent(context, AirPodsService::class.java)
-            context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+            val airPodsService = ServiceManager.getService()?.let { mutableStateOf(it) }
             HorizontalDivider()
             Row(
                 modifier = Modifier
@@ -267,7 +238,7 @@ fun DebugScreen(navController: NavController) {
                     trailingIcon = {
                         IconButton(
                             onClick = {
-                                airPodsService.value?.sendPacket(packet.value.text)
+                                airPodsService?.value?.sendPacket(packet.value.text)
                                 packet.value = TextFieldValue("")
                             }
                         ) {

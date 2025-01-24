@@ -4,72 +4,125 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:id="@+id/battery_widget"
-    android:theme="@style/Theme.ALN.AppWidgetContainer">
+    android:theme="@style/Theme.ALN.AppWidgetContainer"
+    android:background="@drawable/blur_background">
+
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="100dp"
+        android:layout_height="wrap_content"
         android:layout_margin="0dp"
-        android:gravity="center">
-        <ImageView
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:contentDescription="something"
-            android:gravity="center_vertical"
-            android:layout_marginEnd="0dp"
-            android:src="@drawable/airpods_pro_left_notification"
-            android:tint="@color/popup_text"
-            tools:ignore="HardcodedText" />
+        android:gravity="center"
+        android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/left_battery_widget"
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:textSize="24sp"
-            android:textColor="@color/popup_text"
-            android:layout_marginHorizontal="8dp"
-            android:gravity="center_vertical"
-            android:text="Left"
-            tools:ignore="HardcodedText" />
-        <ImageView
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:src="@drawable/airpods_pro_right_notification"
-            android:tint="@color/popup_text"
-            android:layout_margin="0dp"
-            android:contentDescription="something"
-            android:gravity="center_vertical"
-            tools:ignore="HardcodedText" />
-        <TextView
-            android:id="@+id/right_battery_widget"
+            android:gravity="center"
+            android:orientation="vertical">
+            <FrameLayout
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center">
+                <ProgressBar
+                    android:id="@+id/left_battery_progress"
+                    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:indeterminate="false"
+                    android:max="100"
+                    android:progressDrawable="@drawable/circular_progress_bar" />
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/airpods_pro_left_notification"
+                    android:tint="@color/popup_text"
+                    android:layout_gravity="center"
+                    tools:ignore="HardcodedText" />
+            </FrameLayout>
+            <TextView
+                android:id="@+id/left_battery_widget"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textColor="@color/popup_text"
+                android:gravity="center"
+                android:text="Left"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:textSize="24sp"
-            android:textColor="@color/popup_text"
-            android:layout_marginHorizontal="8dp"
-            android:gravity="center_vertical"
-            android:text="Right"
-            tools:ignore="HardcodedText" />
-        <ImageView
-            android:layout_width="64dp"
-            android:layout_height="64dp"
-            android:src="@drawable/airpods_pro_case_notification"
-            android:tint="@color/popup_text"
-            android:contentDescription="something"
-            android:layout_margin="0dp"
-            android:gravity="center_vertical"
-            tools:ignore="HardcodedText" />
-        <TextView
-            android:id="@+id/case_battery_widget"
+            android:gravity="center"
+            android:orientation="vertical">
+            <FrameLayout
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center">
+                <ProgressBar
+                    android:id="@+id/right_battery_progress"
+                    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:indeterminate="false"
+                    android:max="100"
+                    android:progressDrawable="@drawable/circular_progress_bar" />
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/airpods_pro_right_notification"
+                    android:tint="@color/popup_text"
+                    android:layout_gravity="center"
+                    tools:ignore="HardcodedText" />
+            </FrameLayout>
+            <TextView
+                android:id="@+id/right_battery_widget"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textColor="@color/popup_text"
+                android:gravity="center"
+                android:text="Right"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
+
+        <LinearLayout
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="wrap_content"
-            android:textSize="24sp"
-            android:textColor="@color/popup_text"
-            android:layout_marginHorizontal="8dp"
-            android:gravity="center_vertical"
-            android:text="Case"
-            tools:ignore="HardcodedText" />
+            android:gravity="center"
+            android:orientation="vertical">
+            <FrameLayout
+                android:layout_width="64dp"
+                android:layout_height="64dp"
+                android:layout_gravity="center">
+                <ProgressBar
+                    android:id="@+id/case_battery_progress"
+                    style="@style/Widget.AppCompat.ProgressBar.Horizontal"
+                    android:layout_width="match_parent"
+                    android:layout_height="match_parent"
+                    android:indeterminate="false"
+                    android:max="100"
+                    android:progressDrawable="@drawable/circular_progress_bar" />
+                <ImageView
+                    android:layout_width="32dp"
+                    android:layout_height="32dp"
+                    android:src="@drawable/airpods_pro_case_notification"
+                    android:tint="@color/popup_text"
+                    android:layout_gravity="center"
+                    tools:ignore="HardcodedText" />
+            </FrameLayout>
+            <TextView
+                android:id="@+id/case_battery_widget"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textColor="@color/popup_text"
+                android:gravity="center"
+                android:text="Case"
+                tools:ignore="HardcodedText" />
+        </LinearLayout>
     </LinearLayout>
 </RelativeLayout>

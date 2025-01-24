@@ -131,7 +131,7 @@ fun AccessibilitySettings(service: AirPodsService, sharedPreferences: SharedPref
 
         SinglePodANCSwitch(service = service, sharedPreferences = sharedPreferences)
         VolumeControlSwitch(service = service, sharedPreferences = sharedPreferences)
-        TransparencySettings(service = service, sharedPreferences = sharedPreferences)
+//        TransparencySettings(service = service, sharedPreferences = sharedPreferences)
     }
 }
 

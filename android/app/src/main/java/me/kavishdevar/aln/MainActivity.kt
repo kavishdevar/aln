@@ -35,10 +35,17 @@ import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.spring
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,6 +55,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -183,43 +191,104 @@ fun Main() {
             context.registerReceiver(connectionStatusReceiver, filter)
         }
         Log.d("MainActivity", "Registered Receiver")
-
-        NavHost(
-            navController = navController,
-            startDestination = "settings",
-            enterTransition = { slideInHorizontally(initialOffsetX = { it }, animationSpec = tween(300)) },
-            exitTransition = { slideOutHorizontally(targetOffsetX = { -it }, animationSpec = tween(300)) },
-            popEnterTransition = { slideInHorizontally(initialOffsetX = { -it }, animationSpec = tween(300)) },
-            popExitTransition = { slideOutHorizontally(targetOffsetX = { it }, animationSpec = tween(300)) }
+        Box (
+            modifier = Modifier
+                .padding(0.dp)
+                .fillMaxSize()
+                .background(if (isSystemInDarkTheme()) Color.Black else Color(0xFFF2F2F7))
         ) {
-            composable("settings") {
-                if (airPodsService.value != null) {
-                    AirPodsSettingsScreen(
-                        dev = airPodsService.value?.device,
-                        service = airPodsService.value!!,
-                        navController = navController,
-                        isConnected = isConnected.value,
-                        isRemotelyConnected = isRemotelyConnected.value
+            NavHost(
+                navController = navController,
+                startDestination = "settings",
+                enterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { it },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ) + scaleIn(
+                        initialScale = 0.85f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                },
+                exitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { -it },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ) + scaleOut(
+                        targetScale = 0.85f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                },
+                popEnterTransition = {
+                    slideInHorizontally(
+                        initialOffsetX = { -it },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ) + scaleIn(
+                        initialScale = 0.85f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    )
+                },
+                popExitTransition = {
+                    slideOutHorizontally(
+                        targetOffsetX = { it },
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
+                    ) + scaleOut(
+                        targetScale = 0.85f,
+                        animationSpec = spring(
+                            dampingRatio = Spring.DampingRatioLowBouncy,
+                            stiffness = Spring.StiffnessLow
+                        )
                     )
                 }
-            }
-            composable("debug") {
-                DebugScreen(navController = navController)
-            }
-            composable("long_press/{bud}") { navBackStackEntry ->
-                LongPress(
-                    navController = navController,
-                    name = navBackStackEntry.arguments?.getString("bud")!!
-                )
-            }
-            composable("rename") { navBackStackEntry ->
-                RenameScreen(navController)
-            }
-            composable("app_settings") {
-                AppSettingsScreen(navController)
+            ) {
+                composable("settings") {
+                    if (airPodsService.value != null) {
+                        AirPodsSettingsScreen(
+                            dev = airPodsService.value?.device,
+                            service = airPodsService.value!!,
+                            navController = navController,
+                            isConnected = isConnected.value,
+                            isRemotelyConnected = isRemotelyConnected.value
+                        )
+                    }
+                }
+                composable("debug") {
+                    DebugScreen(navController = navController)
+                }
+                composable("long_press/{bud}") { navBackStackEntry ->
+                    LongPress(
+                        navController = navController,
+                        name = navBackStackEntry.arguments?.getString("bud")!!
+                    )
+                }
+                composable("rename") { navBackStackEntry ->
+                    RenameScreen(navController)
+                }
+                composable("app_settings") {
+                    AppSettingsScreen(navController)
+                }
             }
         }
-
          serviceConnection = remember {
             object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName?, service: IBinder?) {

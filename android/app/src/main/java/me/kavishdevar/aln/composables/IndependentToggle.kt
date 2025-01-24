@@ -19,8 +19,10 @@
 package me.kavishdevar.aln.composables
 
 import android.content.SharedPreferences
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
@@ -38,6 +40,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -51,6 +54,8 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
 
     val snakeCasedName = name.replace(Regex("[\\W\\s]+"), "_").lowercase()
     var checked by remember { mutableStateOf(default) }
+    var backgroundColor by remember { mutableStateOf(if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)) }
+    val animatedBackgroundColor by animateColorAsState(targetValue = backgroundColor, animationSpec = tween(durationMillis = 500))
 
     LaunchedEffect(sharedPreferences) {
         checked = sharedPreferences.getBoolean(snakeCasedName, true)
@@ -58,19 +63,25 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
     Box (
         modifier = Modifier
             .padding(vertical = 8.dp)
-            .background(
-                if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF),
-                RoundedCornerShape(14.dp)
-            )
-            .clickable {
-                checked = !checked
-                sharedPreferences
-                    .edit()
-                    .putBoolean(snakeCasedName, checked)
-                    .apply()
+            .background(animatedBackgroundColor, RoundedCornerShape(14.dp))
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        backgroundColor = if (isDarkTheme) Color(0x40888888) else Color(0x40D9D9D9)
+                        tryAwaitRelease()
+                        backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
+                    },
+                    onTap = {
+                        checked = !checked
+                        sharedPreferences
+                            .edit()
+                            .putBoolean(snakeCasedName, checked)
+                            .apply()
 
-                val method = service::class.java.getMethod(functionName, Boolean::class.java)
-                method.invoke(service, checked)
+                        val method = service::class.java.getMethod(functionName, Boolean::class.java)
+                        method.invoke(service, checked)
+                    }
+                )
             },
     )
     {

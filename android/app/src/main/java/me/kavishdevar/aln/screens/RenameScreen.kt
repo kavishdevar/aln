@@ -54,10 +54,12 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -65,18 +67,20 @@ import androidx.navigation.NavController
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.ServiceManager
 
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RenameScreen(navController: NavController) {
     val sharedPreferences = LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val isDarkTheme = isSystemInDarkTheme()
-    val name = remember { mutableStateOf(sharedPreferences.getString("name", "") ?: "") }
+    val name = remember { mutableStateOf(TextFieldValue(sharedPreferences.getString("name", "") ?: "")) }
     val focusRequester = remember { FocusRequester() }
     val keyboardController = LocalSoftwareKeyboardController.current
 
     LaunchedEffect(Unit) {
         focusRequester.requestFocus()
         keyboardController?.show()
+        name.value = name.value.copy(selection = TextRange(name.value.text.length))
     }
 
     Scaffold(
@@ -102,7 +106,7 @@ fun RenameScreen(navController: NavController) {
                             modifier = Modifier.scale(1.5f)
                         )
                         Text(
-                            text = name.value,
+                            text = name.value.text,
                             style = TextStyle(
                                 fontSize = 18.sp,
                                 fontWeight = FontWeight.Medium,
@@ -146,8 +150,8 @@ fun RenameScreen(navController: NavController) {
                     value = name.value,
                     onValueChange = {
                         name.value = it
-                        sharedPreferences.edit().putString("name", it).apply()
-                        ServiceManager.getService()?.setName(it)
+                        sharedPreferences.edit().putString("name", it.text).apply()
+                        ServiceManager.getService()?.setName(it.text)
                     },
                     textStyle = TextStyle(
                         color = textColor,
@@ -167,7 +171,7 @@ fun RenameScreen(navController: NavController) {
                             }
                             IconButton(
                                 onClick = {
-                                    name.value = ""
+                                    name.value = TextFieldValue("")
                                     sharedPreferences.edit().putString("name", "").apply()
                                     ServiceManager.getService()?.setName("")
                                 }

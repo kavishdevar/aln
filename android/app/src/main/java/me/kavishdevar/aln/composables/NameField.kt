@@ -18,8 +18,10 @@
 
 package me.kavishdevar.aln.composables
 
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -44,6 +46,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
@@ -62,9 +65,11 @@ fun NameField(
 
     val isDarkTheme = isSystemInDarkTheme()
 
-    val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
+    var backgroundColor by remember { mutableStateOf(if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)) }
+    val animatedBackgroundColor by animateColorAsState(targetValue = backgroundColor, animationSpec = tween(durationMillis = 500))
+
     val textColor = if (isDarkTheme) Color.White else Color.Black
-    val cursorColor = if (isFocused) { // Show cursor only when focused
+    val cursorColor = if (isFocused) {
         if (isDarkTheme) Color.White else Color.Black
     } else {
         Color.Transparent
@@ -72,11 +77,19 @@ fun NameField(
 
     Box (
         modifier = Modifier
-            .clickable(
-                onClick = {
-                    navController.navigate("rename")
-                }
-            )
+            .background(animatedBackgroundColor, RoundedCornerShape(14.dp))
+            .pointerInput(Unit) {
+                detectTapGestures(
+                    onPress = {
+                        backgroundColor = if (isDarkTheme) Color(0x40888888) else Color(0x40D9D9D9)
+                        tryAwaitRelease()
+                        backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
+                    },
+                    onTap = {
+                        navController.navigate("rename")
+                    }
+                )
+            }
     ) {
         Row(
             verticalAlignment = Alignment.CenterVertically,
@@ -84,7 +97,7 @@ fun NameField(
                 .fillMaxWidth()
                 .height(55.dp)
                 .background(
-                    backgroundColor,
+                    animatedBackgroundColor,
                     RoundedCornerShape(14.dp)
                 )
                 .padding(horizontal = 16.dp, vertical = 8.dp)
