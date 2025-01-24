@@ -21,19 +21,15 @@
 package me.kavishdevar.aln.screens
 
 import android.annotation.SuppressLint
-import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.ServiceConnection
-import android.os.Build
 import android.os.IBinder
 import android.util.Log
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
@@ -43,17 +39,23 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Send
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,7 +64,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -83,18 +85,36 @@ import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.AirPodsService
-import me.kavishdevar.aln.utils.AirPodsNotifications
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnspecifiedRegisterReceiverFlag")
 @Composable
 fun DebugScreen(navController: NavController) {
     val hazeState = remember { HazeState() }
-    val text = remember { mutableStateListOf<String>("Log Start") }
     val context = LocalContext.current
     val listState = rememberLazyListState()
+    val packetLogsFlow = remember { MutableStateFlow(emptySet<String>()) }
+    val expandedItems = remember { mutableStateOf(setOf<Int>()) }
+
+    LaunchedEffect(context) {
+        val serviceConnection = object : ServiceConnection {
+            override fun onServiceConnected(name: ComponentName, service: IBinder) {
+                val binder = service as AirPodsService.LocalBinder
+                val airPodsService = binder.getService()
+                packetLogsFlow.value = airPodsService.getPacketLogs()
+            }
+
+            override fun onServiceDisconnected(name: ComponentName) {}
+        }
+
+        val intent = Intent(context, AirPodsService::class.java)
+        context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
+    }
+
+    val packetLogs = packetLogsFlow.collectAsState(setOf()).value
 
     Scaffold(
         topBar = {
@@ -145,29 +165,6 @@ fun DebugScreen(navController: NavController) {
         containerColor = if (isSystemInDarkTheme()) Color(0xFF000000)
         else Color(0xFFF2F2F7),
     ) { paddingValues ->
-        val receiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                val data = intent.getByteArrayExtra("data")
-                data?.let {
-                    text.add(">" + it.joinToString(" ") { byte -> "%02X".format(byte) })
-                }
-            }
-        }
-
-        LaunchedEffect(context) {
-            val intentFilter = IntentFilter(AirPodsNotifications.Companion.AIRPODS_DATA)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                context.registerReceiver(receiver, intentFilter, Context.RECEIVER_EXPORTED)
-            } else {
-                context.registerReceiver(receiver, intentFilter)
-            }
-        }
-
-        LaunchedEffect(text.size) {
-            if (text.isNotEmpty()) {
-                listState.animateScrollToItem(text.size - 1)
-            }
-        }
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -181,44 +178,53 @@ fun DebugScreen(navController: NavController) {
                     .fillMaxWidth()
                     .weight(1f),
                 content = {
-                    items(text.size) { index ->
-                        val message = text[index]
-                        val isSent = message.startsWith(">")
-                        val backgroundColor =
-                            if (isSent) Color(0xFFE1FFC7) else Color(0xFFD1D1D1)
+                    items(packetLogs.size) { index ->
+                        val message = packetLogs.elementAt(index)
+                        val isSent = message.startsWith("Sent")
+                        val isExpanded = expandedItems.value.contains(index)
 
-                        if (message == "Log Start") {
-                            Spacer(modifier = Modifier.height(115.dp))
-                        }
-
-                        Box(
+                        Card(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .padding(8.dp)
-                                .background(backgroundColor, RoundedCornerShape(12.dp))
-                                .padding(12.dp),
+                                .padding(vertical = 2.dp, horizontal = 4.dp) // Reduced padding
+                                .clickable {
+                                    expandedItems.value = if (isExpanded) {
+                                        expandedItems.value - index
+                                    } else {
+                                        expandedItems.value + index
+                                    }
+                                },
+                            elevation = CardDefaults.cardElevation(defaultElevation = 2.dp), // Reduced elevation
+                            shape = RoundedCornerShape(4.dp), // Reduced corner radius
+                            colors = CardDefaults.cardColors(
+                                containerColor = Color.Transparent
+                            )
                         ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.SpaceBetween
-                            ) {
-                                if (!isSent) {
-                                    Text("<", color = Color(0xFF00796B), fontSize = 16.sp)
-                                }
-
-                                Text(
-                                    text = if (isSent) message.substring(1) else message,
-                                    fontFamily = FontFamily(Font(R.font.hack)),
-                                    color = if (isSystemInDarkTheme()) Color(
-                                        0xFF000000
+                            Column(modifier = Modifier.padding(8.dp)) { // Reduced padding
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Icon(
+                                        imageVector = if (isSent) Icons.AutoMirrored.Filled.KeyboardArrowLeft else Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                                        contentDescription = null,
+                                        tint = if (isSent) Color.Green else Color.Red,
+                                        modifier = Modifier.size(24.dp) // Reduced icon size
                                     )
-                                    else Color(0xFF000000),
-                                    modifier = Modifier.weight(1f)
-                                )
-
-                                if (isSent) {
-                                    Text(">", color = Color(0xFF00796B), fontSize = 16.sp)
+                                    Spacer(modifier = Modifier.width(4.dp)) // Reduced spacing
+                                    Column {
+                                        Text(
+                                            text =
+                                                if (isSent) message.substring(5).take(60) + (if (message.substring(5).length > 60) "..." else "") 
+                                                else message.substring(9).take(60) + (if (message.substring(9).length > 60) "..." else ""),
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                        if (isExpanded) {
+                                            Spacer(modifier = Modifier.height(4.dp)) // Reduced spacing
+                                            Text(
+                                                text = message.substring(if (isSent) 5 else 9),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = Color.Gray
+                                            )
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -262,7 +268,6 @@ fun DebugScreen(navController: NavController) {
                         IconButton(
                             onClick = {
                                 airPodsService.value?.sendPacket(packet.value.text)
-                                text.add(packet.value.text)
                                 packet.value = TextFieldValue("")
                             }
                         ) {
@@ -282,23 +287,6 @@ fun DebugScreen(navController: NavController) {
                     ),
                     shape = RoundedCornerShape(12.dp)
                 )
-
-                val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
-
-                val serviceConnection = object : ServiceConnection {
-                    override fun onServiceConnected(name: ComponentName, service: IBinder) {
-                        val binder = service as AirPodsService.LocalBinder
-                        airPodsService.value = binder.getService()
-                        Log.d("AirPodsService", "Service connected")
-                    }
-
-                    override fun onServiceDisconnected(name: ComponentName) {
-                        airPodsService.value = null
-                    }
-                }
-
-                val intent = Intent(context, AirPodsService::class.java)
-                context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE)
             }
         }
     }

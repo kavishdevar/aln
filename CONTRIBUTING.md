@@ -25,11 +25,11 @@ To develop for the Android App, Android Studio is the preferred IDE. And you can
 
 #### Create a new issue
 
-If you find a bug or want to suggest a feature, check if an issue already exists by searching through our [existing issues](https://github.com/username/AirPods-Like-Normal/issues). If no relevant issue exists, open a new one and fill in the details.
+If you find a bug or want to suggest a feature, check if an issue already exists by searching through our [existing issues](https://github.com/kavishdevar/aln/issues). If no relevant issue exists, open a new one and fill in the details.
 
 #### Solve an issue
 
-Browse our [issues list](https://github.com/username/AirPods-Like-Normal/issues) to find an interesting issue to work on. Use labels to filter issues and pick one that matches your expertise. If you’d like to work on an issue, open a PR with your solution.
+Browse our [issues list](https://github.com/kavishdevar/aln/issues) to find an interesting issue to work on. Use labels to filter issues and pick one that matches your expertise. If you’d like to work on an issue, open a PR with your solution.
 
 ### Make Changes
 
@@ -37,7 +37,7 @@ Browse our [issues list](https://github.com/username/AirPods-Like-Normal/issues)
 
 1. Fork the repository and clone it to your local environment.
 ```
-git clone https://github.com/your-username/AirPods-Like-Normal.git
+git clone https://github.com/kavishdevar/aln.git
 cd AirPods-Like-Normal
 ```
 2. Create a working branch to start your changes.

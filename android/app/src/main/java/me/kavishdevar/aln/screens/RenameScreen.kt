@@ -41,16 +41,18 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
@@ -69,6 +71,14 @@ fun RenameScreen(navController: NavController) {
     val sharedPreferences = LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val isDarkTheme = isSystemInDarkTheme()
     val name = remember { mutableStateOf(sharedPreferences.getString("name", "") ?: "") }
+    val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+        keyboardController?.show()
+    }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -117,17 +127,10 @@ fun RenameScreen(navController: NavController) {
                 .padding(horizontal = 16.dp)
                 .padding(top = 8.dp)
         ) {
-            var isFocused by remember { mutableStateOf(false) }
             val isDarkTheme = isSystemInDarkTheme()
-
             val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
             val textColor = if (isDarkTheme) Color.White else Color.Black
-            val cursorColor = if (isFocused) { // Show cursor only when focused
-                if (isDarkTheme) Color.White else Color.Black
-            } else {
-                Color.Transparent
-            }
-
+            val cursorColor =  if (isDarkTheme) Color.White else Color.Black
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier
@@ -180,6 +183,7 @@ fun RenameScreen(navController: NavController) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(start = 8.dp)
+                        .focusRequester(focusRequester)
                 )
             }
         }

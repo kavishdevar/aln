@@ -157,8 +157,13 @@ class AirPodsNotifications {
         private var case: Battery = Battery(BatteryComponent.CASE, 0, BatteryStatus.DISCONNECTED)
 
         fun isBatteryData(data: ByteArray): Boolean {
+            if (data.joinToString("") { "%02x".format(it) }.startsWith("040004000400")) {
+                Log.d("BatteryNotification", "Battery data starts with 040004000400. Most likely is a battery packet.")
+            } else {
+                return false
+            }
             if (data.size != 22) {
-                Log.d("BatteryNotification", "Battery data size is not 22")
+                Log.d("BatteryNotification", "Battery data size is not 22, probably being used with Airpods with fewer or more battery count.")
                 return false
             }
             Log.d("BatteryNotification", data.joinToString("") { "%02x".format(it) }.startsWith("040004000400").toString())

@@ -18,7 +18,6 @@
 
 package me.kavishdevar.aln.composables
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -26,7 +25,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
@@ -44,18 +42,18 @@ fun NoiseControlButton(
     icon: ImageBitmap,
     onClick: () -> Unit,
     textColor: Color,
-    backgroundColor: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    usePadding: Boolean = true
 ) {
     Column(
         modifier = modifier
             .fillMaxHeight()
-            .padding(horizontal = 4.dp, vertical = 4.dp)
-            .background(color = backgroundColor, shape = RoundedCornerShape(11.dp))
+            .then(if (usePadding) Modifier.padding(horizontal = 4.dp, vertical = 4.dp) else Modifier)
             .clickable(
                 onClick = onClick,
                 indication = null,
-                interactionSource = remember { MutableInteractionSource() }),
+                interactionSource = remember { MutableInteractionSource() }
+            ),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
@@ -75,6 +73,5 @@ fun NoiseControlButtonPreview() {
         icon = ImageBitmap.imageResource(R.drawable.noise_cancellation),
         onClick = {},
         textColor = Color.White,
-        backgroundColor = Color.Black
     )
 }

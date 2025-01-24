@@ -39,6 +39,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.content.SharedPreferences
 import android.media.AudioManager
 import android.os.Binder
 import android.os.Build
@@ -95,6 +96,7 @@ object ServiceManager {
             delay(1000)
             context.startService(intent)
             context.startActivity(Intent(context, MainActivity::class.java))
+            service?.clearLogs()
         }
     }
 }
@@ -104,6 +106,34 @@ class AirPodsService: Service() {
     private var macAddress = ""
     inner class LocalBinder : Binder() {
         fun getService(): AirPodsService = this@AirPodsService
+    }
+
+    private lateinit var sharedPreferences: SharedPreferences
+    private val packetLogKey = "packet_log"
+
+    override fun onCreate() {
+        super.onCreate()
+        sharedPreferences = getSharedPreferences("packet_logs", Context.MODE_PRIVATE)
+    }
+
+    private fun logPacket(packet: ByteArray, source: String) {
+        val packetHex = packet.joinToString(" ") { "%02X".format(it) }
+        val logEntry = "$source: $packetHex"
+        val logs = sharedPreferences.getStringSet(packetLogKey, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        logs.add(logEntry)
+        sharedPreferences.edit().putStringSet(packetLogKey, logs).apply()
+    }
+
+    fun getPacketLogs(): Set<String> {
+        return sharedPreferences.getStringSet(packetLogKey, emptySet()) ?: emptySet()
+    }
+
+    private fun clearPacketLogs() {
+        sharedPreferences.edit().remove(packetLogKey).apply()
+    }
+
+    fun clearLogs() {
+        clearPacketLogs() // Expose a method to clear logs
     }
 
     override fun onBind(intent: Intent?): IBinder {
@@ -133,7 +163,9 @@ class AirPodsService: Service() {
         }
     }
     private fun forwardPacket(packet: String, outputStream: OutputStream) {
-        outputStream.write(packet.toByteArray())
+        val byteArray = packet.toByteArray()
+        outputStream.write(byteArray)
+        logPacket(byteArray, "Sent")
     }
 
     private fun connectToAirPods() {
@@ -400,7 +432,7 @@ class AirPodsService: Service() {
                             .putString("name", name).apply()
                     }
                     Log.d("AirPodsQuickSwitchServices", CrossDevice.isAvailable.toString())
-                    if (!CrossDevice.isAvailable) {
+                    if (!CrossDevice.checkAirPodsConnectionStatus()) {
                         Log.d("AirPodsService", "$name connected")
                         showPopup(this@AirPodsService, name.toString())
                         connectToSocket(device!!)
@@ -463,7 +495,7 @@ class AirPodsService: Service() {
                                 if (profile == BluetoothProfile.A2DP) {
                                     val connectedDevices = proxy.connectedDevices
                                     if (connectedDevices.isNotEmpty()) {
-                                        if (!CrossDevice.isAvailable) {
+                                        if (!CrossDevice.checkAirPodsConnectionStatus()) {
                                             connectToSocket(device)
                                         }
                                         this@AirPodsService.sendBroadcast(
@@ -480,6 +512,10 @@ class AirPodsService: Service() {
                     )
                 }
             }
+        }
+
+        if (!isConnectedLocally && !CrossDevice.isAvailable) {
+            clearPacketLogs() // Clear logs when device is not available
         }
 
         return START_STICKY
@@ -581,6 +617,7 @@ class AirPodsService: Service() {
                                 var data: ByteArray = byteArrayOf()
                                 if (bytesRead > 0) {
                                     data = buffer.copyOfRange(0, bytesRead)
+                                    logPacket(data, "AirPods")
                                     sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DATA).apply {
                                         putExtra("data", buffer.copyOfRange(0, bytesRead))
                                     })
@@ -824,8 +861,10 @@ class AirPodsService: Service() {
             return
         }
         if (this::socket.isInitialized) {
-            socket.outputStream?.write(fromHex.toByteArray())
+            val byteArray = fromHex.toByteArray()
+            socket.outputStream?.write(byteArray)
             socket.outputStream?.flush()
+            logPacket(byteArray, "Sent")
         }
     }
 
@@ -837,6 +876,7 @@ class AirPodsService: Service() {
         if (this::socket.isInitialized) {
             socket.outputStream?.write(packet)
             socket.outputStream?.flush()
+            logPacket(packet, "Sent")
         }
     }
 
@@ -1015,7 +1055,6 @@ class AirPodsService: Service() {
         val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x1a, 0x00, 0x01,
             nameBytes.size.toByte(), 0x00) + nameBytes
         sendPacket(bytes)
-        socket.outputStream?.flush()
         val hex = bytes.joinToString(" ") { "%02X".format(it) }
         updateNotificationContent(true, name, batteryNotification.getBattery())
         Log.d("AirPodsService", "setName: $name, sent packet: $hex")
@@ -1025,18 +1064,15 @@ class AirPodsService: Service() {
         var hex = "04 00 04 00 09 00 26 ${if (enabled) "01" else "02"} 00 00 00"
         var bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         sendPacket(bytes)
-        socket.outputStream?.flush()
         hex = "04 00 04 00 17 00 00 00 10 00 12 00 08 E${if (enabled) "6" else "5"} 05 10 02 42 0B 08 50 10 02 1A 05 02 ${if (enabled) "32" else "00"} 00 00 00"
         bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         sendPacket(bytes)
-        socket.outputStream?.flush()
     }
 
     fun setLoudSoundReduction(enabled: Boolean) {
         val hex = "52 1B 00 0${if (enabled) "1" else "0"}"
         val bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         sendPacket(bytes)
-        socket.outputStream?.flush()
     }
     fun findChangedIndex(oldArray: BooleanArray, newArray: BooleanArray): Int {
         for (i in oldArray.indices) {
@@ -1175,11 +1211,12 @@ class AirPodsService: Service() {
         }
         packet?.let {
             Log.d("AirPodsService", "Sending packet: ${it.joinToString(" ") { "%02X".format(it) }}")
-            socket.outputStream.write(it)
+            sendPacket(it)
         }
     }
 
     override fun onDestroy() {
+        clearPacketLogs()
         Log.d("AirPodsService", "Service stopped is being destroyed for some reason!")
         try {
             unregisterReceiver(bluetoothReceiver)

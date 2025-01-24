@@ -82,11 +82,11 @@ fun AdaptiveStrengthSlider(service: AirPodsService, sharedPreferences: SharedPre
             value = sliderValue.floatValue,
             onValueChange = {
                 sliderValue.floatValue = it
-                service.setAdaptiveStrength(100 - it.toInt())
             },
             valueRange = 0f..100f,
             onValueChangeFinished = {
                 sliderValue.floatValue = sliderValue.floatValue.roundToInt().toFloat()
+                service.setAdaptiveStrength(100 - sliderValue.floatValue.toInt())
             },
             modifier = Modifier
                 .fillMaxWidth()

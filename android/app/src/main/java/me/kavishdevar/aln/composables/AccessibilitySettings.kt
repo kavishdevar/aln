@@ -148,7 +148,7 @@ fun DropdownMenuComponent(
     Column (
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 8.dp)
+            .padding(horizontal = 12.dp)
     ) {
         Text(
             text = label,

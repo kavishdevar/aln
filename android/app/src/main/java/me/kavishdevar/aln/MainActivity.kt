@@ -146,6 +146,15 @@ fun Main() {
                     isRemotelyConnected.value = CrossDevice.isAvailable
                     isConnected.value = false
                 }
+                else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
+                    Log.d("MainActivity", "Disconnect Receivers intent received")
+                    try {
+                        context.unregisterReceiver(this)
+                    }
+                    catch (e: Exception) {
+                        Log.e("MainActivity", "Error while unregistering receiver: $e")
+                    }
+                }
             }
         }
 
@@ -159,10 +168,12 @@ fun Main() {
         sharedPreferences.registerOnSharedPreferenceChangeListener(isAvailableChangeListener)
         Log.d("MainActivity", "CrossDeviceIsAvailable: ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | isAvailable: ${CrossDevice.isAvailable}")
         isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false) || CrossDevice.isAvailable
+        Log.d("MainActivity", "isRemotelyConnected: ${isRemotelyConnected.value}")
         val filter = IntentFilter().apply {
             addAction(AirPodsNotifications.AIRPODS_CONNECTED)
             addAction(AirPodsNotifications.AIRPODS_DISCONNECTED)
             addAction(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
+            addAction(AirPodsNotifications.DISCONNECT_RECEIVERS)
         }
         Log.d("MainActivity", "Registering Receiver")
 
