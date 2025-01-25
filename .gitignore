@@ -3,6 +3,7 @@ btl2capfix.zip
 .vscode
 testing.py
 .DS_Store
+CMakeLists.txt.user*
 # Android Template
 
 # Gradle files
