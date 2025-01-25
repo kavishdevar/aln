@@ -1,0 +1,3 @@
+#!/bin/sh
+
+exec /data/local/tmp/aln_unzip/busybox/busybox-arm64 xz "$@"
