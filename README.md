@@ -24,6 +24,10 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ## Android
 
+> Can I use aln without root?
+
+**No, it's not possible to use aln without root.** You will have to root your device if you want to use aln, and there is no way around it. **No exceptions.**
+
 ### Screenshots
 
 | | | |
@@ -34,23 +38,14 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ### Installation
 
-Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker). This project provides a root module which patches the bug.
+Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.google.com/issues/371713238) that prevents the app from working (upvote the issue - click the '+1' icon on the top right corner of IssueTracker).
 
 > [!CAUTION]
-> **This workaround requires root access.** Try at your own risk. It may break your bluetooth, and I am not responsible for any damage caused by tehemodule.
+> Until Google merges the fix **you will only be able to use aln if you are rooted**. There are **no exceptions**, don't ask about it.
 
-As root run the following command:
-```sh
-lsof | grep libbluetooth
-```
+In order to use aln you will have to install the module using your favorite root manager in OverlayFS mode (KernelSU, Apatch, or Magisk). If you don't know what this means, no support is provided: you will have to search by yourself on Google or ask in some Android rooting communities on Telegram.
 
-Send me the files (in the [support channel](https://t.me/airpodslikenormal_discussion))along with the paths, whichever are listed. The paths will be one of the following:
-```
-/system/lib64/libbluetooth_jni.so
-/apex/com.android.btservices/lib64/libbluetooth_jni.so
-```
-
-If the command lists a file named `libbluetooth_qti.so`, unfortuntaely, I won't be able to patch the library. 
+The module to install is available in the releases section under the name `btl2capfix.zip`.
 
 ### Android – features
 
