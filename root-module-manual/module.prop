@@ -1,6 +1,0 @@
-id=btl2capfix
-name=Bluetooth L2CAP workaround for AirPods
-version=v1
-versionCode=1
-author=kavishdevar
-description=Fixes the Bluetooth L2CAP connection issue with AirPods
