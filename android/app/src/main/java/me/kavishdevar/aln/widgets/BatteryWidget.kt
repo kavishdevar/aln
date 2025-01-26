@@ -17,15 +17,21 @@
  */
 
 
-package me.kavishdevar.aln
+package me.kavishdevar.aln.widgets
 
+import android.app.PendingIntent
 import android.appwidget.AppWidgetManager
 import android.appwidget.AppWidgetProvider
 import android.content.Context
+import android.content.Intent
+import android.graphics.Canvas
+import android.util.Log
 import android.widget.RemoteViews
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.core.graphics.createBitmap
+import me.kavishdevar.aln.MainActivity
+import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.ServiceManager
-import me.kavishdevar.aln.utils.BatteryComponent
-import me.kavishdevar.aln.utils.BatteryStatus
 
 class BatteryWidget : AppWidgetProvider() {
     override fun onUpdate(
@@ -33,7 +39,6 @@ class BatteryWidget : AppWidgetProvider() {
         appWidgetManager: AppWidgetManager,
         appWidgetIds: IntArray
     ) {
-        // There may be multiple widgets active, so update all of them
         for (appWidgetId in appWidgetIds) {
             updateAppWidget(context, appWidgetManager, appWidgetId)
         }
@@ -44,40 +49,19 @@ class BatteryWidget : AppWidgetProvider() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 internal fun updateAppWidget(
     context: Context,
     appWidgetManager: AppWidgetManager,
     appWidgetId: Int
 ) {
     val service = ServiceManager.getService()
-    val batteryList = service?.batteryNotification?.getBattery()
-
     val views = RemoteViews(context.packageName, R.layout.battery_widget)
 
-    views.setTextViewText(R.id.left_battery_widget,
-        batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-            // if (it.status != BatteryStatus.DISCONNECTED) {
-                "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-            // } else {
-            //     ""
-            // }
-        } ?: "")
-    views.setTextViewText(R.id.right_battery_widget,
-        batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-            // if (it.status != BatteryStatus.DISCONNECTED) {
-                "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-            // } else {
-            //     ""
-            // }
-        } ?: "")
-    views.setTextViewText(R.id.case_battery_widget,
-        batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-            // if (it.status != BatteryStatus.DISCONNECTED) {
-                "${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-            // } else {
-            //     ""
-            // }
-        } ?: "")
+    service?.updateBatteryWidget()
+
+    val openActivityIntent = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+    views.setOnClickPendingIntent(R.id.battery_widget, openActivityIntent)
 
     appWidgetManager.updateAppWidget(appWidgetId, views)
 }

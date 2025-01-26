@@ -7,7 +7,7 @@
     android:layout_margin="16.dp"
     android:id="@+id/linear_layout"
     android:orientation="vertical"
-    android:background="@drawable/shape">
+    android:background="@drawable/popup_shape">
 
     <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"

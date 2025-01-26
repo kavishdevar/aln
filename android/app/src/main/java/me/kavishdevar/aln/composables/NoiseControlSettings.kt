@@ -321,8 +321,8 @@ fun NoiseControlSettings(service: AirPodsService) {
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(4.dp)
-                            .background(selectedBackground, RoundedCornerShape(11.dp))
+                            .padding(3.dp)
+                            .background(selectedBackground, RoundedCornerShape(12.dp))
                     )
                 }
 

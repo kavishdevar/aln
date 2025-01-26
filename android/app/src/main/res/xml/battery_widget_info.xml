@@ -1,14 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:description="@string/app_widget_description"
     android:initialKeyguardLayout="@layout/battery_widget"
     android:initialLayout="@layout/battery_widget"
-    android:minWidth="40dp"
+    android:minWidth="180dp"
     android:minHeight="40dp"
     android:previewImage="@drawable/example_appwidget_preview"
     android:previewLayout="@layout/battery_widget"
     android:resizeMode="horizontal|vertical"
-    android:targetCellWidth="1"
+    android:targetCellWidth="3"
     android:targetCellHeight="1"
     android:updatePeriodMillis="300000"
-    android:widgetCategory="home_screen|keyguard" />
+    android:widgetCategory="home_screen|keyguard"
+    tools:ignore="UnusedAttribute" />

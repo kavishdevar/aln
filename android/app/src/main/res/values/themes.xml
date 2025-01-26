@@ -4,17 +4,11 @@
     <style name="Theme.ALN" parent="android:Theme.Material.Light.NoActionBar" />
 
     <style name="Theme.ALN.AppWidgetContainerParent" parent="@android:style/Theme.DeviceDefault">
-        <!-- Radius of the outer bound of widgets to make the rounded corners -->
-        <item name="appWidgetRadius">24dp</item>
-        <!--
-        Radius of the inner view's bound of widgets to make the rounded corners.
-        It needs to be 8dp or less than the value of appWidgetRadius
-        -->
-        <item name="appWidgetInnerRadius">24dp</item>
+        <item name="appWidgetRadius">32dp</item>
+        <item name="appWidgetPadding">0dp</item>
     </style>
 
     <style name="Theme.ALN.AppWidgetContainer" parent="Theme.ALN.AppWidgetContainerParent">
-        <!-- Apply padding to avoid the content of the widget colliding with the rounded corners -->
-        <item name="appWidgetPadding">16dp</item>
+        <item name="appWidgetPadding">0dp</item>
     </style>
 </resources>

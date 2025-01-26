@@ -69,7 +69,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
 import me.kavishdevar.aln.R
+import me.kavishdevar.aln.composables.IndependentToggle
 import me.kavishdevar.aln.composables.StyledSwitch
+import me.kavishdevar.aln.services.ServiceManager
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -129,6 +131,8 @@ fun AppSettingsScreen(navController: NavController) {
 
             val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
             val textColor = if (isDarkTheme) Color.White else Color.Black
+
+            IndependentToggle("Show phone battery in widget", ServiceManager.getService()!!, "setPhoneBatteryInWidget", sharedPreferences)
 
             Column (
                 modifier = Modifier
