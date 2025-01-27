@@ -89,10 +89,9 @@ for lib_path in \
     "/system/lib64/libbluetooth_qti.so" \
     "/system_ext/lib64/libbluetooth_qti.so"; do
     if [ -f "$lib_path" ]; then
-        SOURCE_FILE="$lib_path"
-        LIBRARY_NAME="$(basename "$lib_path")"
-        ui_print "Detected library: $SOURCE_FILE"
-        break
+        ui_print "Detected library: $lib_path"
+        [ -z "$SOURCE_FILE" ] && SOURCE_FILE="$lib_path"
+        [ -z "$LIBRARY_NAME" ] && LIBRARY_NAME="$(basename "$lib_path")"
     fi
 done
 
@@ -100,6 +99,11 @@ done
     ui_print "Error: No target library found."
     abort "No target library found."
 }
+
+if echo "$LIBRARY_NAME" | grep -q "qti"; then
+  ui_print "ERROR: \"qti\" Bluetooth libraries are NOT supported by the patcher and you won't be able to use aln. Aborting..."
+  abort "Bluetooth driver not compatible."
+fi
 
 ui_print "Calculating patch addresses for $SOURCE_FILE..."
 
