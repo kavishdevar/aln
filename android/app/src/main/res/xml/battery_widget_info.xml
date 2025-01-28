@@ -11,6 +11,6 @@
     android:resizeMode="horizontal|vertical"
     android:targetCellWidth="3"
     android:targetCellHeight="1"
-    android:updatePeriodMillis="300000"
+    android:updatePeriodMillis="30000"
     android:widgetCategory="home_screen|keyguard"
     tools:ignore="UnusedAttribute" />

@@ -1,14 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="Theme.ALN" parent="android:Theme.Material.Light.NoActionBar" />
+  <style name="Theme.ALN" parent="android:Theme.Material.Light.NoActionBar" />
 
-    <style name="Theme.ALN.AppWidgetContainerParent" parent="@android:style/Theme.DeviceDefault">
-        <item name="appWidgetRadius">32dp</item>
-        <item name="appWidgetPadding">0dp</item>
-    </style>
+  <style name="Theme.ALN.AppWidgetContainerParent" parent="@android:style/Theme.DeviceDefault">
+    <item name="appWidgetRadius">32dp</item>
+    <item name="appWidgetPadding">0dp</item>
+  </style>
 
-    <style name="Theme.ALN.AppWidgetContainer" parent="Theme.ALN.AppWidgetContainerParent">
-        <item name="appWidgetPadding">0dp</item>
-    </style>
+  <style name="Theme.ALN.AppWidgetContainer" parent="Theme.ALN.AppWidgetContainerParent">
+    <item name="appWidgetPadding">0dp</item>
+  </style>
 </resources>

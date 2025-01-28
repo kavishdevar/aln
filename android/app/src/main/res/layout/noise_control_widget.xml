@@ -1,0 +1,140 @@
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    style="@style/Widget.ALN.AppWidget.Container"
+    android:id="@+id/noise_control_widget"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:theme="@style/Theme.ALN.AppWidgetContainer">
+
+    <LinearLayout
+        android:id="@android:id/background"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:orientation="horizontal">
+
+        <LinearLayout
+            android:id="@+id/widget_off_button"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginVertical="12dp"
+            android:layout_marginStart="12dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_button_shape_start"
+            android:clickable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:src="@drawable/noise_cancellation"
+                android:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:shadowColor="@color/black"
+                android:shadowRadius="12"
+                android:text="@string/off"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_transparency_button"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginVertical="12dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_button_shape_middle"
+            android:clickable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:src="@drawable/transparency"
+                android:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:shadowColor="@color/black"
+                android:shadowRadius="12"
+                android:text="@string/transparency"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_adaptive_button"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginVertical="12dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="2dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_button_shape_middle"
+            android:clickable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:src="@drawable/adaptive"
+                android:textSize="12sp"
+                android:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:shadowColor="@color/black"
+                android:shadowRadius="12"
+                android:text="@string/adaptive"
+                android:textColor="@color/white"
+                android:textSize="12sp" />
+        </LinearLayout>
+
+        <LinearLayout
+            android:id="@+id/widget_anc_button"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_marginVertical="12dp"
+            android:layout_marginStart="2dp"
+            android:layout_marginEnd="12dp"
+            android:layout_weight="1"
+            android:background="@drawable/widget_button_shape_end"
+            android:clickable="true"
+            android:gravity="center"
+            android:orientation="vertical">
+
+            <ImageView
+                android:layout_width="52dp"
+                android:layout_height="52dp"
+                android:src="@drawable/noise_cancellation"
+                android:tint="@color/white" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="1"
+                android:gravity="center"
+                android:shadowColor="@color/black"
+                android:shadowRadius="12"
+                android:text="@string/noise_cancellation"
+                android:textColor="@color/white"
+                android:textSize="12sp"
+                tools:ignore="NestedWeights" />
+        </LinearLayout>
+    </LinearLayout>
+</RelativeLayout>

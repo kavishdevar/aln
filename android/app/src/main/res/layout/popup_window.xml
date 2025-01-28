@@ -37,7 +37,7 @@
             android:layout_height="28dp"
             android:layout_marginTop="12dp"
             android:layout_marginEnd="24dp"
-            android:background="@drawable/button_shape"
+            android:background="@drawable/popup_button_shape"
             android:contentDescription="Close Button"
             android:src="@drawable/close"
             app:layout_constraintEnd_toEndOf="parent"

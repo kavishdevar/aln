@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -28,7 +28,6 @@ import android.app.Service
 import android.appwidget.AppWidgetManager
 import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
-import android.bluetooth.BluetoothHeadset
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
@@ -42,6 +41,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.res.Resources
 import android.media.AudioManager
 import android.os.BatteryManager
 import android.os.Binder
@@ -51,6 +51,7 @@ import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelUuid
 import android.util.Log
+import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
 import androidx.annotation.RequiresPermission
@@ -79,18 +80,22 @@ import me.kavishdevar.aln.utils.LongPressPackets
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.Window
 import me.kavishdevar.aln.widgets.BatteryWidget
+import me.kavishdevar.aln.widgets.NoiseControlWidget
 import org.lsposed.hiddenapibypass.HiddenApiBypass
 
 object ServiceManager {
     private var service: AirPodsService? = null
+
     @Synchronized
     fun getService(): AirPodsService? {
         return service
     }
+
     @Synchronized
     fun setService(service: AirPodsService?) {
         this.service = service
     }
+
     @OptIn(ExperimentalMaterial3Api::class)
     @Synchronized
     fun restartService(context: Context) {
@@ -108,12 +113,14 @@ object ServiceManager {
 }
 
 // @Suppress("unused")
-class AirPodsService: Service() {
+class AirPodsService : Service() {
     private var macAddress = ""
+
     inner class LocalBinder : Binder() {
         fun getService(): AirPodsService = this@AirPodsService
     }
 
+    private lateinit var sharedPreferencesLogs: SharedPreferences
     private lateinit var sharedPreferences: SharedPreferences
     private val packetLogKey = "packet_log"
     private val _packetLogsFlow = MutableStateFlow<Set<String>>(emptySet())
@@ -121,24 +128,26 @@ class AirPodsService: Service() {
 
     override fun onCreate() {
         super.onCreate()
-        sharedPreferences = getSharedPreferences("packet_logs", MODE_PRIVATE)
+        sharedPreferencesLogs = getSharedPreferences("packet_logs", MODE_PRIVATE)
     }
 
     private fun logPacket(packet: ByteArray, source: String) {
         val packetHex = packet.joinToString(" ") { "%02X".format(it) }
         val logEntry = "$source: $packetHex"
-        val logs = sharedPreferences.getStringSet(packetLogKey, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        val logs =
+            sharedPreferencesLogs.getStringSet(packetLogKey, mutableSetOf())?.toMutableSet()
+                ?: mutableSetOf()
         logs.add(logEntry)
         _packetLogsFlow.value = logs
-        sharedPreferences.edit { putStringSet(packetLogKey, logs) }
+        sharedPreferencesLogs.edit { putStringSet(packetLogKey, logs) }
     }
 
     fun getPacketLogs(): Set<String> {
-        return sharedPreferences.getStringSet(packetLogKey, emptySet()) ?: emptySet()
+        return sharedPreferencesLogs.getStringSet(packetLogKey, emptySet()) ?: emptySet()
     }
 
     private fun clearPacketLogs() {
-        sharedPreferences.edit { remove(packetLogKey).apply() }
+        sharedPreferencesLogs.edit { remove(packetLogKey).apply() }
 
     }
 
@@ -163,18 +172,22 @@ class AirPodsService: Service() {
     }
 
     @Suppress("ClassName")
-    private object bluetoothReceiver: BroadcastReceiver() {
+    private object bluetoothReceiver : BroadcastReceiver() {
         @SuppressLint("MissingPermission")
         override fun onReceive(context: Context?, intent: Intent) {
             val bluetoothDevice =
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    intent.getParcelableExtra("android.bluetooth.device.extra.DEVICE", BluetoothDevice::class.java)
+                    intent.getParcelableExtra(
+                        "android.bluetooth.device.extra.DEVICE",
+                        BluetoothDevice::class.java
+                    )
                 } else {
                     intent.getParcelableExtra("android.bluetooth.device.extra.DEVICE") as BluetoothDevice?
                 }
             val action = intent.action
             val context = context?.applicationContext
-            val name = context?.getSharedPreferences("settings", MODE_PRIVATE)?.getString("name", bluetoothDevice?.name)
+            val name = context?.getSharedPreferences("settings", MODE_PRIVATE)
+                ?.getString("name", bluetoothDevice?.name)
             if (bluetoothDevice != null && action != null && !action.isEmpty()) {
                 Log.d("AirPodsService", "Received bluetooth connection broadcast")
                 if (BluetoothDevice.ACTION_ACL_CONNECTED == action) {
@@ -204,109 +217,27 @@ class AirPodsService: Service() {
     private lateinit var earReceiver: BroadcastReceiver
     var widgetMobileBatteryEnabled = false
 
-    val METADATA_UNTETHERED_LEFT_CHARGING = 13
-    val METADATA_UNTETHERED_LEFT_BATTERY = 10
-    val METADATA_UNTETHERED_RIGHT_CHARGING = 14
-    val METADATA_UNTETHERED_RIGHT_BATTERY = 11
-    val METADATA_UNTETHERED_CASE_CHARGING = 15
-    val METADATA_UNTETHERED_CASE_BATTERY = 12
-
-    @SuppressLint("MissingPermission")
-    fun setBatteryLevels(
-        leftStatus: Boolean, leftLevel: Int,
-        rightStatus: Boolean, rightLevel: Int,
-        caseStatus: Boolean, caseLevel: Int,
-        device: BluetoothDevice
-    ) {
-        HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothDevice;")
-
-        HiddenApiBypass.invoke(
-            BluetoothDevice::class.java,
-            device,
-            "setMetadata",
-            METADATA_UNTETHERED_LEFT_CHARGING,
-            leftStatus.toString().toByteArray()
-        )
-        HiddenApiBypass.invoke(
-           BluetoothDevice::class.java,
-            device,
-            "setMetadata",
-            METADATA_UNTETHERED_LEFT_BATTERY,
-            leftLevel.toString().toByteArray()
-        )
-        HiddenApiBypass.invoke(
-            BluetoothDevice::class.java,
-            device,
-            "setMetadata",
-            METADATA_UNTETHERED_RIGHT_CHARGING,
-            rightStatus.toString().toByteArray()
-        )
-        HiddenApiBypass.invoke(
-            BluetoothDevice::class.java,
-            device,
-            "setMetadata",
-            METADATA_UNTETHERED_RIGHT_BATTERY,
-            rightLevel.toString().toByteArray()
-        )
-        HiddenApiBypass.invoke(
-            BluetoothDevice::class.java,
-            device,
-            "setMetadata",
-            METADATA_UNTETHERED_CASE_CHARGING,
-            caseStatus.toString().toByteArray()
-        )
-        HiddenApiBypass.invoke(
-            BluetoothDevice::class.java,
-            device,
-            "setMetadata",
-            METADATA_UNTETHERED_CASE_BATTERY,
-            caseLevel.toString().toByteArray()
-        )
-        HiddenApiBypass.invoke(
-            BluetoothDevice::class.java,
-            device,
-            "sendVendorSpecificHeadsetEvent",
-            "+IPHONEACCEV",
-            BluetoothHeadset.AT_CMD_TYPE_SET,
-            1,
-            leftLevel,
-            2,
-            rightLevel,
-            3,
-            caseLevel
-        )
-
-        // Prepare the intent to broadcast vendor-specific headset event
-        val intent = Intent(BluetoothHeadset.ACTION_VENDOR_SPECIFIC_HEADSET_EVENT).apply {
-            putExtra(BluetoothHeadset.EXTRA_VENDOR_SPECIFIC_HEADSET_EVENT_CMD, "+IPHONEACCEV")
-            putExtra(BluetoothHeadset.EXTRA_VENDOR_SPECIFIC_HEADSET_EVENT_CMD_TYPE, BluetoothHeadset.AT_CMD_TYPE_SET)
-            putExtra(BluetoothHeadset.EXTRA_VENDOR_SPECIFIC_HEADSET_EVENT_ARGS, arrayOf(
-                1, leftLevel,
-                2, rightLevel,
-                3, caseLevel
-            ))
-            putExtra(BluetoothDevice.EXTRA_DEVICE, device)
-            putExtra(BluetoothDevice.EXTRA_NAME, device.name)
-            addCategory(BluetoothHeadset.VENDOR_SPECIFIC_HEADSET_EVENT_COMPANY_ID_CATEGORY + "." + 76)
-        }
-
-        // Send the broadcast to update the battery levels
-        sendBroadcast(intent)
-
-        // Broadcast battery level changes
-           val batteryIntent = Intent("android.bluet9ooth.device.action.BATTERY_LEVEL_CHANGED").apply {
-            putExtra(BluetoothDevice.EXTRA_DEVICE, device)
-            putExtra("android.bluetooth.device.extra.BATTERY_LEVEL", leftLevel)  // Update with appropriate levels
-        }
-        sendBroadcast(batteryIntent)
-    }
-
-    object PhoneBatteryReceiver: BroadcastReceiver() {
+    object BatteryChangedIntentReceiver : BroadcastReceiver() {
         override fun onReceive(context: Context?, intent: Intent) {
             if (intent.action == Intent.ACTION_BATTERY_CHANGED) {
-                ServiceManager.getService()?.updateBatteryWidget()
-            }
-            else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
+                val level = intent.getIntExtra("level", 0)
+                val scale = intent.getIntExtra("scale", 100)
+                val batteryPct = level * 100 / scale
+                val charging = intent.getIntExtra(
+                    BatteryManager.EXTRA_STATUS,
+                    -1
+                ) == BatteryManager.BATTERY_STATUS_CHARGING
+                if (ServiceManager.getService()?.widgetMobileBatteryEnabled == true) {
+                    val appWidgetManager = AppWidgetManager.getInstance(context)
+                    val componentName = ComponentName(context!!, BatteryWidget::class.java)
+                    val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
+                    val remoteViews = RemoteViews(context.packageName, R.layout.battery_widget)
+                    remoteViews.setTextViewText(R.id.phone_battery_widget, "$batteryPct%")
+                    remoteViews.setProgressBar(R.id.phone_battery_progress, 100, batteryPct, false)
+
+                    appWidgetManager.updateAppWidget(widgetIds, remoteViews)
+                }
+            } else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
                 try {
                     context?.unregisterReceiver(this)
                 } catch (e: Exception) {
@@ -315,35 +246,12 @@ class AirPodsService: Service() {
             }
         }
     }
-    val phoneBatteryIntentFilter = IntentFilter().apply {
-        addAction(Intent.ACTION_BATTERY_CHANGED)
-        addAction(AirPodsNotifications.DISCONNECT_RECEIVERS)
-    }
+
     fun setPhoneBatteryInWidget(enabled: Boolean) {
         widgetMobileBatteryEnabled = enabled
-        if (enabled) {
-            try {
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                    registerReceiver(
-                        PhoneBatteryReceiver,
-                        phoneBatteryIntentFilter,
-                        RECEIVER_EXPORTED
-                    )
-                } else {
-                    registerReceiver(PhoneBatteryReceiver, phoneBatteryIntentFilter)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        } else {
-            try {
-                unregisterReceiver(PhoneBatteryReceiver)
-            } catch (e: Exception) {
-                e.printStackTrace()
-            }
-        }
         updateBatteryWidget()
     }
+
     @SuppressLint("MissingPermission")
     fun scanForAirPods(bluetoothAdapter: BluetoothAdapter): Flow<List<ScanResult>> = callbackFlow {
         val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
@@ -392,7 +300,10 @@ class AirPodsService: Service() {
 
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            this,
+            0,
+            notificationIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification = NotificationCompat.Builder(this, "background_service_status")
@@ -434,15 +345,22 @@ class AirPodsService: Service() {
         )
     }
 
+    @OptIn(ExperimentalMaterial3Api::class)
     fun updateBatteryWidget() {
         val appWidgetManager = AppWidgetManager.getInstance(this)
         val componentName = ComponentName(this, BatteryWidget::class.java)
         val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
 
         val remoteViews = RemoteViews(packageName, R.layout.battery_widget).also {
-            val leftBattery = batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT }
-            val rightBattery = batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT }
-            val caseBattery = batteryNotification.getBattery().find { it.component == BatteryComponent.CASE }
+            val openActivityIntent = PendingIntent.getActivity(this, 0, Intent(this, MainActivity::class.java), PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE)
+            it.setOnClickPendingIntent(R.id.battery_widget, openActivityIntent)
+
+            val leftBattery =
+                batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT }
+            val rightBattery =
+                batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT }
+            val caseBattery =
+                batteryNotification.getBattery().find { it.component == BatteryComponent.CASE }
 
             it.setTextViewText(
                 R.id.left_battery_widget,
@@ -501,8 +419,10 @@ class AirPodsService: Service() {
             )
             if (widgetMobileBatteryEnabled) {
                 val batteryManager = getSystemService<BatteryManager>(BatteryManager::class.java)
-                val batteryLevel = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
-                val charging = batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS) == BatteryManager.BATTERY_STATUS_CHARGING
+                val batteryLevel =
+                    batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_CAPACITY)
+                val charging =
+                    batteryManager.getIntProperty(BatteryManager.BATTERY_PROPERTY_STATUS) == BatteryManager.BATTERY_STATUS_CHARGING
                 it.setTextViewText(
                     R.id.phone_battery_widget,
                     "$batteryLevel%"
@@ -522,40 +442,105 @@ class AirPodsService: Service() {
         appWidgetManager.updateAppWidget(widgetIds, remoteViews)
     }
 
+    fun updateNoiseControlWidget() {
+        val appWidgetManager = AppWidgetManager.getInstance(this)
+        val componentName = ComponentName(this, NoiseControlWidget::class.java)
+        val widgetIds = appWidgetManager.getAppWidgetIds(componentName)
+        val remoteViews = RemoteViews(packageName, R.layout.noise_control_widget).also {
+            val ancStatus = ancNotification.status
+            it.setInt(
+                R.id.widget_off_button,
+                "setBackgroundResource",
+                if (ancStatus == 1) R.drawable.widget_button_checked_shape_start else R.drawable.widget_button_shape_start
+            )
+            it.setInt(
+                R.id.widget_transparency_button,
+                "setBackgroundResource",
+                if (ancStatus == 3) (if (sharedPreferences.getBoolean("off_listening_mode", true)) R.drawable.widget_button_checked_shape_middle else R.drawable.widget_button_checked_shape_start) else (if (sharedPreferences.getBoolean("off_listening_mode", true)) R.drawable.widget_button_shape_middle else R.drawable.widget_button_shape_start)
+            )
+            it.setInt(
+                R.id.widget_adaptive_button,
+                "setBackgroundResource",
+                if (ancStatus == 4) R.drawable.widget_button_checked_shape_middle else R.drawable.widget_button_shape_middle
+            )
+            it.setInt(
+                R.id.widget_anc_button,
+                "setBackgroundResource",
+                if (ancStatus == 2) R.drawable.widget_button_checked_shape_end else R.drawable.widget_button_shape_end
+            )
+            it.setViewVisibility(
+                R.id.widget_off_button,
+                if (sharedPreferences.getBoolean("off_listening_mode", true)) View.VISIBLE else View.GONE
+            )
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                it.setViewLayoutMargin(
+                    R.id.widget_transparency_button,
+                    RemoteViews.MARGIN_START,
+                    if (sharedPreferences.getBoolean("off_listening_mode", true)) 2f else 12f,
+                    TypedValue.COMPLEX_UNIT_DIP
+                )
+            } else {
+                it.setViewPadding(
+                    R.id.widget_transparency_button,
+                    if (sharedPreferences.getBoolean("off_listening_mode", true)) 2.dpToPx() else 12.dpToPx(),
+                    12.dpToPx(),
+                    2.dpToPx(),
+                    12.dpToPx()
+                )
+            }
+        }
+
+        appWidgetManager.updateAppWidget(widgetIds, remoteViews)
+    }
+
     @OptIn(ExperimentalMaterial3Api::class)
-    fun updateNotificationContent(connected: Boolean, airpodsName: String? = null, batteryList: List<Battery>? = null) {
+    fun updateNotificationContent(
+        connected: Boolean,
+        airpodsName: String? = null,
+        batteryList: List<Battery>? = null
+    ) {
         val notificationManager = getSystemService(NotificationManager::class.java)
         var updatedNotification: Notification? = null
 
         val notificationIntent = Intent(this, MainActivity::class.java)
         val pendingIntent = PendingIntent.getActivity(
-            this, 0, notificationIntent, PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+            this,
+            0,
+            notificationIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         if (connected) {
             updatedNotification = NotificationCompat.Builder(this, "background_service_status")
                 .setSmallIcon(R.drawable.airpods)
                 .setContentTitle(airpodsName)
-                .setContentText("""${batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "L: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
-                } ?: ""} ${batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "R: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
-                } ?: ""} ${batteryList?.find { it.component == BatteryComponent.CASE }?.let {
-                    if (it.status != BatteryStatus.DISCONNECTED) {
-                        "Case: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
-                    } else {
-                        ""
-                    }
-                } ?: ""}""")
-                    .setContentIntent(pendingIntent)
+                .setContentText(
+                    """${
+                        batteryList?.find { it.component == BatteryComponent.LEFT }?.let {
+                            if (it.status != BatteryStatus.DISCONNECTED) {
+                                "L: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                            } else {
+                                ""
+                            }
+                        } ?: ""
+                    } ${
+                        batteryList?.find { it.component == BatteryComponent.RIGHT }?.let {
+                            if (it.status != BatteryStatus.DISCONNECTED) {
+                                "R: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                            } else {
+                                ""
+                            }
+                        } ?: ""
+                    } ${
+                        batteryList?.find { it.component == BatteryComponent.CASE }?.let {
+                            if (it.status != BatteryStatus.DISCONNECTED) {
+                                "Case: ${if (it.status == BatteryStatus.CHARGING) "⚡" else ""} ${it.level}%"
+                            } else {
+                                ""
+                            }
+                        } ?: ""
+                    }""")
+                .setContentIntent(pendingIntent)
                 .setCategory(Notification.CATEGORY_SERVICE)
                 .setPriority(NotificationCompat.PRIORITY_LOW)
                 .setOngoing(true)
@@ -583,10 +568,12 @@ class AirPodsService: Service() {
         Log.d("AirPodsService", "Service started")
         ServiceManager.setService(this)
         startForegroundNotification()
-        
+
         Log.d("AirPodsService", "Initializing CrossDevice")
         CrossDevice.init(this)
         Log.d("AirPodsService", "CrossDevice initialized")
+
+        sharedPreferences = getSharedPreferences("settings", MODE_PRIVATE)
 
         val serviceIntentFilter = IntentFilter().apply {
             addAction("android.bluetooth.device.action.ACL_CONNECTED")
@@ -601,7 +588,7 @@ class AirPodsService: Service() {
             addAction("android.bluetooth.a2dp.profile.action.PLAYING_STATE_CHANGED")
         }
 
-        connectionReceiver = object: BroadcastReceiver() {
+        connectionReceiver = object : BroadcastReceiver() {
             override fun onReceive(context: Context?, intent: Intent?) {
                 if (intent?.action == AirPodsNotifications.Companion.AIRPODS_CONNECTION_DETECTED) {
                     device = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -611,9 +598,12 @@ class AirPodsService: Service() {
                     }
                     val name = this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE)
                         .getString("name", device?.name)
-                    if (this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).getString("name", null) == null) {
+                    if (this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE)
+                            .getString("name", null) == null
+                    ) {
                         this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE).edit {
-                            putString("name", name)}
+                            putString("name", name)
+                        }
                     }
                     Log.d("AirPodsQuickSwitchServices", CrossDevice.isAvailable.toString())
                     if (!CrossDevice.checkAirPodsConnectionStatus()) {
@@ -622,7 +612,11 @@ class AirPodsService: Service() {
                         connectToSocket(device!!)
                         isConnectedLocally = true
                         macAddress = device!!.address
-                        updateNotificationContent(true, name.toString(), batteryNotification.getBattery())
+                        updateNotificationContent(
+                            true,
+                            name.toString(),
+                            batteryNotification.getBattery()
+                        )
                     }
                 } else if (intent?.action == AirPodsNotifications.Companion.AIRPODS_DISCONNECTED) {
                     device = null
@@ -647,14 +641,11 @@ class AirPodsService: Service() {
             registerReceiver(bluetoothReceiver, serviceIntentFilter)
         }
 
-        widgetMobileBatteryEnabled = getSharedPreferences("settings", MODE_PRIVATE).getBoolean("show_phone_battery_in_widget", true)
-        if (widgetMobileBatteryEnabled) {
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-                registerReceiver(PhoneBatteryReceiver, phoneBatteryIntentFilter, RECEIVER_EXPORTED)
-            } else {
-                registerReceiver(PhoneBatteryReceiver, phoneBatteryIntentFilter)
-            }
-        }
+        widgetMobileBatteryEnabled = getSharedPreferences("settings", MODE_PRIVATE).getBoolean(
+            "show_phone_battery_in_widget",
+            true
+        )
+
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
         if (bluetoothAdapter.isEnabled) {
             CoroutineScope(Dispatchers.IO).launch {
@@ -663,10 +654,12 @@ class AirPodsService: Service() {
                     scanResults.forEach { scanResult ->
                         val device = scanResult.device
                         device.fetchUuidsWithSdp()
-                        val manufacturerData = scanResult.scanRecord?.manufacturerSpecificData?.get(0x004C)
+                        val manufacturerData =
+                            scanResult.scanRecord?.manufacturerSpecificData?.get(0x004C)
                         if (manufacturerData != null && manufacturerData != lastData) {
                             lastData = manufacturerData
-                            val formattedHex = manufacturerData.joinToString(" ") { "%02X".format(it) }
+                            val formattedHex =
+                                manufacturerData.joinToString(" ") { "%02X".format(it) }
                             val rssi = scanResult.rssi
                             Log.d(
                                 "AirPodsBLEService",
@@ -680,8 +673,7 @@ class AirPodsService: Service() {
 
         bluetoothAdapter.bondedDevices.forEach { device ->
             device.fetchUuidsWithSdp()
-            if (device.uuids != null)
-            {
+            if (device.uuids != null) {
                 if (device.uuids.contains(ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
                     bluetoothAdapter.getProfileProxy(
                         this,
@@ -720,7 +712,10 @@ class AirPodsService: Service() {
 
     fun manuallyCheckForAudioSource() {
         if (earDetectionNotification.status[0] != 0.toByte() && earDetectionNotification.status[1] != 0.toByte()) {
-            Log.d("AirPodsService", "For some reason, Android connected to the audio profile itself even after disconnecting. Disconnecting audio profile again!")
+            Log.d(
+                "AirPodsService",
+                "For some reason, Android connected to the audio profile itself even after disconnecting. Disconnecting audio profile again!"
+            )
             disconnectAudio(this, device)
         }
     }
@@ -806,7 +801,13 @@ class AirPodsService: Service() {
                             socket.let {
                                 val audioManager =
                                     this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
-                                MediaController.initialize(audioManager, this@AirPodsService.getSharedPreferences("settings", MODE_PRIVATE))
+                                MediaController.initialize(
+                                    audioManager,
+                                    this@AirPodsService.getSharedPreferences(
+                                        "settings",
+                                        MODE_PRIVATE
+                                    )
+                                )
                                 val buffer = ByteArray(1024)
                                 val bytesRead = it.inputStream.read(buffer)
                                 var data: ByteArray = byteArrayOf()
@@ -904,7 +905,10 @@ class AirPodsService: Service() {
                                                         true
                                                     )
                                                 ) {
-                                                    Log.d("AirPods Parser", "User put in both AirPods from just one.")
+                                                    Log.d(
+                                                        "AirPods Parser",
+                                                        "User put in both AirPods from just one."
+                                                    )
                                                     MediaController.userPlayedTheMedia = false
                                                 }
                                                 if (newInEarData.contains(false) && inEarData == listOf(
@@ -912,7 +916,10 @@ class AirPodsService: Service() {
                                                         true
                                                     )
                                                 ) {
-                                                    Log.d("AirPods Parser", "User took one of two out.")
+                                                    Log.d(
+                                                        "AirPods Parser",
+                                                        "User took one of two out."
+                                                    )
                                                     MediaController.userPlayedTheMedia = false
                                                 }
 
@@ -924,7 +931,10 @@ class AirPodsService: Service() {
                                                     Log.d("AirPods Parser", "hi")
                                                     return
                                                 }
-                                                Log.d("AirPods Parser", "this shouldn't be run if the last log was 'hi'.")
+                                                Log.d(
+                                                    "AirPods Parser",
+                                                    "this shouldn't be run if the last log was 'hi'."
+                                                )
 
                                                 inEarData = newInEarData
 
@@ -935,7 +945,7 @@ class AirPodsService: Service() {
                                                         MediaController.iPausedTheMedia = false
                                                     }
                                                 } else {
-                                                        MediaController.sendPause()
+                                                    MediaController.sendPause()
                                                 }
                                             }
                                         }
@@ -958,9 +968,8 @@ class AirPodsService: Service() {
                                     CrossDevice.sendRemotePacket(data)
                                     CrossDevice.ancBytes = data
                                     ancNotification.setStatus(data)
-                                    sendBroadcast(Intent(AirPodsNotifications.Companion.ANC_DATA).apply {
-                                        putExtra("data", ancNotification.status)
-                                    })
+                                    sendANCBroadcast()
+                                    updateNoiseControlWidget()
                                     Log.d("AirPods Parser", "ANC: ${ancNotification.status}")
                                 } else if (batteryNotification.isBatteryData(data)) {
                                     CrossDevice.sendRemotePacket(data)
@@ -992,15 +1001,6 @@ class AirPodsService: Service() {
                                     } else {
                                         connectAudio(this@AirPodsService, device)
                                     }
-//                                    setBatteryLevels(
-//                                        batteryNotification.getBattery()[0].status == 1,
-//                                        batteryNotification.getBattery()[0].level,
-//                                        batteryNotification.getBattery()[1].status == 1,
-//                                        batteryNotification.getBattery()[1].level,
-//                                        batteryNotification.getBattery()[2].status == 1,
-//                                        batteryNotification.getBattery()[2].level,
-//                                        device
-//                                    )
                                 } else if (conversationAwarenessNotification.isConversationalAwarenessData(
                                         data
                                     )
@@ -1090,12 +1090,15 @@ class AirPodsService: Service() {
             1 -> {
                 sendPacket(Enums.NOISE_CANCELLATION_OFF.value)
             }
+
             2 -> {
                 sendPacket(Enums.NOISE_CANCELLATION_ON.value)
             }
+
             3 -> {
                 sendPacket(Enums.NOISE_CANCELLATION_TRANSPARENCY.value)
             }
+
             4 -> {
                 sendPacket(Enums.NOISE_CANCELLATION_ADAPTIVE.value)
             }
@@ -1107,52 +1110,118 @@ class AirPodsService: Service() {
     }
 
     fun setOffListeningMode(enabled: Boolean) {
-        sendPacket(byteArrayOf(0x04, 0x00 ,0x04, 0x00, 0x09, 0x00, 0x34, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00))
+        sendPacket(
+            byteArrayOf(
+                0x04,
+                0x00,
+                0x04,
+                0x00,
+                0x09,
+                0x00,
+                0x34,
+                if (enabled) 0x01 else 0x02,
+                0x00,
+                0x00,
+                0x00
+            )
+        )
+        updateNoiseControlWidget()
     }
 
     fun setAdaptiveStrength(strength: Int) {
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x2E, strength.toByte(), 0x00, 0x00, 0x00)
+        val bytes =
+            byteArrayOf(
+                0x04,
+                0x00,
+                0x04,
+                0x00,
+                0x09,
+                0x00,
+                0x2E,
+                strength.toByte(),
+                0x00,
+                0x00,
+                0x00
+            )
         sendPacket(bytes)
     }
 
     fun setPressSpeed(speed: Int) {
         // 0x00 = default, 0x01 = slower, 0x02 = slowest
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x17, speed.toByte(), 0x00, 0x00, 0x00)
+        val bytes =
+            byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x17, speed.toByte(), 0x00, 0x00, 0x00)
         sendPacket(bytes)
     }
 
     fun setPressAndHoldDuration(speed: Int) {
         // 0 - default, 1 - slower, 2 - slowest
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x18, speed.toByte(), 0x00, 0x00, 0x00)
+        val bytes =
+            byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x18, speed.toByte(), 0x00, 0x00, 0x00)
         sendPacket(bytes)
     }
 
     fun setVolumeSwipeSpeed(speed: Int) {
         // 0 - default, 1 - longer, 2 - longest
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x23, speed.toByte(), 0x00, 0x00, 0x00)
-        Log.d("AirPodsService", "Setting volume swipe speed to $speed by packet ${bytes.joinToString(" ") { "%02X".format(it) }}")
+        val bytes =
+            byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x23, speed.toByte(), 0x00, 0x00, 0x00)
+        Log.d(
+            "AirPodsService",
+            "Setting volume swipe speed to $speed by packet ${
+                bytes.joinToString(" ") {
+                    "%02X".format(
+                        it
+                    )
+                }
+            }"
+        )
         sendPacket(bytes)
     }
 
     fun setNoiseCancellationWithOnePod(enabled: Boolean) {
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x1B, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00)
+        val bytes = byteArrayOf(
+            0x04,
+            0x00,
+            0x04,
+            0x00,
+            0x09,
+            0x00,
+            0x1B,
+            if (enabled) 0x01 else 0x02,
+            0x00,
+            0x00,
+            0x00
+        )
         sendPacket(bytes)
     }
 
     fun setVolumeControl(enabled: Boolean) {
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x25, if (enabled) 0x01 else 0x02, 0x00, 0x00, 0x00)
+        val bytes = byteArrayOf(
+            0x04,
+            0x00,
+            0x04,
+            0x00,
+            0x09,
+            0x00,
+            0x25,
+            if (enabled) 0x01 else 0x02,
+            0x00,
+            0x00,
+            0x00
+        )
         sendPacket(bytes)
     }
 
     fun setToneVolume(volume: Int) {
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x1F, volume.toByte(), 0x50, 0x00, 0x00)
+        val bytes =
+            byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x09, 0x00, 0x1F, volume.toByte(), 0x50, 0x00, 0x00)
         sendPacket(bytes)
     }
 
     val earDetectionNotification = AirPodsNotifications.EarDetection()
     val ancNotification = AirPodsNotifications.ANC()
     val batteryNotification = AirPodsNotifications.BatteryNotification()
-    val conversationAwarenessNotification = AirPodsNotifications.ConversationalAwarenessNotification()
+    val conversationAwarenessNotification =
+        AirPodsNotifications.ConversationalAwarenessNotification()
 
     var earDetectionEnabled = true
 
@@ -1180,7 +1249,8 @@ class AirPodsService: Service() {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                 if (profile == BluetoothProfile.A2DP) {
                     try {
-                        val method = proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
+                        val method =
+                            proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
                         method.invoke(proxy, device)
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -1190,14 +1260,15 @@ class AirPodsService: Service() {
                 }
             }
 
-            override fun onServiceDisconnected(profile: Int) { }
+            override fun onServiceDisconnected(profile: Int) {}
         }, BluetoothProfile.A2DP)
 
         bluetoothAdapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                 if (profile == BluetoothProfile.HEADSET) {
                     try {
-                        val method = proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
+                        val method =
+                            proxy.javaClass.getMethod("disconnect", BluetoothDevice::class.java)
                         method.invoke(proxy, device)
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -1207,7 +1278,7 @@ class AirPodsService: Service() {
                 }
             }
 
-            override fun onServiceDisconnected(profile: Int) { }
+            override fun onServiceDisconnected(profile: Int) {}
         }, BluetoothProfile.HEADSET)
     }
 
@@ -1218,7 +1289,8 @@ class AirPodsService: Service() {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                 if (profile == BluetoothProfile.A2DP) {
                     try {
-                        val method = proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
+                        val method =
+                            proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
                         method.invoke(proxy, device)
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -1228,14 +1300,15 @@ class AirPodsService: Service() {
                 }
             }
 
-            override fun onServiceDisconnected(profile: Int) { }
+            override fun onServiceDisconnected(profile: Int) {}
         }, BluetoothProfile.A2DP)
 
         bluetoothAdapter?.getProfileProxy(context, object : BluetoothProfile.ServiceListener {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
                 if (profile == BluetoothProfile.HEADSET) {
                     try {
-                        val method = proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
+                        val method =
+                            proxy.javaClass.getMethod("connect", BluetoothDevice::class.java)
                         method.invoke(proxy, device)
                     } catch (e: Exception) {
                         e.printStackTrace()
@@ -1245,14 +1318,16 @@ class AirPodsService: Service() {
                 }
             }
 
-            override fun onServiceDisconnected(profile: Int) { }
+            override fun onServiceDisconnected(profile: Int) {}
         }, BluetoothProfile.HEADSET)
     }
 
     fun setName(name: String) {
         val nameBytes = name.toByteArray()
-        val bytes = byteArrayOf(0x04, 0x00, 0x04, 0x00, 0x1a, 0x00, 0x01,
-            nameBytes.size.toByte(), 0x00) + nameBytes
+        val bytes = byteArrayOf(
+            0x04, 0x00, 0x04, 0x00, 0x1a, 0x00, 0x01,
+            nameBytes.size.toByte(), 0x00
+        ) + nameBytes
         sendPacket(bytes)
         val hex = bytes.joinToString(" ") { "%02X".format(it) }
         updateNotificationContent(true, name, batteryNotification.getBattery())
@@ -1263,7 +1338,8 @@ class AirPodsService: Service() {
         var hex = "04 00 04 00 09 00 26 ${if (enabled) "01" else "02"} 00 00 00"
         var bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         sendPacket(bytes)
-        hex = "04 00 04 00 17 00 00 00 10 00 12 00 08 E${if (enabled) "6" else "5"} 05 10 02 42 0B 08 50 10 02 1A 05 02 ${if (enabled) "32" else "00"} 00 00 00"
+        hex =
+            "04 00 04 00 17 00 00 00 10 00 12 00 08 E${if (enabled) "6" else "5"} 05 10 02 42 0B 08 50 10 02 1A 05 02 ${if (enabled) "32" else "00"} 00 00 00"
         bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         sendPacket(bytes)
     }
@@ -1273,6 +1349,7 @@ class AirPodsService: Service() {
         val bytes = hex.split(" ").map { it.toInt(16).toByte() }.toByteArray()
         sendPacket(bytes)
     }
+
     fun findChangedIndex(oldArray: BooleanArray, newArray: BooleanArray): Int {
         for (i in oldArray.indices) {
             if (oldArray[i] != newArray[i]) {
@@ -1281,7 +1358,12 @@ class AirPodsService: Service() {
         }
         throw IllegalArgumentException("No element has changed")
     }
-    fun updateLongPress(oldLongPressArray: BooleanArray, newLongPressArray: BooleanArray, offListeningMode: Boolean) {
+
+    fun updateLongPress(
+        oldLongPressArray: BooleanArray,
+        newLongPressArray: BooleanArray,
+        offListeningMode: Boolean
+    ) {
         if (oldLongPressArray.contentEquals(newLongPressArray)) {
             return
         }
@@ -1391,6 +1473,7 @@ class AirPodsService: Service() {
                         LongPressPackets.DISABLE_ANC_OFF_DISABLED.value
                     }
                 }
+
                 2 -> {
                     packet = if (newLongPressArray[2]) {
                         LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
@@ -1398,6 +1481,7 @@ class AirPodsService: Service() {
                         LongPressPackets.DISABLE_TRANSPARENCY_OFF_DISABLED.value
                     }
                 }
+
                 3 -> {
                     packet = if (newLongPressArray[3]) {
                         LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
@@ -1439,4 +1523,9 @@ class AirPodsService: Service() {
         }
         super.onDestroy()
     }
+}
+
+private fun Int.dpToPx(): Int {
+    val density = Resources.getSystem().displayMetrics.density
+    return (this * density).toInt()
 }
