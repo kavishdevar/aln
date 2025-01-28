@@ -19,8 +19,8 @@ Check out the README file in [linux](/linux) folder for more info.
 
 This tray app communicates with a daemon with the help of a UNIX socket. The daemon is responsible for the actual communication with the AirPods. The tray app is just a frontend for the daemon, that does ear-detection, conversational awareness, setting the noise-cancellation mode, and more.
 
-![Tray Battery App](/linux/imgs/tray-icon-hover.png)
-![Tray Noise Control Mode Menu](/linux/imgs/tray-icon-menu.png)
+![Tray Battery App](/linux.old/imgs/tray-icon-hover.png)
+![Tray Noise Control Mode Menu](/linux.old/imgs/tray-icon-menu.png)
 
 ## Android
 
@@ -29,6 +29,9 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 **No, it's not possible to use aln without root.** You will have to root your device if you want to use aln, and there is no way around it. **No exceptions.**
 
 ### Screenshots
+
+Check out the new animations and transitions in the app!
+![Transitions](/android/imgs/transitions.mp4)
 
 | | | |
 |-------------------|-------------------|-------------------|
@@ -43,7 +46,7 @@ Currently, there's a [bug in the Android Bluetooth stack](https://issuetracker.g
 > [!CAUTION]
 > Until Google merges the fix **you will only be able to use aln if you are rooted**. There are **no exceptions**, don't ask about it.
 
-In order to use aln you will have to install the module using your favorite root manager in OverlayFS mode (KernelSU, Apatch, or Magisk). If you don't know what this means, no support is provided: you will have to search by yourself on Google or ask in some Android rooting communities on Telegram.
+In order to use aln you will have to install the module using your favorite root manager in OverlayFS mode (KernelSU, Apatch, or Magisk). If you don't know what this means, no support is provided: you will have to search by yourself on Google or ask in some Android rooting communities on Telegram. 
 
 The module to install is available in the releases section under the name `btl2capfix.zip`.
 
