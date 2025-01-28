@@ -32,9 +32,7 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 Check out the new animations and transitions in the app!
 
-
-https://github.com/user-attachments/assets/d41b3ef2-9f5f-4c47-9dfa-33d82384664a
-
+https://github.com/user-attachments/assets/eb7eebc2-fecf-410d-a363-0a5fd3a7af30
 
 | | | |
 |-------------------|-------------------|-------------------|
