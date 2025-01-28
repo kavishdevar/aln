@@ -31,7 +31,8 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 ### Screenshots
 
 Check out the new animations and transitions in the app!
-![Transitions](/android/imgs/transitions.mp4)
+
+https://github.com/kavishdevar/aln/raw/refs/heads/main/android/imgs/transitions.mp4
 
 | | | |
 |-------------------|-------------------|-------------------|
