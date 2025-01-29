@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -34,6 +34,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -41,6 +42,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -50,6 +54,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -74,6 +79,7 @@ import dev.chrisbanes.haze.haze
 import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
+import kotlinx.coroutines.launch
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.composables.AccessibilitySettings
 import me.kavishdevar.aln.composables.AudioSettings
@@ -117,9 +123,19 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
         }
     }
 
-
     val verticalScrollState  = rememberScrollState()
     val hazeState = remember { HazeState() }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
+
+    fun showSnackbar(message: String) {
+        coroutineScope.launch {
+            snackbarHostState.showSnackbar(
+                message = message,
+                duration = SnackbarDuration.Short
+            )
+        }
+    }
 
     @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter")
     Scaffold(
@@ -131,47 +147,48 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
         topBar = {
             val darkMode = isSystemInDarkTheme()
             val mDensity = remember { mutableFloatStateOf(1f) }
-                CenterAlignedTopAppBar(
-                    title = {
-                        Text(
-                            text = deviceName.text,
-                            style = TextStyle(
-                                fontSize = 20.sp,
-                                fontWeight = FontWeight.Medium,
-                                color = if (darkMode) Color.White else Color.Black,
-                                fontFamily = FontFamily(Font(R.font.sf_pro))
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = deviceName.text,
+                        style = TextStyle(
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = if (darkMode) Color.White else Color.Black,
+                            fontFamily = FontFamily(Font(R.font.sf_pro))
+                        )
+                    )
+                },
+                modifier = Modifier
+                    .hazeChild(
+                        state = hazeState,
+                        style = CupertinoMaterials.thick(),
+                        block = {
+                            alpha =
+                                if (verticalScrollState.value > 60.dp.value * mDensity.floatValue) 1f else 0f
+                        }
+                    )
+                    .drawBehind {
+                        mDensity.floatValue = density
+                        val strokeWidth = 0.7.dp.value * density
+                        val y = size.height - strokeWidth / 2
+                        if (verticalScrollState.value > 60.dp.value * density) {
+                            drawLine(
+                                if (darkMode) Color.DarkGray else Color.LightGray,
+                                Offset(0f, y),
+                                Offset(size.width, y),
+                                strokeWidth
                             )
-                        )
+                        }
                     },
-                    modifier = Modifier
-                        .hazeChild(
-                            state = hazeState,
-                            style = CupertinoMaterials.thick(),
-                            block = {
-                                alpha =
-                                    if (verticalScrollState.value > 55.dp.value * mDensity.floatValue) 1f else 0f
-                            }
-                        )
-                        .drawBehind {
-                            mDensity.floatValue = density
-                            val strokeWidth = 0.7.dp.value * density
-                            val y = size.height - strokeWidth / 2
-                            if (verticalScrollState.value > 55.dp.value * density) {
-                                drawLine(
-                                    if (darkMode) Color.DarkGray else Color.LightGray,
-                                    Offset(0f, y),
-                                    Offset(size.width, y),
-                                    strokeWidth
-                                )
-                            }
-                        },
-                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
-                        containerColor = Color.Transparent
-                    ),
-                    actions = {
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = Color.Transparent
+                ),
+                actions = {
+                    if (isRemotelyConnected) {
                         IconButton(
                             onClick = {
-                                navController.navigate("app_settings")
+                                showSnackbar("Connected remotely to AirPods via Linux.")
                             },
                             colors = IconButtonDefaults.iconButtonColors(
                                 containerColor = Color.Transparent,
@@ -179,13 +196,29 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                             )
                         ) {
                             Icon(
-                                imageVector = Icons.Default.Settings,
-                                contentDescription = "Settings",
+                                imageVector = Icons.Default.Info,
+                                contentDescription = "Info",
                             )
                         }
                     }
-                )
-        }
+                    IconButton(
+                        onClick = {
+                            navController.navigate("app_settings")
+                        },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = Color.Transparent,
+                            contentColor = if (isSystemInDarkTheme()) Color.White else Color.Black
+                        )
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Settings,
+                            contentDescription = "Settings",
+                        )
+                    }
+                }
+            )
+        },
+        snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { paddingValues ->
         if (isConnected == true || isRemotelyConnected == true) {
             Column(
