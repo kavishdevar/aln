@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -44,7 +44,7 @@ import kotlinx.coroutines.launch
 import me.kavishdevar.aln.R
 
 @SuppressLint("InflateParams", "ClickableViewAccessibility")
-class Window (context: Context) {
+class PopupWindow(context: Context) {
     private val mView: View
 
     @Suppress("DEPRECATION")
@@ -56,12 +56,11 @@ class Window (context: Context) {
         gravity = Gravity.BOTTOM
         dimAmount = 0.3f
         flags = WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-                WindowManager.LayoutParams.FLAG_FULLSCREEN or
-                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-                WindowManager.LayoutParams.FLAG_DIM_BEHIND or
-                WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+            WindowManager.LayoutParams.FLAG_FULLSCREEN or
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+            WindowManager.LayoutParams.FLAG_DIM_BEHIND or
+            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
     }
-
 
     private val mWindowManager: WindowManager
 
@@ -72,14 +71,13 @@ class Window (context: Context) {
         mParams.y = 0
 
         mParams.gravity = Gravity.BOTTOM
-        mView.setOnClickListener(View.OnClickListener {
+        mView.setOnClickListener {
             close()
-        })
+        }
 
-        mView.findViewById<ImageButton>(R.id.close_button)
-            .setOnClickListener {
-                close()
-            }
+        mView.findViewById<ImageButton>(R.id.close_button).setOnClickListener {
+            close()
+        }
 
         val ll = mView.findViewById<LinearLayout>(R.id.linear_layout)
         ll.setOnClickListener {
@@ -88,11 +86,11 @@ class Window (context: Context) {
 
         @Suppress("DEPRECATION")
         mView.systemUiVisibility = View.SYSTEM_UI_FLAG_LAYOUT_STABLE or
-                View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
-                View.SYSTEM_UI_FLAG_FULLSCREEN or
-                View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN or
+            View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or
+            View.SYSTEM_UI_FLAG_FULLSCREEN or
+            View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
 
         mView.setOnTouchListener { _, event ->
             if (event.action == MotionEvent.ACTION_DOWN) {
@@ -116,7 +114,6 @@ class Window (context: Context) {
         try {
             if (mView.windowToken == null) {
                 if (mView.parent == null) {
-                    // Add the view initially off-screen
                     mWindowManager.addView(mView, mParams)
                     mView.findViewById<TextView>(R.id.name).text = name
                     val vid = mView.findViewById<VideoView>(R.id.video)
@@ -143,14 +140,13 @@ class Window (context: Context) {
                         "\uDBC3\uDE6C    ${it.level}%"
                     } ?: ""
 
-                    // Slide-up animation
                     val displayMetrics = mView.context.resources.displayMetrics
                     val screenHeight = displayMetrics.heightPixels
 
-                    mView.translationY = screenHeight.toFloat()  // Start below the screen
+                    mView.translationY = screenHeight.toFloat()
                     ObjectAnimator.ofFloat(mView, "translationY", 0f).apply {
-                        duration = 500  // Animation duration in milliseconds
-                        interpolator = DecelerateInterpolator()  // Smooth deceleration
+                        duration = 500
+                        interpolator = DecelerateInterpolator()
                         start()
                     }
 
@@ -168,8 +164,8 @@ class Window (context: Context) {
     fun close() {
         try {
             ObjectAnimator.ofFloat(mView, "translationY", mView.height.toFloat()).apply {
-                duration = 500  // Animation duration in milliseconds
-                interpolator = AccelerateInterpolator()  // Smooth acceleration
+                duration = 500
+                interpolator = AccelerateInterpolator()
                 addListener(object : AnimatorListenerAdapter() {
                     override fun onAnimationEnd(animation: Animator) {
                         try {

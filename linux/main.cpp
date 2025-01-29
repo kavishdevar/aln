@@ -39,7 +39,6 @@ Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
 
 #define PHONE_MAC_ADDRESS "22:22:F5:BB:1C:A0"
 
-// Define Manufacturer Specific Data Identifier
 #define MANUFACTURER_ID 0x1234
 #define MANUFACTURER_DATA "ALN_AirPods"
 
@@ -92,7 +91,7 @@ public:
         connect(trayIcon, &QSystemTrayIcon::activated, this, &AirPodsTrayApp::onTrayIconActivated);
 
         discoveryAgent = new QBluetoothDeviceDiscoveryAgent();
-        discoveryAgent->setLowEnergyDiscoveryTimeout(5000);
+        discoveryAgent->setLowEnergyDiscoveryTimeout(15000);
 
         connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered, this, &AirPodsTrayApp::onDeviceDiscovered);
         connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::finished, this, &AirPodsTrayApp::onDiscoveryFinished);
@@ -114,12 +113,10 @@ public:
         initializeMprisInterface();
         connect(phoneSocket, &QBluetoothSocket::readyRead, this, &AirPodsTrayApp::onPhoneDataReceived);
 
-        // After starting discovery, check if service record exists
         QDBusInterface iface("org.bluez", "/org/bluez", "org.bluez.Adapter1");
         QDBusReply<QVariant> reply = iface.call("GetServiceRecords", QString::fromUtf8("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         if (reply.isValid()) {
             LOG_INFO("Service record found, proceeding with connection");
-            // Proceed with existing connection logic
         } else {
             LOG_WARN("Service record not found, waiting for BLE broadcast");
         }
@@ -236,7 +233,7 @@ public slots:
         bool secondaryInEar = parts[1].contains("In Ear");
 
         if (primaryInEar && secondaryInEar) {
-            if (wasPausedByApp) {
+            if (wasPausedByApp && isActiveOutputDeviceAirPods()) {
                 QProcess::execute("playerctl", QStringList() << "play");
                 LOG_INFO("Resumed playback via Playerctl");
                 wasPausedByApp = false;
@@ -245,15 +242,17 @@ public slots:
             activateA2dpProfile();
         } else {
             LOG_INFO("At least one AirPod is out of ear");
-            QProcess process;
-            process.start("playerctl", QStringList() << "status");
-            process.waitForFinished();
-            QString playbackStatus = process.readAllStandardOutput().trimmed();
-            LOG_DEBUG("Playback status: " << playbackStatus);
-            if (playbackStatus == "Playing") {
-                QProcess::execute("playerctl", QStringList() << "pause");
-                LOG_INFO("Paused playback via Playerctl");
-                wasPausedByApp = true;
+            if (isActiveOutputDeviceAirPods()) {
+                QProcess process;
+                process.start("playerctl", QStringList() << "status");
+                process.waitForFinished();
+                QString playbackStatus = process.readAllStandardOutput().trimmed();
+                LOG_DEBUG("Playback status: " << playbackStatus);
+                if (playbackStatus == "Playing") {
+                    QProcess::execute("playerctl", QStringList() << "pause");
+                    LOG_INFO("Paused playback via Playerctl");
+                    wasPausedByApp = true;
+                }
             }
             if (!primaryInEar && !secondaryInEar) {
                 removeAudioOutputDevice();
@@ -308,7 +307,6 @@ public slots:
         QByteArray manufacturerData = device.manufacturerData(MANUFACTURER_ID);
         if (manufacturerData.startsWith(MANUFACTURER_DATA)) {
             LOG_INFO("Detected AirPods via BLE manufacturer data");
-            // Initiate RFComm connection
             connectToDevice(device.address().toString());
         }
         LOG_INFO("Device discovered: " << device.name() << " (" << device.address().toString() << ")");
@@ -320,7 +318,6 @@ public slots:
 
     void onDiscoveryFinished() {
         LOG_INFO("Device discovery finished");
-        // Restart discovery to continuously listen for broadcasts
         discoveryAgent->start();
         const QList<QBluetoothDeviceInfo> discoveredDevices = discoveryAgent->discoveredDevices();
         for (const QBluetoothDeviceInfo &device : discoveredDevices) {
@@ -359,79 +356,70 @@ public slots:
             LOG_INFO("Already connected to the device: " << device.name());
             return;
         }
-    
-        LOG_INFO("Checking connection status with phone before connecting to device: " << device.name());
-        QByteArray connectionStatusRequest = QByteArray::fromHex("00020003");
-        if (phoneSocket && phoneSocket->isOpen()) {
-            phoneSocket->write(connectionStatusRequest);
-            LOG_DEBUG("Connection status request packet written: " << connectionStatusRequest.toHex());    
-            connect(phoneSocket, &QBluetoothSocket::readyRead, this, [this, device]() {
-                QByteArray data = phoneSocket->read(4);
-                LOG_DEBUG("Data received from phone: " << data.toHex());
-                if (data == QByteArray::fromHex("00010001")) {
-                    LOG_INFO("AirPods are already connected");
-                    disconnect(phoneSocket, &QBluetoothSocket::readyRead, nullptr, nullptr);
-                } else if (data == QByteArray::fromHex("00010000")) {
-                    LOG_INFO("AirPods are disconnected, proceeding with connection");
-                    disconnect(phoneSocket, &QBluetoothSocket::readyRead, nullptr, nullptr);
-    
-                    QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
-                    connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
-                        LOG_INFO("Connected to device, sending initial packets");
-                        discoveryAgent->stop();
-    
-                        QByteArray handshakePacket = QByteArray::fromHex("00000400010002000000000000000000");
-                        QByteArray setSpecificFeaturesPacket = QByteArray::fromHex("040004004d00ff00000000000000");
-                        QByteArray requestNotificationsPacket = QByteArray::fromHex("040004000f00ffffffffff");
-    
-                        qint64 bytesWritten = localSocket->write(handshakePacket);
-                        LOG_DEBUG("Handshake packet written: " << handshakePacket.toHex() << ", bytes written: " << bytesWritten);
-    
-                        QByteArray airpodsConnectedPacket = QByteArray::fromHex("000400010001");
-                        phoneSocket->write(airpodsConnectedPacket);
-                        LOG_DEBUG("AIRPODS_CONNECTED packet written: " << airpodsConnectedPacket.toHex());
-    
-                        connect(localSocket, &QBluetoothSocket::bytesWritten, this, [this, localSocket, setSpecificFeaturesPacket, requestNotificationsPacket](qint64 bytes) {
-                            LOG_INFO("Bytes written: " << bytes);
-                            if (bytes > 0) {
-                                static int step = 0;
-                                switch (step) {
-                                    case 0:
-                                        localSocket->write(setSpecificFeaturesPacket);
-                                        LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
-                                        step++;
-                                        break;
-                                    case 1:
-                                        localSocket->write(requestNotificationsPacket);
-                                        LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
-                                        step++;
-                                        break;
-                                }
-                            }
-                        });
-    
-                        connect(localSocket, &QBluetoothSocket::readyRead, this, [this, localSocket]() {
-                            QByteArray data = localSocket->readAll();
-                            LOG_DEBUG("Data received: " << data.toHex());
-                            parseData(data);
-                            relayPacketToPhone(data);
-                        });
-                    });
-    
-                    connect(localSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred), this, [this, localSocket](QBluetoothSocket::SocketError error) {
-                        LOG_ERROR("Socket error: " << error << ", " << localSocket->errorString());
-                    });
-    
-                    localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
-                    socket = localSocket;
-                    connectedDeviceMacAddress = device.address().toString().replace(":", "_");
+
+        LOG_INFO("Connecting to device: " << device.name());
+        QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol);
+        connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
+            LOG_INFO("Connected to device, sending initial packets");
+            discoveryAgent->stop();
+
+            QByteArray handshakePacket = QByteArray::fromHex("00000400010002000000000000000000");
+            QByteArray setSpecificFeaturesPacket = QByteArray::fromHex("040004004d00ff00000000000000");
+            QByteArray requestNotificationsPacket = QByteArray::fromHex("040004000f00ffffffffff");
+
+            qint64 bytesWritten = localSocket->write(handshakePacket);
+            LOG_DEBUG("Handshake packet written: " << handshakePacket.toHex() << ", bytes written: " << bytesWritten);
+            localSocket->write(setSpecificFeaturesPacket);
+            LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
+            localSocket->write(requestNotificationsPacket);
+            LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
+            connect(localSocket, &QBluetoothSocket::bytesWritten, this, [this, localSocket, setSpecificFeaturesPacket, requestNotificationsPacket](qint64 bytes) {
+                LOG_INFO("Bytes written: " << bytes);
+                if (bytes > 0) {
+                    static int step = 0;
+                    switch (step) {
+                        case 0:
+                            localSocket->write(setSpecificFeaturesPacket);
+                            LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
+                            step++;
+                            break;
+                        case 1:
+                            localSocket->write(requestNotificationsPacket);
+                            LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
+                            step++;
+                            break;
+                    }
                 }
             });
-        } else {
-            LOG_ERROR("Phone socket is not open, cannot send connection status request");
-        }
+
+            connect(localSocket, &QBluetoothSocket::readyRead, this, [this, localSocket]() {
+                QByteArray data = localSocket->readAll();
+                LOG_DEBUG("Data received: " << data.toHex());
+                QMetaObject::invokeMethod(this, "parseData", Qt::QueuedConnection, Q_ARG(QByteArray, data));
+                QMetaObject::invokeMethod(this, "relayPacketToPhone", Qt::QueuedConnection, Q_ARG(QByteArray, data));
+            });
+
+            QTimer::singleShot(500, this, [localSocket, setSpecificFeaturesPacket, requestNotificationsPacket]() {
+                if (localSocket->isOpen()) {
+                    localSocket->write(setSpecificFeaturesPacket);
+                    LOG_DEBUG("Resent set specific features packet: " << setSpecificFeaturesPacket.toHex());
+                    localSocket->write(requestNotificationsPacket);
+                    LOG_DEBUG("Resent request notifications packet: " << requestNotificationsPacket.toHex());
+                } else {
+                    LOG_WARN("Socket is not open, cannot resend packets");
+                }
+            });
+        });
+
+        connect(localSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred), this, [this, localSocket](QBluetoothSocket::SocketError error) {
+            LOG_ERROR("Socket error: " << error << ", " << localSocket->errorString());
+        });
+
+        localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
+        socket = localSocket;
+        connectedDeviceMacAddress = device.address().toString().replace(":", "_");
     }
-    
+
     void parseData(const QByteArray &data) {
         LOG_DEBUG("Parsing data: " << data.toHex() << "Size: " << data.size());
         if (data.size() == 11 && data.startsWith(QByteArray::fromHex("0400040009000D"))) {
@@ -474,7 +462,7 @@ public slots:
         LOG_INFO("Conversational awareness: " << (lowered ? "enabled" : "disabled"));
 
         if (lowered) {
-            if (initialVolume == -1) {
+            if (initialVolume == -1 && isActiveOutputDeviceAirPods()) {
                 QProcess process;
                 process.start("pactl", QStringList() << "get-sink-volume" << "@DEFAULT_SINK@");
                 process.waitForFinished();
@@ -492,12 +480,21 @@ public slots:
             QProcess::execute("pactl", QStringList() << "set-sink-volume" << "@DEFAULT_SINK@" << QString::number(initialVolume * 0.20) + "%");
             LOG_INFO("Volume lowered to 0.20 of initial which is " << initialVolume * 0.20 << "%");
         } else {
-            if (initialVolume != -1) {
+            if (initialVolume != -1 && isActiveOutputDeviceAirPods()) {
                 QProcess::execute("pactl", QStringList() << "set-sink-volume" << "@DEFAULT_SINK@" << QString::number(initialVolume) + "%");
                 LOG_INFO("Volume restored to " << initialVolume << "%");
                 initialVolume = -1;
             }
         }
+    }
+
+    bool isActiveOutputDeviceAirPods() {
+        QProcess process;
+        process.start("pactl", QStringList() << "get-default-sink");
+        process.waitForFinished();
+        QString output = process.readAllStandardOutput().trimmed();
+        LOG_DEBUG("Default sink: " << output);
+        return output.contains("bluez_card." + connectedDeviceMacAddress);
     }
 
     void initializeMprisInterface() {
@@ -560,7 +557,7 @@ public slots:
 
     void handlePhonePacket(const QByteArray &packet) {
         if (packet.startsWith(QByteArray::fromHex("00040001"))) {
-            QByteArray airpodsPacket = packet.mid(4); // Remove the header
+            QByteArray airpodsPacket = packet.mid(4);
             if (socket && socket->isOpen()) {
                 socket->write(airpodsPacket);
                 LOG_DEBUG("Relayed packet to AirPods: " << airpodsPacket.toHex());
@@ -569,15 +566,24 @@ public slots:
             }
         } else if (packet.startsWith(QByteArray::fromHex("00010001"))) {
             LOG_INFO("AirPods connected");
-            // Handle AirPods connected
         } else if (packet.startsWith(QByteArray::fromHex("00010000"))) {
             LOG_INFO("AirPods disconnected");
-            // Handle AirPods disconnected
         } else if (packet.startsWith(QByteArray::fromHex("00020003"))) {
             LOG_INFO("Connection status request received");
             QByteArray response = (socket && socket->isOpen()) ? QByteArray::fromHex("00010001") : QByteArray::fromHex("00010000");
             phoneSocket->write(response);
             LOG_DEBUG("Sent connection status response: " << response.toHex());
+        } else if (packet.startsWith(QByteArray::fromHex("00020000"))) {
+            LOG_INFO("Disconnect request received");
+            if (socket && socket->isOpen()) {
+                socket->close();
+                LOG_INFO("Disconnected from AirPods");
+                QProcess process;
+                process.start("bluetoothctl", QStringList() << "disconnect" << connectedDeviceMacAddress.replace("_", ":"));
+                process.waitForFinished();
+                QString output = process.readAllStandardOutput().trimmed();
+                LOG_INFO("Bluetoothctl output: " << output);
+            }
         } else {
             if (socket && socket->isOpen()) {
                 socket->write(packet);
@@ -591,7 +597,37 @@ public slots:
     void onPhoneDataReceived() {
         QByteArray data = phoneSocket->readAll();
         LOG_DEBUG("Data received from phone: " << data.toHex());
-        handlePhonePacket(data);
+        QMetaObject::invokeMethod(this, "handlePhonePacket", Qt::QueuedConnection, Q_ARG(QByteArray, data));
+    }
+
+    public: void followMediaChanges() {
+        QProcess *playerctlProcess = new QProcess(this);
+        connect(playerctlProcess, &QProcess::readyReadStandardOutput, this, [this, playerctlProcess]() {
+            QString output = playerctlProcess->readAllStandardOutput().trimmed();
+            LOG_DEBUG("Playerctl output: " << output);
+            if (output == "Playing" && isPhoneConnected()) {
+                LOG_INFO("Media started playing, connecting to AirPods");
+                connectToAirPods();
+            }
+        });
+        playerctlProcess->start("playerctl", QStringList() << "metadata" << "--follow" << "status");
+    }
+
+    bool isPhoneConnected() {
+        return phoneSocket && phoneSocket->isOpen();
+    }
+
+    void connectToAirPods() {
+        QBluetoothLocalDevice localDevice;
+        const QList<QBluetoothAddress> connectedDevices = localDevice.connectedDevices();
+        for (const QBluetoothAddress &address : connectedDevices) {
+            QBluetoothDeviceInfo device(address, "", 0);
+            if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                connectToDevice(device);
+                return;
+            }
+        }
+        LOG_WARN("AirPods not found among connected devices");
     }
 
 signals:
@@ -672,6 +708,8 @@ int main(int argc, char *argv[]) {
             LOG_ERROR("Root object not found");
         }
     });
+
+    trayApp.followMediaChanges();
 
     return app.exec();
 }

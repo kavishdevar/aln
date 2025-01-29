@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -25,6 +25,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.view.KeyEvent
+import me.kavishdevar.aln.services.ServiceManager
 
 object MediaController {
     private var initialVolume: Int? = null
@@ -34,14 +35,19 @@ object MediaController {
     private lateinit var sharedPreferences: SharedPreferences
     private val handler = Handler(Looper.getMainLooper())
 
+    var pausedForCrossDevice = false
+
     private var relativeVolume: Boolean = false
     private var conversationalAwarenessVolume: Int = 1/12
     private var conversationalAwarenessPauseMusic: Boolean = false
 
     fun initialize(audioManager: AudioManager, sharedPreferences: SharedPreferences) {
+        if (this::audioManager.isInitialized) {
+            return
+        }
         this.audioManager = audioManager
         this.sharedPreferences = sharedPreferences
-
+        Log.d("MediaController", "Initializing MediaController")
         relativeVolume = sharedPreferences.getBoolean("relative_conversational_awareness_volume", false)
         conversationalAwarenessVolume = sharedPreferences.getInt("conversational_awareness_volume", 100/12)
         conversationalAwarenessPauseMusic = sharedPreferences.getBoolean("conversational_awareness_pause_music", false)
@@ -73,6 +79,14 @@ object MediaController {
                     iPausedTheMedia = !audioManager.isMusicActive
                     userPlayedTheMedia = audioManager.isMusicActive
                 }, 7) // i have no idea why android sends an event a hundred times after the user does something.
+            }
+            Log.d("MediaController", "Ear detection status: ${ServiceManager.getService()?.earDetectionNotification?.status}, music active: ${audioManager.isMusicActive} and cross device available: ${CrossDevice.isAvailable}")
+            if (!pausedForCrossDevice && CrossDevice.isAvailable && ServiceManager.getService()?.earDetectionNotification?.status?.contains(0x00) == true && audioManager.isMusicActive) {
+                if (ServiceManager.getService()?.isConnectedLocally == false) {
+                    sendPause(true)
+                    pausedForCrossDevice = true
+                }
+                ServiceManager.getService()?.takeOver()
             }
         }
     }

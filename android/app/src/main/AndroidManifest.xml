@@ -23,6 +23,7 @@
         android:usesPermissionFlags="neverForLocation"
         tools:ignore="UnusedAttribute" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADVERTISE" />
+    <uses-permission android:name="android.permission.READ_PHONE_STATE" />
 
     <application
         android:allowBackup="true"

@@ -21,12 +21,14 @@ ApplicationWindow {
             text: "Battery Status: "
             id: batteryStatus
             objectName: "batteryStatus"
+            color: "#ffffff"
         }
 
         Text {
             text: "Ear Detection Status: "
             id: earDetectionStatus
             objectName: "earDetectionStatus"
+            color: "#ffffff"
         }
 
         ComboBox {

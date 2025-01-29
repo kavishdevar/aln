@@ -1,3 +1,22 @@
+/*
+ * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
+ *
+ * Copyright (C) 2024 Kavish Devar
+ *
+ * This program is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU Affero General Public License as published
+ * by the Free Software Foundation, either version 3 of the License.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU Affero General Public License for more details.
+ *
+ * You should have received a copy of the GNU Affero General Public License
+ * along with this program. If not, see <https://www.gnu.org/licenses/>.
+ */
+
+
 package me.kavishdevar.aln.utils
 
 import android.annotation.SuppressLint
@@ -10,6 +29,7 @@ import android.bluetooth.le.AdvertiseData
 import android.bluetooth.le.AdvertiseSettings
 import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
+import android.content.Intent
 import android.content.SharedPreferences
 import android.os.ParcelUuid
 import android.util.Log
@@ -44,25 +64,28 @@ object CrossDevice {
     var batteryBytes: ByteArray = byteArrayOf()
     var ancBytes: ByteArray = byteArrayOf()
     private lateinit var sharedPreferences: SharedPreferences
-    private const val packetLogKey = "packet_log"
+    private const val PACKET_LOG_KEY = "packet_log"
+    private var earDetectionStatus = listOf(false, false)
 
     @SuppressLint("MissingPermission")
     fun init(context: Context) {
-        Log.d("AirPodsQuickSwitchService", "Initializing CrossDevice")
-        sharedPreferences = context.getSharedPreferences("packet_logs", Context.MODE_PRIVATE)
-        sharedPreferences.edit().putBoolean("CrossDeviceIsAvailable", false).apply()
-        this.bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
-        this.bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
-        startAdvertising()
-        startServer()
-        initialized = true
+        CoroutineScope(Dispatchers.IO).launch {
+            Log.d("CrossDevice", "Initializing CrossDevice")
+            sharedPreferences = context.getSharedPreferences("packet_logs", Context.MODE_PRIVATE)
+            sharedPreferences.edit().putBoolean("CrossDeviceIsAvailable", false).apply()
+            this@CrossDevice.bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
+            this@CrossDevice.bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
+            startAdvertising()
+            startServer()
+            initialized = true
+        }
     }
 
     @SuppressLint("MissingPermission")
-    fun startServer() {
-        serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord("ALNCrossDevice", uuid)
-        Log.d("AirPodsQuickSwitchService", "Server started")
+    private fun startServer() {
         CoroutineScope(Dispatchers.IO).launch {
+            serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord("ALNCrossDevice", uuid)
+            Log.d("CrossDevice", "Server started")
             while (serverSocket != null) {
                 try {
                     val socket = serverSocket!!.accept()
@@ -76,29 +99,31 @@ object CrossDevice {
 
     @SuppressLint("MissingPermission")
     private fun startAdvertising() {
-        val settings = AdvertiseSettings.Builder()
-            .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
-            .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
-            .setConnectable(true)
-            .build()
+        CoroutineScope(Dispatchers.IO).launch {
+            val settings = AdvertiseSettings.Builder()
+                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+                .setConnectable(true)
+                .build()
 
-        val data = AdvertiseData.Builder()
-            .setIncludeDeviceName(true)
-            .addManufacturerData(MANUFACTURER_ID, MANUFACTURER_DATA.toByteArray())
-            .addServiceUuid(ParcelUuid(uuid))
-            .build()
+            val data = AdvertiseData.Builder()
+                .setIncludeDeviceName(true)
+                .addManufacturerData(MANUFACTURER_ID, MANUFACTURER_DATA.toByteArray())
+                .addServiceUuid(ParcelUuid(uuid))
+                .build()
 
-        bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
-        Log.d("AirPodsQuickSwitchService", "BLE Advertising started")
+            bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
+            Log.d("CrossDevice", "BLE Advertising started")
+        }
     }
 
     private val advertiseCallback = object : AdvertiseCallback() {
         override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-            Log.d("AirPodsQuickSwitchService", "BLE Advertising started successfully")
+            Log.d("CrossDevice", "BLE Advertising started successfully")
         }
 
         override fun onStartFailure(errorCode: Int) {
-            Log.e("AirPodsQuickSwitchService", "BLE Advertising failed with error code: $errorCode")
+            Log.e("CrossDevice", "BLE Advertising failed with error code: $errorCode")
         }
     }
 
@@ -113,9 +138,9 @@ object CrossDevice {
     }
 
     fun sendReceivedPacket(packet: ByteArray) {
-        Log.d("AirPodsQuickSwitchService", "Sending packet to remote device")
-        if (clientSocket == null) {
-            Log.d("AirPodsQuickSwitchService", "Client socket is null")
+        Log.d("CrossDevice", "Sending packet to remote device")
+        if (clientSocket == null || clientSocket!!.outputStream != null) {
+            Log.d("CrossDevice", "Client socket is null")
             return
         }
         clientSocket?.outputStream?.write(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + packet)
@@ -124,14 +149,14 @@ object CrossDevice {
     private fun logPacket(packet: ByteArray, source: String) {
         val packetHex = packet.joinToString(" ") { "%02X".format(it) }
         val logEntry = "$source: $packetHex"
-        val logs = sharedPreferences.getStringSet(packetLogKey, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
+        val logs = sharedPreferences.getStringSet(PACKET_LOG_KEY, mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         logs.add(logEntry)
-        sharedPreferences.edit().putStringSet(packetLogKey, logs).apply()
+        sharedPreferences.edit().putStringSet(PACKET_LOG_KEY, logs).apply()
     }
 
     @SuppressLint("MissingPermission")
     private fun handleClientConnection(socket: BluetoothSocket) {
-        Log.d("AirPodsQuickSwitchService", "Client connected")
+        Log.d("CrossDevice", "Client connected")
         clientSocket = socket
         val inputStream = socket.inputStream
         val buffer = ByteArray(1024)
@@ -141,7 +166,7 @@ object CrossDevice {
             bytes = inputStream.read(buffer)
             val packet = buffer.copyOf(bytes)
             logPacket(packet, "Relay")
-            Log.d("AirPodsQuickSwitchService", "Received packet: ${packet.joinToString("") { "%02x".format(it) }}")
+            Log.d("CrossDevice", "Received packet: ${packet.joinToString("") { "%02x".format(it) }}")
             if (bytes == -1) {
                 break
             } else if (packet.contentEquals(CrossDevicePackets.REQUEST_DISCONNECT.packet)) {
@@ -153,36 +178,49 @@ object CrossDevice {
                 isAvailable = false
                 sharedPreferences.edit().putBoolean("CrossDeviceIsAvailable", false).apply()
             } else if (packet.contentEquals(CrossDevicePackets.REQUEST_BATTERY_BYTES.packet)) {
-                Log.d("AirPodsQuickSwitchService", "Received battery request, battery data: ${batteryBytes.joinToString("") { "%02x".format(it) }}")
+                Log.d("CrossDevice", "Received battery request, battery data: ${batteryBytes.joinToString("") { "%02x".format(it) }}")
                 sendRemotePacket(batteryBytes)
             } else if (packet.contentEquals(CrossDevicePackets.REQUEST_ANC_BYTES.packet)) {
-                Log.d("AirPodsQuickSwitchService", "Received ANC request")
+                Log.d("CrossDevice", "Received ANC request")
                 sendRemotePacket(ancBytes)
             } else if (packet.contentEquals(CrossDevicePackets.REQUEST_CONNECTION_STATUS.packet)) {
-                Log.d("AirPodsQuickSwitchService", "Received connection status request")
+                Log.d("CrossDevice", "Received connection status request")
                 sendRemotePacket(if (ServiceManager.getService()?.isConnectedLocally == true) CrossDevicePackets.AIRPODS_CONNECTED.packet else CrossDevicePackets.AIRPODS_DISCONNECTED.packet)
-            }
-            else {
+            } else {
                 if (packet.sliceArray(0..3).contentEquals(CrossDevicePackets.AIRPODS_DATA_HEADER.packet)) {
                     isAvailable = true
                     sharedPreferences.edit().putBoolean("CrossDeviceIsAvailable", true).apply()
-                    val trimmedPacket = packet.drop(CrossDevicePackets.AIRPODS_DATA_HEADER.packet.size).toByteArray()
-                    Log.d("AirPodsQuickSwitchService", "Received relayed packet, with ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | ${ServiceManager.getService()?.batteryNotification?.isBatteryData(trimmedPacket)}")
-                    Log.d("AirPodsQuickSwitchService", "Received relayed packet: ${trimmedPacket.joinToString("") { "%02x".format(it) }}")
+                    var trimmedPacket = packet.drop(CrossDevicePackets.AIRPODS_DATA_HEADER.packet.size).toByteArray()
+                    Log.d("CrossDevice", "Received relayed packet, with ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | ${ServiceManager.getService()?.earDetectionNotification?.isEarDetectionData(trimmedPacket)}")
+                    Log.d("CrossDevice", "Received relayed packet: ${trimmedPacket.joinToString("") { "%02x".format(it) }}")
                     if (ServiceManager.getService()?.isConnectedLocally == true) {
                         val packetInHex = trimmedPacket.joinToString("") { "%02x".format(it) }
                         ServiceManager.getService()?.sendPacket(packetInHex)
                     } else if (ServiceManager.getService()?.batteryNotification?.isBatteryData(trimmedPacket) == true) {
                         batteryBytes = trimmedPacket
                         ServiceManager.getService()?.batteryNotification?.setBattery(trimmedPacket)
-                        Log.d("AirPodsQuickSwitchService", "Battery data: ${ServiceManager.getService()?.batteryNotification?.getBattery()[0]?.level}")
+                        Log.d("CrossDevice", "Battery data: ${ServiceManager.getService()?.batteryNotification?.getBattery()[0]?.level}")
                         ServiceManager.getService()?.updateBatteryWidget()
                         ServiceManager.getService()?.sendBatteryBroadcast()
                         ServiceManager.getService()?.sendBatteryNotification()
                     } else if (ServiceManager.getService()?.ancNotification?.isANCData(trimmedPacket) == true) {
                         ServiceManager.getService()?.ancNotification?.setStatus(trimmedPacket)
                         ServiceManager.getService()?.sendANCBroadcast()
+                        ServiceManager.getService()?.updateNoiseControlWidget()
                         ancBytes = trimmedPacket
+                    } else if (ServiceManager.getService()?.earDetectionNotification?.isEarDetectionData(trimmedPacket) == true) {
+                        Log.d("CrossDevice", "Ear detection data: ${trimmedPacket.joinToString("") { "%02x".format(it) }}")
+                        ServiceManager.getService()?.earDetectionNotification?.setStatus(trimmedPacket)
+                        val newEarDetectionStatus = listOf(
+                            ServiceManager.getService()?.earDetectionNotification?.status?.get(0) == 0x00.toByte(),
+                            ServiceManager.getService()?.earDetectionNotification?.status?.get(1) == 0x00.toByte()
+                        )
+                        if (earDetectionStatus == listOf(false, false) && newEarDetectionStatus.contains(true)) {
+                            ServiceManager.getService()?.applicationContext?.sendBroadcast(
+                                Intent("me.kavishdevar.aln.cross_device_island")
+                            )
+                        }
+                        earDetectionStatus = newEarDetectionStatus
                     }
                 }
             }
@@ -190,31 +228,13 @@ object CrossDevice {
     }
 
     fun sendRemotePacket(byteArray: ByteArray) {
-        if (clientSocket == null) {
-            Log.d("AirPodsQuickSwitchService", "Client socket is null")
+        if (clientSocket == null || clientSocket!!.outputStream == null) {
+            Log.d("CrossDevice", "Client socket is null")
             return
         }
         clientSocket?.outputStream?.write(byteArray)
         clientSocket?.outputStream?.flush()
         logPacket(byteArray, "Sent")
-        Log.d("AirPodsQuickSwitchService", "Sent packet to remote device")
-    }
-
-    fun checkAirPodsConnectionStatus(): Boolean {
-        Log.d("AirPodsQuickSwitchService", "Checking AirPods connection status")
-        if (clientSocket == null) {
-            Log.d("AirPodsQuickSwitchService", "Client socket is null - linux probably not connected.")
-            return false
-        }
-        return try {
-            clientSocket?.outputStream?.write(CrossDevicePackets.REQUEST_CONNECTION_STATUS.packet)
-            val buffer = ByteArray(1024)
-            val bytes = clientSocket?.inputStream?.read(buffer) ?: -1
-            val packet = buffer.copyOf(bytes)
-            packet.contentEquals(CrossDevicePackets.AIRPODS_CONNECTED.packet)
-        } catch (e: IOException) {
-            Log.e("AirPodsQuickSwitchService", "Error checking connection status", e)
-            false
-        }
+        Log.d("CrossDevice", "Sent packet to remote device")
     }
 }
