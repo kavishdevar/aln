@@ -215,7 +215,6 @@ def notification_handler(notification_type: int, data: bytes):
         hex_data = ' '.join(f'{byte:02x}' for byte in data)
         globals()["notif_unknown"] = hex_data
         logger.debug(hex_data)
-
 def main():
     global running
     logging.info("Starting AirPods daemon")
