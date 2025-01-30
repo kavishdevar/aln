@@ -797,6 +797,8 @@ class AirPodsService : Service() {
         Log.d("AirPodsService", "Taking over audio")
         CrossDevice.sendRemotePacket(CrossDevicePackets.REQUEST_DISCONNECT.packet)
         Log.d("AirPodsService", macAddress)
+        CrossDevice.isAvailable = false
+        sharedPreferences.edit { putBoolean("CrossDeviceIsAvailable", false) }
         device = getSystemService<BluetoothManager>(BluetoothManager::class.java).adapter.bondedDevices.find {
             it.address == macAddress
         }
@@ -823,9 +825,7 @@ class AirPodsService : Service() {
                     0x1001,
                     uuid
                 ) as BluetoothSocket
-            } catch (
-                e: Exception
-            ) {
+            } catch (e: Exception) {
                 e.printStackTrace()
                 try {
                     socket = HiddenApiBypass.newInstance(
@@ -838,9 +838,7 @@ class AirPodsService : Service() {
                         0x1001,
                         uuid
                     ) as BluetoothSocket
-                } catch (
-                    e: Exception
-                ) {
+                } catch (e: Exception) {
                     e.printStackTrace()
                 }
             }
@@ -850,10 +848,6 @@ class AirPodsService : Service() {
                 this@AirPodsService.device = device
                 isConnectedLocally = true
                 socket.let { it ->
-                    // sometimes doesn't work ;-;
-                    // i though i move it to the coroutine
-                    // but, the socket sometimes disconnects if i don't send a packet outside of the routine first
-                    // so, sending *again*, with a delay, in the coroutine
                     it.outputStream.write(Enums.HANDSHAKE.value)
                     it.outputStream.flush()
                     it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
@@ -861,7 +855,6 @@ class AirPodsService : Service() {
                     it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
                     it.outputStream.flush()
                     CoroutineScope(Dispatchers.IO).launch {
-                        // this is so stupid, why does it disconnect if i don't send a packet outside of the coroutine first
                         it.outputStream.write(Enums.HANDSHAKE.value)
                         it.outputStream.flush()
                         delay(200)
@@ -871,7 +864,6 @@ class AirPodsService : Service() {
                         it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
                         it.outputStream.flush()
                         delay(200)
-                        // just in case this doesn't work, send all three after 5 seconds again
                         Handler(Looper.getMainLooper()).postDelayed({
                             it.outputStream.write(Enums.HANDSHAKE.value)
                             it.outputStream.flush()
@@ -898,6 +890,11 @@ class AirPodsService : Service() {
                                     val bytes = buffer.copyOfRange(0, bytesRead)
                                     val formattedHex = bytes.joinToString(" ") { "%02X".format(it) }
                                     CrossDevice.sendReceivedPacket(bytes)
+                                    updateNotificationContent(
+                                        true,
+                                        sharedPreferences.getString("name", device.name),
+                                        batteryNotification.getBattery()
+                                    )
                                     Log.d("AirPods Data", "Data received: $formattedHex")
                                 } else if (bytesRead == -1) {
                                     Log.d("AirPods Service", "Socket closed (bytesRead = -1)")

@@ -84,6 +84,7 @@ object CrossDevice {
     @SuppressLint("MissingPermission")
     private fun startServer() {
         CoroutineScope(Dispatchers.IO).launch {
+            if (!bluetoothAdapter.isEnabled) return@launch
             serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord("ALNCrossDevice", uuid)
             Log.d("CrossDevice", "Server started")
             while (serverSocket != null) {

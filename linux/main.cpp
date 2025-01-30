@@ -51,7 +51,17 @@ public:
         trayIcon = new QSystemTrayIcon(QIcon(":/icons/airpods.png"));
         trayMenu = new QMenu();
 
+        // Initialize conversational awareness state
+        bool caState = loadConversationalAwarenessState();
         QAction *caToggleAction = new QAction("Toggle Conversational Awareness", trayMenu);
+        caToggleAction->setCheckable(true);
+        caToggleAction->setChecked(caState);
+        connect(caToggleAction, &QAction::triggered, this, [this, caToggleAction]() {
+            bool newState = !caToggleAction->isChecked();
+            setConversationalAwareness(newState);
+            saveConversationalAwarenessState(newState);
+            caToggleAction->setChecked(newState);
+        });
         trayMenu->addAction(caToggleAction);
 
         QAction *offAction = new QAction("Off", trayMenu);
@@ -120,6 +130,9 @@ public:
         } else {
             LOG_WARN("Service record not found, waiting for BLE broadcast");
         }
+
+        // Set up device listening
+        listenForDeviceConnections();
     }
 
 public slots:
@@ -203,7 +216,7 @@ public slots:
     }
 
     void updateBatteryTooltip(const QString &status) {
-        trayIcon->setToolTip(status);
+        trayIcon->setToolTip("Battery Status: " + status);
     }
 
     void updateTrayIcon(const QString &status) {
@@ -598,6 +611,38 @@ public slots:
         QByteArray data = phoneSocket->readAll();
         LOG_DEBUG("Data received from phone: " << data.toHex());
         QMetaObject::invokeMethod(this, "handlePhonePacket", Qt::QueuedConnection, Q_ARG(QByteArray, data));
+    }
+
+    void listenForDeviceConnections() {
+        QDBusConnection systemBus = QDBusConnection::systemBus();
+        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.Properties", "PropertiesChanged", this, SLOT(onDevicePropertiesChanged(QString, QVariantMap, QStringList)));
+        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded", this, SLOT(onInterfacesAdded(QString, QVariantMap)));
+    }
+
+    void onDevicePropertiesChanged(QString interface, QVariantMap changed, QStringList invalidated) {
+        if (changed.contains("Connected") && changed["Connected"].toBool()) {
+            QString path = interface.split("/").last();
+            QString addr = path.replace("_", ":").replace("dev:", "");
+            QBluetoothAddress btAddress(addr);
+            QBluetoothDeviceInfo device(btAddress, "", 0);
+            if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                connectToDevice(device);
+            }
+        }
+    }
+
+    void onInterfacesAdded(QString path, QVariantMap interfaces) {
+        if (interfaces.contains("org.bluez.Device1")) {
+            QVariantMap deviceProps = interfaces["org.bluez.Device1"].toMap();
+            if (deviceProps.contains("Connected") && deviceProps["Connected"].toBool()) {
+                QString addr = deviceProps["Address"].toString();
+                QBluetoothAddress btAddress(addr);
+                QBluetoothDeviceInfo device(btAddress, "", 0);
+                if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                    connectToDevice(device);
+                }
+            }
+        }
     }
 
     public: void followMediaChanges() {

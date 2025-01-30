@@ -13,8 +13,28 @@ Other devices might work too. Features like ear detection and battery should be 
 Check the [pinned issue](https://github.com/kavishdevar/aln/issues/20) for a list. 
 
 
-## Linux — Deprecated, awaiting a rewrite!
-ANY ISSUES ABOUT THE LINUX VERSION WILL BE CLOSED.
+## CrossDevice Stuff
+
+> [!IMPORTANT]
+> This feature is still in development and might not work as expected. No support is provided for this feature.
+
+### Features
+
+- **Battery Status**: Get battery status on your Android device when you connect your AirPods to your Linux device.
+- **Control AirPods**: Control your AirPods from your Android device when connected to your Linux device, like changing the noise control mode, toggling conversational awareness, and more.
+- **Automatic Device Switching**: Automatically switch between your Linux and Android device when you connect your AirPods to one of them.
+
+> [!NOTE]
+> All this currently works only one way, Linux to Android, i.e. if you connect your AirPods to your Linux device, the features mentioned. The Android app can automaticaly connect to your AirPods when *receiving calls* or *starting media playback*.
+
+| | | |
+|-------------------|-------------------|-------------------|
+| Connected to Linux, all features of the app available (setting Noise Control mode, battery status, etc.). ![Connected Remotely](/android/imgs/cd-connected-remotely-island.png) | Call received or media started playing; phone took over audio and disconnected AirPods from linux. ![Moved to Phone](/android/imgs/cd-moved-to-phone-island.png) | |
+
+## Linux — Deprecated, rewrite WIP!
+
+> No support will be provided for the old version of the Linux app. The new version is still in development and might not work as expected. No support is provided for the new version either.
+
 Check out the README file in [linux](/linux) folder for more info.
 
 This tray app communicates with a daemon with the help of a UNIX socket. The daemon is responsible for the actual communication with the AirPods. The tray app is just a frontend for the daemon, that does ear-detection, conversational awareness, setting the noise-cancellation mode, and more.
@@ -39,6 +59,7 @@ https://github.com/user-attachments/assets/eb7eebc2-fecf-410d-a363-0a5fd3a7af30
 | ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
 | ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
 | ![Long Press Configuration](/android/imgs/long-press.png) | ![Widget](/android/imgs/widget.png) | ![Customizations](/android/imgs/customizations.png) |
+| ![audio-popup](/android/imgs/audio-connected-island.png) | | |
 
 ### Installation
 
