@@ -52,7 +52,7 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 Check out the new animations and transitions in the app!
 
-https://github.com/user-attachments/assets/eb7eebc2-fecf-410d-a363-0a5fd3a7af30
+https://github.com/user-attachments/assets/470ffc9c-3e52-4dcf-818d-0d1f60986c2e
 
 | | | |
 |-------------------|-------------------|-------------------|
