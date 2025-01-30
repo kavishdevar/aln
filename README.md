@@ -27,9 +27,9 @@ Check the [pinned issue](https://github.com/kavishdevar/aln/issues/20) for a lis
 > [!NOTE]
 > All this currently works only one way, Linux to Android, i.e. if you connect your AirPods to your Linux device, the features mentioned. The Android app can automaticaly connect to your AirPods when *receiving calls* or *starting media playback*.
 
-| | | |
-|-------------------|-------------------|-------------------|
-| Connected to Linux, all features of the app available (setting Noise Control mode, battery status, etc.). ![Connected Remotely](/android/imgs/cd-connected-remotely-island.png) | Call received or media started playing; phone took over audio and disconnected AirPods from linux. ![Moved to Phone](/android/imgs/cd-moved-to-phone-island.png) | |
+| | |
+|-------------------|-------------------|
+| Connected to Linux, all features of the app available (setting Noise Control mode, battery status, etc.). ![Connected Remotely](/android/imgs/cd-connected-remotely-island.png) | Call received or media started playing; phone took over audio and disconnected AirPods from linux. ![Moved to Phone](/android/imgs/cd-moved-to-phone-island.png) |
 
 ## Linux — Deprecated, rewrite WIP!
 
