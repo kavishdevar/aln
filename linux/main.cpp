@@ -59,15 +59,22 @@ public:
         QAction *adaptiveAction = new QAction("Adaptive", trayMenu);
         QAction *noiseCancellationAction = new QAction("Noise Cancellation", trayMenu);
 
+        // Quit app action
+        QAction *quitAction = new QAction("Quit", trayMenu);
+        connect(quitAction, &QAction::triggered, this, &QCoreApplication::quit);
+
         offAction->setCheckable(true);
         transparencyAction->setCheckable(true);
         adaptiveAction->setCheckable(true);
         noiseCancellationAction->setCheckable(true);
 
+        trayMenu->addSeparator();
         trayMenu->addAction(offAction);
         trayMenu->addAction(transparencyAction);
         trayMenu->addAction(adaptiveAction);
         trayMenu->addAction(noiseCancellationAction);
+        trayMenu->addSeparator();
+        trayMenu->addAction(quitAction);
 
         QActionGroup *noiseControlGroup = new QActionGroup(trayMenu);
         noiseControlGroup->addAction(offAction);
@@ -556,7 +563,7 @@ public slots:
     }
 
     void relayPacketToPhone(const QByteArray &packet) {
-        if (phoneSocket && phoneSocket->isOpen()) {
+        if (isPhoneConnected()) {
             QByteArray header = QByteArray::fromHex("00040001");
             phoneSocket->write(header + packet);
             LOG_DEBUG("Relayed packet to phone with header: " << (header + packet).toHex());
