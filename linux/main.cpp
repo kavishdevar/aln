@@ -46,6 +46,15 @@ class AirPodsTrayApp : public QObject {
     Q_OBJECT
 
 public:
+    enum NoiseControlMode : quint8
+    {
+        Off = 0,
+        NoiseCancellation = 1,
+        Transparency = 2,
+        Adaptive = 3
+    };
+    Q_ENUM(NoiseControlMode)
+
     AirPodsTrayApp() {
         LOG_INFO("Initializing AirPodsTrayApp");
         trayIcon = new QSystemTrayIcon(QIcon(":/icons/airpods.png"));
@@ -58,6 +67,11 @@ public:
         QAction *transparencyAction = new QAction("Transparency", trayMenu);
         QAction *adaptiveAction = new QAction("Adaptive", trayMenu);
         QAction *noiseCancellationAction = new QAction("Noise Cancellation", trayMenu);
+
+        offAction->setData(NoiseControlMode::Off);
+        transparencyAction->setData(NoiseControlMode::Transparency);
+        adaptiveAction->setData(NoiseControlMode::Adaptive);
+        noiseCancellationAction->setData(NoiseControlMode::NoiseCancellation);
 
         // Quit app action
         QAction *quitAction = new QAction("Quit", trayMenu);
@@ -82,10 +96,13 @@ public:
         noiseControlGroup->addAction(adaptiveAction);
         noiseControlGroup->addAction(noiseCancellationAction);
 
-        connect(offAction, &QAction::triggered, this, [this]() { setNoiseControlMode(0); });
-        connect(transparencyAction, &QAction::triggered, this, [this]() { setNoiseControlMode(2); });
-        connect(adaptiveAction, &QAction::triggered, this, [this]() { setNoiseControlMode(3); });
-        connect(noiseCancellationAction, &QAction::triggered, this, [this]() { setNoiseControlMode(1); });
+        connect(offAction, &QAction::triggered, this, [this]() { setNoiseControlMode(NoiseControlMode::Off); });
+        connect(transparencyAction, &QAction::triggered, this, [this]()
+                { setNoiseControlMode(NoiseControlMode::Transparency); });
+        connect(adaptiveAction, &QAction::triggered, this, [this]()
+                { setNoiseControlMode(NoiseControlMode::Adaptive); });
+        connect(noiseCancellationAction, &QAction::triggered, this, [this]()
+                { setNoiseControlMode(NoiseControlMode::NoiseCancellation); });
 
         connect(this, &AirPodsTrayApp::noiseControlModeChanged, this, &AirPodsTrayApp::updateNoiseControlMenu);
         connect(this, &AirPodsTrayApp::batteryStatusChanged, this, &AirPodsTrayApp::updateBatteryTooltip);
@@ -152,31 +169,35 @@ public slots:
         }
     }
 
-    void setNoiseControlMode(int mode) {
+    void setNoiseControlMode(NoiseControlMode mode)
+    {
         LOG_INFO("Setting noise control mode to: " << mode);
         QByteArray packet;
-        switch (mode) {
-            case 0:
-                packet = QByteArray::fromHex("0400040009000D01000000");
-                break;
-            case 1:
-                packet = QByteArray::fromHex("0400040009000D02000000");
-                break;
-            case 2:
-                packet = QByteArray::fromHex("0400040009000D03000000");
-                break;
-            case 3:
-                packet = QByteArray::fromHex("0400040009000D04000000");
-                break;
+        switch (mode)
+        {
+        case NoiseControlMode::Off:
+            packet = QByteArray::fromHex("0400040009000D01000000");
+            break;
+        case NoiseControlMode::NoiseCancellation:
+            packet = QByteArray::fromHex("0400040009000D02000000");
+            break;
+        case NoiseControlMode::Transparency:
+            packet = QByteArray::fromHex("0400040009000D03000000");
+            break;
+        case NoiseControlMode::Adaptive:
+            packet = QByteArray::fromHex("0400040009000D04000000");
+            break;
         }
-        if (socket && socket->isOpen()) {
+        if (socket && socket->isOpen())
+        {
             socket->write(packet);
             LOG_DEBUG("Noise control mode packet written: " << packet.toHex());
-        } else {
+        }
+        else
+        {
             LOG_ERROR("Socket is not open, cannot write noise control mode packet");
         }
     }
-
     void setConversationalAwareness(bool enabled) {
         LOG_INFO("Setting conversational awareness to: " << (enabled ? "enabled" : "disabled"));
         QByteArray packet = enabled ? QByteArray::fromHex("0400040009002801000000") : QByteArray::fromHex("0400040009002802000000");
@@ -188,24 +209,10 @@ public slots:
         }
     }
 
-    void updateNoiseControlMenu(int mode) {
+    void updateNoiseControlMenu(NoiseControlMode mode) {
         QList<QAction *> actions = trayMenu->actions();
         for (QAction *action : actions) {
-            action->setChecked(false);
-        }
-        switch (mode) {
-            case 0:
-                actions[0]->setChecked(true);
-                break;
-            case 1:
-                actions[3]->setChecked(true);
-                break;
-            case 2:
-                actions[1]->setChecked(true);
-                break;
-            case 3:
-                actions[2]->setChecked(true);
-                break;
+            action->setChecked(action->data().toInt() == mode);
         }
     }
 
@@ -442,13 +449,9 @@ public slots:
     void parseData(const QByteArray &data) {
         LOG_DEBUG("Parsing data: " << data.toHex() << "Size: " << data.size());
         if (data.size() == 11 && data.startsWith(QByteArray::fromHex("0400040009000D"))) {
-            int mode = data[7] - 1;
-            LOG_INFO("Noise control mode: " << mode);
-            if (mode >= 0 && mode <= 3) {
-                emit noiseControlModeChanged(mode);
-            } else {
-                LOG_ERROR("Invalid noise control mode value received: " << mode);
-            }
+            NoiseControlMode mode = static_cast<NoiseControlMode>(data[7] - 1);
+            LOG_INFO("Noise control mode: " << (int)mode);
+            emit noiseControlModeChanged(mode);
         } else if (data.size() == 8 && data.startsWith(QByteArray::fromHex("040004000600"))) {
             char primary = data[6];
             char secondary = data[7];
@@ -649,7 +652,7 @@ public slots:
     }
 
 signals:
-    void noiseControlModeChanged(int mode);
+    void noiseControlModeChanged(NoiseControlMode mode);
     void earDetectionStatusChanged(const QString &status);
     void batteryStatusChanged(const QString &status);
 
