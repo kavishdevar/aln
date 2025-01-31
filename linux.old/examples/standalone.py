@@ -333,8 +333,6 @@ def listen_for_device_connections():
 
     def device_connected(interface, changed, invalidated, path):
         # /org/bluez/hci0/dev_mac_address/*
-        # repl _ with : in mac_address and check         
-        
         if 'Connected' in changed and changed['Connected']:
             if path.split("/")[-1] == "":
                 return 

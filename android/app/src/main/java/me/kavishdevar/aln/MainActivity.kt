@@ -23,12 +23,9 @@ import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Context.MODE_PRIVATE
-import android.content.Context.RECEIVER_EXPORTED
 import android.content.Intent
-import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.content.SharedPreferences
-import android.os.Build
 import android.os.Bundle
 import android.os.IBinder
 import android.util.Log
@@ -91,6 +88,7 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+
     override fun onDestroy() {
         try {
             unbindService(serviceConnection)
@@ -144,29 +142,6 @@ fun Main() {
         val context = LocalContext.current
         val navController = rememberNavController()
 
-        connectionStatusReceiver = object : BroadcastReceiver() {
-            override fun onReceive(context: Context, intent: Intent) {
-                if (intent.action == AirPodsNotifications.AIRPODS_CONNECTED) {
-                    Log.d("MainActivity", "AirPods Connected intent received")
-                    isConnected.value = true
-                }
-                else if (intent.action == AirPodsNotifications.AIRPODS_DISCONNECTED) {
-                    Log.d("MainActivity", "AirPods Disconnected intent received")
-                    isRemotelyConnected.value = CrossDevice.isAvailable
-                    isConnected.value = false
-                }
-                else if (intent.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
-                    Log.d("MainActivity", "Disconnect Receivers intent received")
-                    try {
-                        context.unregisterReceiver(this)
-                    }
-                    catch (e: Exception) {
-                        Log.e("MainActivity", "Error while unregistering receiver: $e")
-                    }
-                }
-            }
-        }
-
         val sharedPreferences = context.getSharedPreferences("settings", MODE_PRIVATE)
         val isAvailableChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "CrossDeviceIsAvailable") {
@@ -178,20 +153,6 @@ fun Main() {
         Log.d("MainActivity", "CrossDeviceIsAvailable: ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | isAvailable: ${CrossDevice.isAvailable}")
         isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false) || CrossDevice.isAvailable
         Log.d("MainActivity", "isRemotelyConnected: ${isRemotelyConnected.value}")
-        val filter = IntentFilter().apply {
-            addAction(AirPodsNotifications.AIRPODS_CONNECTED)
-            addAction(AirPodsNotifications.AIRPODS_DISCONNECTED)
-            addAction(AirPodsNotifications.AIRPODS_CONNECTION_DETECTED)
-            addAction(AirPodsNotifications.DISCONNECT_RECEIVERS)
-        }
-        Log.d("MainActivity", "Registering Receiver")
-
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            context.registerReceiver(connectionStatusReceiver, filter, RECEIVER_EXPORTED)
-        } else {
-            context.registerReceiver(connectionStatusReceiver, filter)
-        }
-        Log.d("MainActivity", "Registered Receiver")
         Box (
             modifier = Modifier
                 .padding(0.dp)

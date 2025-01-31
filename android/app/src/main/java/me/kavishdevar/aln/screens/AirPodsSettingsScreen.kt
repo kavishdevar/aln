@@ -20,9 +20,14 @@ package me.kavishdevar.aln.screens
 
 import android.annotation.SuppressLint
 import android.bluetooth.BluetoothDevice
+import android.content.BroadcastReceiver
+import android.content.Context
 import android.content.Context.MODE_PRIVATE
+import android.content.Context.RECEIVER_EXPORTED
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -42,7 +47,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
@@ -94,10 +98,11 @@ import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalHazeMaterialsApi::class)
-@SuppressLint("MissingPermission")
+@SuppressLint("MissingPermission", "UnspecifiedRegisterReceiverFlag")
 @Composable
 fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                           navController: NavController, isConnected: Boolean, isRemotelyConnected: Boolean) {
+    var isRemotelyConnected by remember { mutableStateOf(isRemotelyConnected) }
     val sharedPreferences = LocalContext.current.getSharedPreferences("settings", MODE_PRIVATE)
     var device by remember { mutableStateOf(dev) }
     var deviceName by remember {
@@ -128,12 +133,53 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
     val snackbarHostState = remember { SnackbarHostState() }
     val coroutineScope = rememberCoroutineScope()
 
+    fun handleRemoteConnection(connected: Boolean) {
+        isRemotelyConnected = connected
+    }
+
     fun showSnackbar(message: String) {
         coroutineScope.launch {
-            snackbarHostState.showSnackbar(
-                message = message,
-                duration = SnackbarDuration.Short
-            )
+            snackbarHostState.showSnackbar(message)
+        }
+    }
+
+    val context = LocalContext.current
+    val bluetoothReceiver = remember {
+        object : BroadcastReceiver() {
+            override fun onReceive(context: Context?, intent: Intent?) {
+                if (intent?.action == "me.kavishdevar.aln.AIRPODS_CONNECTED_REMOTELY") {
+                    coroutineScope.launch {
+                        handleRemoteConnection(true)
+                    }
+                } else if (intent?.action == "me.kavishdevar.aln.AIRPODS_DISCONNECTED_REMOTELY") {
+                    coroutineScope.launch {
+                        handleRemoteConnection(false)
+                    }
+                } else if (intent?.action == AirPodsNotifications.DISCONNECT_RECEIVERS) {
+                    try {
+                        context?.unregisterReceiver(this)
+                    } catch (e: IllegalArgumentException) {
+                        e.printStackTrace()
+                    }
+                }
+            }
+        }
+    }
+
+    DisposableEffect(Unit) {
+        val filter = IntentFilter().apply {
+            addAction("me.kavishdevar.aln.AIRPODS_CONNECTED_REMOTELY")
+            addAction("me.kavishdevar.aln.AIRPODS_DISCONNECTED_REMOTELY")
+            addAction(AirPodsNotifications.DISCONNECT_RECEIVERS)
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            context.registerReceiver(bluetoothReceiver, filter, RECEIVER_EXPORTED)
+        } else {
+            context.registerReceiver(bluetoothReceiver, filter)
+        }
+        onDispose {
+            context.unregisterReceiver(bluetoothReceiver)
         }
     }
 

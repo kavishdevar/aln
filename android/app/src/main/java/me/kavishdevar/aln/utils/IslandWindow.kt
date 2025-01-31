@@ -42,6 +42,12 @@ import androidx.core.content.ContextCompat.getString
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.ServiceManager
 
+enum class IslandType {
+    CONNECTED,
+    TAKING_OVER,
+    MOVED_TO_REMOTE
+}
+
 class IslandWindow(context: Context) {
     private val windowManager: WindowManager = context.getSystemService(Context.WINDOW_SERVICE) as WindowManager
     @SuppressLint("InflateParams")
@@ -52,7 +58,7 @@ class IslandWindow(context: Context) {
         get() = islandView.parent != null && islandView.visibility == View.VISIBLE
 
     @SuppressLint("SetTextI18n")
-    fun show(name: String, batteryPercentage: Int, context: Context, takingOver: Boolean) {
+    fun show(name: String, batteryPercentage: Int, context: Context, type: IslandType = IslandType.CONNECTED) {
         if (ServiceManager.getService()?.islandOpen == true) return
         else ServiceManager.getService()?.islandOpen = true
 
@@ -78,11 +84,13 @@ class IslandWindow(context: Context) {
             close()
         }
 
-        if (takingOver) {
+        if (type == IslandType.TAKING_OVER) {
             islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_taking_over_text)
+        } else if (type == IslandType.MOVED_TO_REMOTE) {
+            islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_moved_to_remote_text)
         } else if (CrossDevice.isAvailable) {
             islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_connected_remote_text)
-        } else {
+        } else if (type == IslandType.CONNECTED) {
             islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_connected_text)
         }
 

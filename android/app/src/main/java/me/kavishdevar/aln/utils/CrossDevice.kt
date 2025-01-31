@@ -35,6 +35,7 @@ import android.os.ParcelUuid
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.kavishdevar.aln.services.ServiceManager
 import java.io.IOException
@@ -66,6 +67,7 @@ object CrossDevice {
     private lateinit var sharedPreferences: SharedPreferences
     private const val PACKET_LOG_KEY = "packet_log"
     private var earDetectionStatus = listOf(false, false)
+    var disconnectionRequested = false
 
     @SuppressLint("MissingPermission")
     fun init(context: Context) {
@@ -135,6 +137,8 @@ object CrossDevice {
             clientSocket?.outputStream?.write(CrossDevicePackets.AIRPODS_CONNECTED.packet)
         } else {
             clientSocket?.outputStream?.write(CrossDevicePackets.AIRPODS_DISCONNECTED.packet)
+            // Reset state variables
+            isAvailable = true
         }
     }
 
@@ -158,20 +162,37 @@ object CrossDevice {
     @SuppressLint("MissingPermission")
     private fun handleClientConnection(socket: BluetoothSocket) {
         Log.d("CrossDevice", "Client connected")
+        notifyAirPodsConnectedRemotely(ServiceManager.getService()?.applicationContext!!)
         clientSocket = socket
         val inputStream = socket.inputStream
         val buffer = ByteArray(1024)
         var bytes: Int
         setAirPodsConnected(ServiceManager.getService()?.isConnectedLocally == true)
         while (true) {
-            bytes = inputStream.read(buffer)
-            val packet = buffer.copyOf(bytes)
+            try {
+                bytes = inputStream.read(buffer)
+            } catch (e: IOException) {
+                e.printStackTrace()
+                notifyAirPodsDisconnectedRemotely(ServiceManager.getService()?.applicationContext!!)
+                val s = serverSocket?.accept()
+                if (s != null) {
+                    handleClientConnection(s)
+                }
+                break
+            }
+            var packet = buffer.copyOf(bytes)
             logPacket(packet, "Relay")
             Log.d("CrossDevice", "Received packet: ${packet.joinToString("") { "%02x".format(it) }}")
             if (bytes == -1) {
+                notifyAirPodsDisconnectedRemotely(ServiceManager.getService()?.applicationContext!!)
                 break
-            } else if (packet.contentEquals(CrossDevicePackets.REQUEST_DISCONNECT.packet)) {
+            } else if (packet.contentEquals(CrossDevicePackets.REQUEST_DISCONNECT.packet) || packet.contentEquals(CrossDevicePackets.REQUEST_DISCONNECT.packet + CrossDevicePackets.AIRPODS_DATA_HEADER.packet)) {
                 ServiceManager.getService()?.disconnect()
+                disconnectionRequested = true
+                CoroutineScope(Dispatchers.IO).launch {
+                    delay(1000)
+                    disconnectionRequested = false
+                }
             } else if (packet.contentEquals(CrossDevicePackets.AIRPODS_CONNECTED.packet)) {
                 isAvailable = true
                 sharedPreferences.edit().putBoolean("CrossDeviceIsAvailable", true).apply()
@@ -191,8 +212,14 @@ object CrossDevice {
                 if (packet.sliceArray(0..3).contentEquals(CrossDevicePackets.AIRPODS_DATA_HEADER.packet)) {
                     isAvailable = true
                     sharedPreferences.edit().putBoolean("CrossDeviceIsAvailable", true).apply()
+                    if (packet.size % 2 == 0) {
+                        val half = packet.size / 2
+                        if (packet.sliceArray(0 until half).contentEquals(packet.sliceArray(half until packet.size))) {
+                            Log.d("CrossDevice", "Duplicated packet, trimming")
+                            packet = packet.sliceArray(0 until half)
+                        }
+                    }
                     var trimmedPacket = packet.drop(CrossDevicePackets.AIRPODS_DATA_HEADER.packet.size).toByteArray()
-                    Log.d("CrossDevice", "Received relayed packet, with ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | ${ServiceManager.getService()?.earDetectionNotification?.isEarDetectionData(trimmedPacket)}")
                     Log.d("CrossDevice", "Received relayed packet: ${trimmedPacket.joinToString("") { "%02x".format(it) }}")
                     if (ServiceManager.getService()?.isConnectedLocally == true) {
                         val packetInHex = trimmedPacket.joinToString("") { "%02x".format(it) }
@@ -237,5 +264,14 @@ object CrossDevice {
         clientSocket?.outputStream?.flush()
         logPacket(byteArray, "Sent")
         Log.d("CrossDevice", "Sent packet to remote device")
+    }
+
+    fun notifyAirPodsConnectedRemotely(context: Context) {
+        val intent = Intent("me.kavishdevar.aln.AIRPODS_CONNECTED_REMOTELY")
+        context.sendBroadcast(intent)
+    }
+    fun notifyAirPodsDisconnectedRemotely(context: Context) {
+        val intent = Intent("me.kavishdevar.aln.AIRPODS_DISCONNECTED_REMOTELY")
+        context.sendBroadcast(intent)
     }
 }

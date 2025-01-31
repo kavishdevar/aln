@@ -13,6 +13,7 @@
 #include <QInputDialog>
 #include <QQmlContext>
 #include <QLoggingCategory>
+#include <QThread>
 #include <QTimer>
 #include <QPainter>
 #include <QPalette>
@@ -29,6 +30,11 @@
 #include <QBluetoothDeviceDiscoveryAgent>
 #include <QBluetoothLocalDevice>
 #include <QBluetoothUuid>
+#include <QDBusConnection>
+#include <QDBusInterface>
+#include <QDBusReply>
+#include <QDBusMessage>
+#include <QDBusPendingCallWatcher>
 
 Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
 
@@ -46,12 +52,16 @@ class AirPodsTrayApp : public QObject {
     Q_OBJECT
 
 public:
-    AirPodsTrayApp() {
+    AirPodsTrayApp(bool debugMode) : debugMode(debugMode) {
+        if (debugMode) {
+            QLoggingCategory::setFilterRules("airpodsApp.debug=true");
+        } else {
+            QLoggingCategory::setFilterRules("airpodsApp.debug=false");
+        }
         LOG_INFO("Initializing AirPodsTrayApp");
         trayIcon = new QSystemTrayIcon(QIcon(":/icons/airpods.png"));
         trayMenu = new QMenu();
 
-        // Initialize conversational awareness state
         bool caState = loadConversationalAwarenessState();
         QAction *caToggleAction = new QAction("Toggle Conversational Awareness", trayMenu);
         caToggleAction->setCheckable(true);
@@ -131,9 +141,115 @@ public:
             LOG_WARN("Service record not found, waiting for BLE broadcast");
         }
 
-        // Set up device listening
         listenForDeviceConnections();
+        initializeDBus();
+        initializeBluetooth();
     }
+
+    ~AirPodsTrayApp() {
+        delete trayIcon;
+        delete trayMenu;
+        delete discoveryAgent;
+        delete bluezInterface;
+        delete mprisInterface;
+        delete socket;
+        delete phoneSocket;
+    }
+
+private:
+    bool debugMode;
+    bool isConnectedLocally = false;
+    struct {
+        bool isAvailable = true;
+    } CrossDevice;
+
+    void initializeDBus() {
+        QDBusConnection systemBus = QDBusConnection::systemBus();
+        if (!systemBus.isConnected()) {
+        }
+
+        bluezInterface = new QDBusInterface("org.bluez",
+                                        "/",
+                                        "org.freedesktop.DBus.ObjectManager",
+                                        systemBus,
+                                        this);
+
+        if (!bluezInterface->isValid()) {
+            LOG_ERROR("Failed to connect to org.bluez DBus interface.");
+            return;
+        }
+
+        connect(systemBus.interface(), &QDBusConnectionInterface::NameOwnerChanged,
+                this, &AirPodsTrayApp::onNameOwnerChanged);
+
+        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.Properties", "PropertiesChanged",
+                        this, SLOT(onDevicePropertiesChanged(QString, QVariantMap, QStringList)));
+
+        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded",
+                        this, SLOT(onInterfacesAdded(QString, QVariantMap)));
+
+        QDBusMessage msg = bluezInterface->call("GetManagedObjects");
+        if (msg.type() == QDBusMessage::ErrorMessage) {
+            LOG_ERROR("Error getting managed objects: " << msg.errorMessage());
+            return;
+        }
+
+        QVariantMap objects = qdbus_cast<QVariantMap>(msg.arguments().at(0));
+        for (auto it = objects.begin(); it != objects.end(); ++it) {
+            if (it.key().startsWith("/org/bluez/hci0/dev_")) {
+                LOG_INFO("Existing device: " << it.key());
+            }
+        }
+        QDBusConnection::systemBus().registerObject("/me/kavishdevar/aln", this);
+        QDBusConnection::systemBus().registerService("me.kavishdevar.aln");
+    }
+
+    void notifyAndroidDevice() {
+        if (phoneSocket && phoneSocket->isOpen()) {
+            QByteArray notificationPacket = QByteArray::fromHex("00040001");
+            phoneSocket->write(notificationPacket);
+            LOG_DEBUG("Sent notification packet to Android: " << notificationPacket.toHex());
+        } else {
+            LOG_WARN("Phone socket is not open, cannot send notification packet");
+        }
+    }
+
+    void onNameOwnerChanged(const QString &name, const QString &oldOwner, const QString &newOwner) {
+        if (name == "org.bluez") {
+            if (newOwner.isEmpty()) {
+                LOG_WARN("BlueZ has been stopped.");
+            } else {
+                LOG_INFO("BlueZ started.");
+            }
+        }
+    }
+
+    void onDevicePropertiesChanged(const QString &interface, const QVariantMap &changed, const QStringList &invalidated) {
+        if (interface != "org.bluez.Device1")
+            return;
+
+        if (changed.contains("Connected")) {
+            bool connected = changed.value("Connected").toBool();
+            QString devicePath = sender()->objectName();
+            LOG_INFO(QString("Device %1 connected: %2").arg(devicePath, connected ? "Yes" : "No"));
+
+            if (connected) {
+                const QBluetoothAddress address = QBluetoothAddress(devicePath.split("/").last().replace("_", ":"));
+                QBluetoothDeviceInfo device(address, "", 0);
+                if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                    connectToDevice(device);
+                }
+            } else {
+                disconnectDevice(devicePath);
+            }
+        }
+    }
+
+    void disconnectDevice(const QString &devicePath) {
+        LOG_INFO("Disconnecting device at " << devicePath);
+    }
+
+    QDBusInterface *bluezInterface = nullptr;
 
 public slots:
     void connectToDevice(const QString &address) {
@@ -240,21 +356,32 @@ public slots:
 
     void handleEarDetection(const QString &status) {
         static bool wasPausedByApp = false;
-
+    
         QStringList parts = status.split(", ");
         bool primaryInEar = parts[0].contains("In Ear");
         bool secondaryInEar = parts[1].contains("In Ear");
-
-        if (primaryInEar && secondaryInEar) {
-            if (wasPausedByApp && isActiveOutputDeviceAirPods()) {
-                QProcess::execute("playerctl", QStringList() << "play");
-                LOG_INFO("Resumed playback via Playerctl");
-                wasPausedByApp = false;
-            }
-            LOG_INFO("Both AirPods are in ear");
+    
+        LOG_DEBUG("Ear detection status: primaryInEar=" << primaryInEar << ", secondaryInEar=" << secondaryInEar << isActiveOutputDeviceAirPods());
+        if (primaryInEar || secondaryInEar) {
+            LOG_INFO("At least one AirPod is in ear");
             activateA2dpProfile();
         } else {
-            LOG_INFO("At least one AirPod is out of ear");
+            LOG_INFO("Both AirPods are out of ear");
+            removeAudioOutputDevice();
+        }
+    
+        if (primaryInEar && secondaryInEar) {
+            if (wasPausedByApp && isActiveOutputDeviceAirPods()) {
+                int result = QProcess::execute("playerctl", QStringList() << "play");
+                LOG_DEBUG("Executed 'playerctl play' with result: " << result);
+                if (result == 0) {
+                    LOG_INFO("Resumed playback via Playerctl");
+                    wasPausedByApp = false;
+                } else {
+                    LOG_ERROR("Failed to resume playback via Playerctl");
+                }
+            }
+        } else {
             if (isActiveOutputDeviceAirPods()) {
                 QProcess process;
                 process.start("playerctl", QStringList() << "status");
@@ -262,25 +389,33 @@ public slots:
                 QString playbackStatus = process.readAllStandardOutput().trimmed();
                 LOG_DEBUG("Playback status: " << playbackStatus);
                 if (playbackStatus == "Playing") {
-                    QProcess::execute("playerctl", QStringList() << "pause");
-                    LOG_INFO("Paused playback via Playerctl");
-                    wasPausedByApp = true;
+                    int result = QProcess::execute("playerctl", QStringList() << "pause");
+                    LOG_DEBUG("Executed 'playerctl pause' with result: " << result);
+                    if (result == 0) {
+                        LOG_INFO("Paused playback via Playerctl");
+                        wasPausedByApp = true;
+                    } else {
+                        LOG_ERROR("Failed to pause playback via Playerctl");
+                    }
                 }
-            }
-            if (!primaryInEar && !secondaryInEar) {
-                removeAudioOutputDevice();
             }
         }
     }
 
     void activateA2dpProfile() {
         LOG_INFO("Activating A2DP profile for AirPods");
-        QProcess::execute("pactl", QStringList() << "set-card-profile" << "bluez_card." + connectedDeviceMacAddress << "a2dp-sink");
+        int result = QProcess::execute("pactl", QStringList() << "set-card-profile" << "bluez_card." + connectedDeviceMacAddress.replace(":", "_") << "a2dp-sink");
+        if (result != 0) {
+            LOG_ERROR("Failed to activate A2DP profile");
+        }
     }
-
+    
     void removeAudioOutputDevice() {
         LOG_INFO("Removing AirPods as audio output device");
-        QProcess::execute("pactl", QStringList() << "set-card-profile" << "bluez_card." + connectedDeviceMacAddress << "off");
+        int result = QProcess::execute("pactl", QStringList() << "set-card-profile" << "bluez_card." + connectedDeviceMacAddress.replace(":", "_") << "off");
+        if (result != 0) {
+            LOG_ERROR("Failed to remove AirPods as audio output device");
+        }
     }
 
     bool loadConversationalAwarenessState() {
@@ -371,7 +506,7 @@ public slots:
         }
 
         LOG_INFO("Connecting to device: " << device.name());
-        QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::RfcommProtocol);
+        QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
         connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
             LOG_INFO("Connected to device, sending initial packets");
             discoveryAgent->stop();
@@ -407,7 +542,6 @@ public slots:
 
             connect(localSocket, &QBluetoothSocket::readyRead, this, [this, localSocket]() {
                 QByteArray data = localSocket->readAll();
-                LOG_DEBUG("Data received: " << data.toHex());
                 QMetaObject::invokeMethod(this, "parseData", Qt::QueuedConnection, Q_ARG(QByteArray, data));
                 QMetaObject::invokeMethod(this, "relayPacketToPhone", Qt::QueuedConnection, Q_ARG(QByteArray, data));
             });
@@ -431,10 +565,11 @@ public slots:
         localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         socket = localSocket;
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
+        notifyAndroidDevice();
     }
 
     void parseData(const QByteArray &data) {
-        LOG_DEBUG("Parsing data: " << data.toHex() << "Size: " << data.size());
+        LOG_DEBUG("Received: " << data.toHex());
         if (data.size() == 11 && data.startsWith(QByteArray::fromHex("0400040009000D"))) {
             int mode = data[7] - 1;
             LOG_INFO("Noise control mode: " << mode);
@@ -507,7 +642,7 @@ public slots:
         process.waitForFinished();
         QString output = process.readAllStandardOutput().trimmed();
         LOG_DEBUG("Default sink: " << output);
-        return output.contains("bluez_card." + connectedDeviceMacAddress);
+        return output.contains(connectedDeviceMacAddress.replace(":", "_"));
     }
 
     void initializeMprisInterface() {
@@ -548,6 +683,14 @@ public slots:
         phoneSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
         connect(phoneSocket, &QBluetoothSocket::connected, this, [this]() {
             LOG_INFO("Connected to phone");
+            if (!lastBatteryStatus.isEmpty()) {
+                phoneSocket->write(lastBatteryStatus);
+                LOG_DEBUG("Sent last battery status to phone: " << lastBatteryStatus.toHex());
+            }
+            if (!lastEarDetectionStatus.isEmpty()) {
+                phoneSocket->write(lastEarDetectionStatus);
+                LOG_DEBUG("Sent last ear detection status to phone: " << lastEarDetectionStatus.toHex());
+            }
         });
 
         connect(phoneSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred), this, [this](QBluetoothSocket::SocketError error) {
@@ -561,7 +704,6 @@ public slots:
         if (phoneSocket && phoneSocket->isOpen()) {
             QByteArray header = QByteArray::fromHex("00040001");
             phoneSocket->write(header + packet);
-            LOG_DEBUG("Relayed packet to phone with header: " << (header + packet).toHex());
         } else {
             connectToPhone();
             LOG_WARN("Phone socket is not open, cannot relay packet");
@@ -579,8 +721,12 @@ public slots:
             }
         } else if (packet.startsWith(QByteArray::fromHex("00010001"))) {
             LOG_INFO("AirPods connected");
+            isConnectedLocally = true;
+            CrossDevice.isAvailable = false;
         } else if (packet.startsWith(QByteArray::fromHex("00010000"))) {
             LOG_INFO("AirPods disconnected");
+            isConnectedLocally = false;
+            CrossDevice.isAvailable = true;
         } else if (packet.startsWith(QByteArray::fromHex("00020003"))) {
             LOG_INFO("Connection status request received");
             QByteArray response = (socket && socket->isOpen()) ? QByteArray::fromHex("00010001") : QByteArray::fromHex("00010000");
@@ -596,6 +742,8 @@ public slots:
                 process.waitForFinished();
                 QString output = process.readAllStandardOutput().trimmed();
                 LOG_INFO("Bluetoothctl output: " << output);
+                isConnectedLocally = false;
+                CrossDevice.isAvailable = true;
             }
         } else {
             if (socket && socket->isOpen()) {
@@ -619,18 +767,6 @@ public slots:
         systemBus.connect(QString(), QString(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded", this, SLOT(onInterfacesAdded(QString, QVariantMap)));
     }
 
-    void onDevicePropertiesChanged(QString interface, QVariantMap changed, QStringList invalidated) {
-        if (changed.contains("Connected") && changed["Connected"].toBool()) {
-            QString path = interface.split("/").last();
-            QString addr = path.replace("_", ":").replace("dev:", "");
-            QBluetoothAddress btAddress(addr);
-            QBluetoothDeviceInfo device(btAddress, "", 0);
-            if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
-                connectToDevice(device);
-            }
-        }
-    }
-
     void onInterfacesAdded(QString path, QVariantMap interfaces) {
         if (interfaces.contains("org.bluez.Device1")) {
             QVariantMap deviceProps = interfaces["org.bluez.Device1"].toMap();
@@ -651,28 +787,84 @@ public slots:
             QString output = playerctlProcess->readAllStandardOutput().trimmed();
             LOG_DEBUG("Playerctl output: " << output);
             if (output == "Playing" && isPhoneConnected()) {
-                LOG_INFO("Media started playing, connecting to AirPods");
-                connectToAirPods();
+                LOG_INFO("Media started playing, sending disconnect request to Android and taking over audio");
+                sendDisconnectRequestToAndroid();
+                connectToAirPods(true);
             }
         });
-        playerctlProcess->start("playerctl", QStringList() << "metadata" << "--follow" << "status");
+        playerctlProcess->start("playerctl", QStringList() << "--follow" << "status");
+    }
+
+    void sendDisconnectRequestToAndroid() {
+        if (phoneSocket && phoneSocket->isOpen()) {
+            QByteArray disconnectRequest = QByteArray::fromHex("00020000");
+            phoneSocket->write(disconnectRequest);
+            LOG_DEBUG("Sent disconnect request to Android: " << disconnectRequest.toHex());
+        } else {
+            LOG_WARN("Phone socket is not open, cannot send disconnect request");
+        }
     }
 
     bool isPhoneConnected() {
         return phoneSocket && phoneSocket->isOpen();
     }
 
-    void connectToAirPods() {
+    void connectToAirPods(bool force) {
+        if (force) {
+            LOG_INFO("Forcing connection to AirPods");
+            QProcess process;
+            process.start("bluetoothctl", QStringList() << "connect" << connectedDeviceMacAddress.replace("_", ":"));
+            process.waitForFinished();
+            QString output = process.readAllStandardOutput().trimmed();
+            LOG_INFO("Bluetoothctl output: " << output);
+            if (output.contains("Connection successful")) {
+                LOG_INFO("Connection successful, proceeding with L2CAP connection");
+                QBluetoothAddress btAddress(connectedDeviceMacAddress.replace("_", ":"));
+                forceL2capConnection(btAddress);
+            } else {
+                LOG_ERROR("Connection failed, cannot proceed with L2CAP connection");
+            }
+        }
         QBluetoothLocalDevice localDevice;
         const QList<QBluetoothAddress> connectedDevices = localDevice.connectedDevices();
         for (const QBluetoothAddress &address : connectedDevices) {
             QBluetoothDeviceInfo device(address, "", 0);
+            LOG_DEBUG("Connected device: " << device.name() << " (" << device.address().toString() << ")");
             if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
                 connectToDevice(device);
                 return;
             }
         }
         LOG_WARN("AirPods not found among connected devices");
+    }
+
+    void forceL2capConnection(const QBluetoothAddress &address) {
+        LOG_INFO("Retrying L2CAP connection for up to 10 seconds...");
+        QBluetoothDeviceInfo device(address, "", 0);
+        QElapsedTimer timer;
+        timer.start();
+        while (timer.elapsed() < 10000) {
+            QProcess bcProcess;
+            bcProcess.start("bluetoothctl", QStringList() << "connect" << address.toString());
+            bcProcess.waitForFinished();
+            QString output = bcProcess.readAllStandardOutput().trimmed();
+            LOG_INFO("Bluetoothctl output: " << output);
+            if (output.contains("Connection successful")) {
+                connectToDevice(device);
+                QThread::sleep(1);
+                if (socket && socket->isOpen()) {
+                    LOG_INFO("Successfully connected to device: " << address.toString());
+                    return;
+                }
+            } else {
+                LOG_WARN("Connection attempt failed, retrying...");
+            }
+        }
+        LOG_ERROR("Failed to connect to device within 10 seconds: " << address.toString());
+    }
+
+    void initializeBluetooth() {
+        connectToPhone();
     }
 
 signals:
@@ -688,32 +880,37 @@ private:
     QBluetoothSocket *phoneSocket = nullptr;
     QDBusInterface *mprisInterface;
     QString connectedDeviceMacAddress;
+    QByteArray lastBatteryStatus;
+    QByteArray lastEarDetectionStatus;
 };
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
 
+    bool debugMode = false;
+    for (int i = 1; i < argc; ++i) {
+        if (QString(argv[i]) == "--debug") {
+            debugMode = true;
+            break;
+        }
+    }
+
     QQmlApplicationEngine engine;
-    AirPodsTrayApp trayApp;
+    AirPodsTrayApp trayApp(debugMode);
     engine.rootContext()->setContextProperty("airPodsTrayApp", &trayApp);
     engine.loadFromModule("linux", "Main");
 
     QObject::connect(&trayApp, &AirPodsTrayApp::noiseControlModeChanged, &engine, [&engine](int mode) {
-        LOG_DEBUG("Received noiseControlModeChanged signal with mode: " << mode);
         QObject *rootObject = engine.rootObjects().constFirst();
 
         if (rootObject) {
-            LOG_DEBUG("Root object found");
             QObject *noiseControlMode = rootObject->findChild<QObject*>("noiseControlMode");
             if (noiseControlMode) {
-                LOG_DEBUG("noiseControlMode object found");
                 if (mode >= 0 && mode <= 3) {
                     QMetaObject::invokeMethod(noiseControlMode, "setCurrentIndex", Q_ARG(int, mode));
                 } else {
                     LOG_ERROR("Invalid mode value: " << mode);
                 }
-            } else {
-                LOG_ERROR("noiseControlMode object not found");
             }
         } else {
             LOG_ERROR("Root object not found");
@@ -721,16 +918,11 @@ int main(int argc, char *argv[]) {
     });
 
     QObject::connect(&trayApp, &AirPodsTrayApp::earDetectionStatusChanged, [&engine](const QString &status) {
-        LOG_DEBUG("Received earDetectionStatusChanged signal with status: " << status);
         QObject *rootObject = engine.rootObjects().first();
         if (rootObject) {
-            LOG_DEBUG("Root object found");
             QObject *earDetectionStatus = rootObject->findChild<QObject*>("earDetectionStatus");
             if (earDetectionStatus) {
-                LOG_DEBUG("earDetectionStatus object found");
                 earDetectionStatus->setProperty("text", "Ear Detection Status: " + status);
-            } else {
-                LOG_ERROR("earDetectionStatus object not found");
             }
         } else {
             LOG_ERROR("Root object not found");
@@ -738,16 +930,11 @@ int main(int argc, char *argv[]) {
     });
 
     QObject::connect(&trayApp, &AirPodsTrayApp::batteryStatusChanged, [&engine](const QString &status) {
-        LOG_DEBUG("Received batteryStatusChanged signal with status: " << status);
         QObject *rootObject = engine.rootObjects().first();
         if (rootObject) {
-            LOG_DEBUG("Root object found");
             QObject *batteryStatus = rootObject->findChild<QObject*>("batteryStatus");
             if (batteryStatus) {
-                LOG_DEBUG("batteryStatus object found");
                 batteryStatus->setProperty("text", "Battery Status: " + status);
-            } else {
-                LOG_ERROR("batteryStatus object not found");
             }
         } else {
             LOG_ERROR("Root object not found");

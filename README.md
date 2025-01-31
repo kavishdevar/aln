@@ -20,16 +20,13 @@ Check the [pinned issue](https://github.com/kavishdevar/aln/issues/20) for a lis
 
 ### Features
 
-- **Battery Status**: Get battery status on your Android device when you connect your AirPods to your Linux device.
-- **Control AirPods**: Control your AirPods from your Android device when connected to your Linux device, like changing the noise control mode, toggling conversational awareness, and more.
-- **Automatic Device Switching**: Automatically switch between your Linux and Android device when you connect your AirPods to one of them.
+- **Battery Status**: Get battery status on any device when you connect your AirPods to one of them.
+- **Control AirPods**: Control your AirPods from either of your device when you connect to one, like changing the noise control mode, toggling conversational awareness, and more.
+- **Automatic Device Switching**: Automatically switch between your Linux and Android device, like when you receive a call, start playing music on Android while you're connected to Linux, and more!
 
-> [!NOTE]
-> All this currently works only one way, Linux to Android, i.e. if you connect your AirPods to your Linux device, the features mentioned. The Android app can automaticaly connect to your AirPods when *receiving calls* or *starting media playback*.
+Check out the demo below!
 
-| | |
-|-------------------|-------------------|
-| Connected to Linux, all features of the app available (setting Noise Control mode, battery status, etc.). ![Connected Remotely](/android/imgs/cd-connected-remotely-island.png) | Call received or media started playing; phone took over audio and disconnected AirPods from linux. ![Moved to Phone](/android/imgs/cd-moved-to-phone-island.png) |
+https://raw.githubusercontent.com/kavishdevar/aln/main/android/imgs/cd-demo-2.mp4
 
 ## Linux — Deprecated, rewrite WIP!
 

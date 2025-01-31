@@ -74,18 +74,17 @@ object MediaController {
             super.onPlaybackConfigChanged(configs)
             Log.d("MediaController", "Playback config changed, iPausedTheMedia: $iPausedTheMedia")
             if (configs != null && !iPausedTheMedia) {
-                Log.d("MediaController", "Seems like the user changed the state of media themselves, now I won't `play` until the ear detection pauses it.")
+                Log.d("MediaController", "Seems like the user changed the state of media themselves, now I won't play until the ear detection pauses it.")
                 handler.postDelayed({
                     iPausedTheMedia = !audioManager.isMusicActive
                     userPlayedTheMedia = audioManager.isMusicActive
                 }, 7) // i have no idea why android sends an event a hundred times after the user does something.
             }
-            Log.d("MediaController", "Ear detection status: ${ServiceManager.getService()?.earDetectionNotification?.status}, music active: ${audioManager.isMusicActive} and cross device available: ${CrossDevice.isAvailable}")
+            Log.d("MediaController", "pausedforcrossdevice: $pausedForCrossDevice Ear detection status: ${ServiceManager.getService()?.earDetectionNotification?.status}, music active: ${audioManager.isMusicActive} and cross device available: ${CrossDevice.isAvailable}")
             if (!pausedForCrossDevice && CrossDevice.isAvailable && ServiceManager.getService()?.earDetectionNotification?.status?.contains(0x00) == true && audioManager.isMusicActive) {
-                if (ServiceManager.getService()?.isConnectedLocally == false) {
-                    sendPause(true)
-                    pausedForCrossDevice = true
-                }
+                Log.d("MediaController", "Pausing for cross device and taking over.")
+                sendPause(true)
+                pausedForCrossDevice = true
                 ServiceManager.getService()?.takeOver()
             }
         }

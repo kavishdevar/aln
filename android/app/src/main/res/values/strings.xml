@@ -45,4 +45,5 @@
     <string name="island_connected_text">Connected</string>
     <string name="island_connected_remote_text">Connected to Linux</string>
     <string name="island_taking_over_text">Moved to phone</string>
+    <string name="island_moved_to_remote_text">Moved to Linux</string>
 </resources>

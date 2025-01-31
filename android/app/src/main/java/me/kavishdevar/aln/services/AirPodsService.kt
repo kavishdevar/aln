@@ -78,6 +78,7 @@ import me.kavishdevar.aln.utils.BatteryStatus
 import me.kavishdevar.aln.utils.CrossDevice
 import me.kavishdevar.aln.utils.CrossDevicePackets
 import me.kavishdevar.aln.utils.Enums
+import me.kavishdevar.aln.utils.IslandType
 import me.kavishdevar.aln.utils.IslandWindow
 import me.kavishdevar.aln.utils.LongPressPackets
 import me.kavishdevar.aln.utils.MediaController
@@ -179,10 +180,12 @@ class AirPodsService : Service() {
     var islandOpen = false
     var islandWindow: IslandWindow? = null
     @SuppressLint("MissingPermission")
-    fun showIsland(service: Service, batteryPercentage: Int, takingOver: Boolean = false) {
+    fun showIsland(service: Service, batteryPercentage: Int, type: IslandType = IslandType.CONNECTED) {
         Log.d("AirPodsService", "Showing island window")
-        islandWindow = IslandWindow(service.applicationContext)
-        islandWindow!!.show(sharedPreferences.getString("name", "AirPods Pro").toString(), batteryPercentage, this, takingOver)
+        CoroutineScope(Dispatchers.Main).launch {
+            islandWindow = IslandWindow(service.applicationContext)
+            islandWindow!!.show(sharedPreferences.getString("name", "AirPods Pro").toString(), batteryPercentage, this@AirPodsService, type)
+        }
     }
 
     @OptIn(ExperimentalMaterial3Api::class)
@@ -806,7 +809,11 @@ class AirPodsService : Service() {
             connectToSocket(device!!)
             connectAudio(this, device)
         }
-        showIsland(this, batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT}?.level!!.coerceAtMost(batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT}?.level!!), true)
+        showIsland(this, batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT}?.level!!.coerceAtMost(batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT}?.level!!),
+            IslandType.TAKING_OVER)
+
+        isConnectedLocally = true
+        CrossDevice.isAvailable = false
     }
 
     @SuppressLint("MissingPermission", "UnspecifiedRegisterReceiverFlag")
@@ -1119,7 +1126,12 @@ class AirPodsService : Service() {
     }
 
     fun disconnect() {
+        if (!this::socket.isInitialized) return
         socket.close()
+        MediaController.pausedForCrossDevice = false
+        Log.d("AirPodsService", "Disconnected from AirPods, showing island.")
+        showIsland(this, batteryNotification.getBattery().find { it.component == BatteryComponent.LEFT}?.level!!.coerceAtMost(batteryNotification.getBattery().find { it.component == BatteryComponent.RIGHT}?.level!!),
+            IslandType.MOVED_TO_REMOTE)
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
         bluetoothAdapter.getProfileProxy(this, object : BluetoothProfile.ServiceListener {
             override fun onServiceConnected(profile: Int, proxy: BluetoothProfile) {
@@ -1134,8 +1146,8 @@ class AirPodsService : Service() {
 
             override fun onServiceDisconnected(profile: Int) {}
         }, BluetoothProfile.A2DP)
-        HiddenApiBypass.invoke(BluetoothDevice::class.java, device, "disconnect")
         isConnectedLocally = false
+        CrossDevice.isAvailable = true
     }
 
     fun sendPacket(packet: String) {
@@ -1144,7 +1156,7 @@ class AirPodsService : Service() {
             CrossDevice.sendRemotePacket(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + fromHex.toByteArray())
             return
         }
-        if (this::socket.isInitialized) {
+        if (this::socket.isInitialized && socket.isConnected && socket.outputStream != null) {
             val byteArray = fromHex.toByteArray()
             socket.outputStream?.write(byteArray)
             socket.outputStream?.flush()
@@ -1157,7 +1169,7 @@ class AirPodsService : Service() {
             CrossDevice.sendRemotePacket(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + packet)
             return
         }
-        if (this::socket.isInitialized) {
+        if (this::socket.isInitialized && socket.isConnected && socket.outputStream != null) {
             socket.outputStream?.write(packet)
             socket.outputStream?.flush()
             logPacket(packet, "Sent")
@@ -1605,6 +1617,9 @@ class AirPodsService : Service() {
             e.printStackTrace()
         }
         telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
+        // Reset state variables
+        isConnectedLocally = false
+        CrossDevice.isAvailable = true
         super.onDestroy()
     }
 }
