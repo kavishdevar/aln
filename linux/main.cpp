@@ -210,7 +210,15 @@ public slots:
         QStringList parts = status.split(", ");
         int leftLevel = parts[0].split(": ")[1].replace("%", "").toInt();
         int rightLevel = parts[1].split(": ")[1].replace("%", "").toInt();
-        int minLevel = qMin(leftLevel, rightLevel);
+        
+        int minLevel;
+        if (leftLevel == 0) {
+            minLevel = rightLevel;
+        } else if (rightLevel == 0) {
+            minLevel = leftLevel;
+        } else {
+            minLevel = qMin(leftLevel, rightLevel);
+        }
 
         QPixmap pixmap(32, 32);
         pixmap.fill(Qt::transparent);
