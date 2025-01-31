@@ -51,7 +51,10 @@ public:
         Off = 0,
         NoiseCancellation = 1,
         Transparency = 2,
-        Adaptive = 3
+        Adaptive = 3,
+
+        MinValue = Off,
+        MaxValue = Adaptive
     };
     Q_ENUM(NoiseControlMode)
 
@@ -449,9 +452,17 @@ public slots:
     void parseData(const QByteArray &data) {
         LOG_DEBUG("Parsing data: " << data.toHex() << "Size: " << data.size());
         if (data.size() == 11 && data.startsWith(QByteArray::fromHex("0400040009000D"))) {
-            NoiseControlMode mode = static_cast<NoiseControlMode>(data[7] - 1);
-            LOG_INFO("Noise control mode: " << (int)mode);
-            emit noiseControlModeChanged(mode);
+            quint8 rawMode = data[7] - 1;
+            if (rawMode >= NoiseControlMode::MinValue && rawMode <= NoiseControlMode::MaxValue)
+            {
+                NoiseControlMode mode = static_cast<NoiseControlMode>(rawMode);
+                LOG_INFO("Noise control mode: " << (int)mode);
+                emit noiseControlModeChanged(mode);
+            }
+            else
+            {
+                LOG_WARN("Invalid noise control mode received: " << (int)rawMode);
+            }
         } else if (data.size() == 8 && data.startsWith(QByteArray::fromHex("040004000600"))) {
             char primary = data[6];
             char secondary = data[7];
@@ -547,7 +558,7 @@ public slots:
     }
 
     void connectToPhone() {
-        if (phoneSocket && phoneSocket->isOpen()) {
+        if (isPhoneConnected()) {
             LOG_INFO("Already connected to the phone");
             return;
         }
