@@ -526,7 +526,7 @@ public slots:
         process.waitForFinished();
         QString output = process.readAllStandardOutput().trimmed();
         LOG_DEBUG("Default sink: " << output);
-        return (output.contains("bluez_card.") || output.contains("bluez_output.")) && output.contains(connectedDeviceMacAddress);
+        return output.contains(connectedDeviceMacAddress.replace(":", "_"));
     }
 
     void initializeMprisInterface() {
