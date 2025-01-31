@@ -661,28 +661,6 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty("airPodsTrayApp", &trayApp);
     engine.loadFromModule("linux", "Main");
 
-    QObject::connect(&trayApp, &AirPodsTrayApp::noiseControlModeChanged, &engine, [&engine](int mode) {
-        LOG_DEBUG("Received noiseControlModeChanged signal with mode: " << mode);
-        QObject *rootObject = engine.rootObjects().constFirst();
-
-        if (rootObject) {
-            LOG_DEBUG("Root object found");
-            QObject *noiseControlMode = rootObject->findChild<QObject*>("noiseControlMode");
-            if (noiseControlMode) {
-                LOG_DEBUG("noiseControlMode object found");
-                if (mode >= 0 && mode <= 3) {
-                    QMetaObject::invokeMethod(noiseControlMode, "setCurrentIndex", Q_ARG(int, mode));
-                } else {
-                    LOG_ERROR("Invalid mode value: " << mode);
-                }
-            } else {
-                LOG_ERROR("noiseControlMode object not found");
-            }
-        } else {
-            LOG_ERROR("Root object not found");
-        }
-    });
-
     QObject::connect(&trayApp, &AirPodsTrayApp::earDetectionStatusChanged, [&engine](const QString &status) {
         LOG_DEBUG("Received earDetectionStatusChanged signal with status: " << status);
         QObject *rootObject = engine.rootObjects().first();
