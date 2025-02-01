@@ -568,6 +568,12 @@ public slots:
         notifyAndroidDevice();
     }
 
+    QString getEarStatus(char value)
+    {
+        return (value == 0x00) ? "In Ear" : (value == 0x01) ? "Out of Ear"
+                                                            : "In case";
+    }
+
     void parseData(const QByteArray &data) {
         LOG_DEBUG("Received: " << data.toHex());
         if (data.size() == 11 && data.startsWith(QByteArray::fromHex("0400040009000D"))) {
@@ -579,11 +585,10 @@ public slots:
                 LOG_ERROR("Invalid noise control mode value received: " << mode);
             }
         } else if (data.size() == 8 && data.startsWith(QByteArray::fromHex("040004000600"))) {
-            bool primaryInEar = data[6] == 0x00;
-            bool secondaryInEar = data[7] == 0x00;
+            char primary = data[6];
+            char secondary = data[7];
             QString earDetectionStatus = QString("Primary: %1, Secondary: %2")
-                .arg(primaryInEar ? "In Ear" : "Out of Ear")
-                .arg(secondaryInEar ? "In Ear" : "Out of Ear");
+                .arg(getEarStatus(primary), getEarStatus(secondary));                
             LOG_INFO("Ear detection status: " << earDetectionStatus);
             emit earDetectionStatusChanged(earDetectionStatus);
         } else if (data.size() == 22 && data.startsWith(QByteArray::fromHex("040004000400"))) {
