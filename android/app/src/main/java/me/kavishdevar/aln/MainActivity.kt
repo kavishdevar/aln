@@ -133,6 +133,7 @@ fun Main() {
         permissions = listOf(
             "android.permission.BLUETOOTH_CONNECT",
             "android.permission.BLUETOOTH_SCAN",
+            "android.permission.BLUETOOTH_ADVERTISE",
             "android.permission.POST_NOTIFICATIONS",
             "android.permission.READ_PHONE_STATE"
         )
