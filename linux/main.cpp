@@ -1,3 +1,5 @@
+#include "main.h"
+
 class AirPodsTrayApp : public QObject {
   Q_OBJECT
 
