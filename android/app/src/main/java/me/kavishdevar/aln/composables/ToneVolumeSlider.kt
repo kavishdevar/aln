@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -50,8 +50,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.R
+import me.kavishdevar.aln.services.AirPodsService
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -95,11 +95,11 @@ fun ToneVolumeSlider(service: AirPodsService, sharedPreferences: SharedPreferenc
             value = sliderValue.floatValue,
             onValueChange = {
                 sliderValue.floatValue = it
-                service.setToneVolume(volume = it.toInt())
             },
             valueRange = 0f..100f,
             onValueChangeFinished = {
                 sliderValue.floatValue = sliderValue.floatValue.roundToInt().toFloat()
+                service.setToneVolume(volume = sliderValue.floatValue.toInt())
             },
             modifier = Modifier
                 .weight(1f)
