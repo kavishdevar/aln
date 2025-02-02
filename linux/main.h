@@ -1,3 +1,6 @@
+#ifndef MAIN_H
+#define MAIN_H
+
 #include <QAction>
 #include <QActionGroup>
 #include <QApplication>
@@ -41,3 +44,5 @@ Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
 
 #define MANUFACTURER_ID 0x1234
 #define MANUFACTURER_DATA "ALN_AirPods"
+
+#endif
