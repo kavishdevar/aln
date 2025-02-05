@@ -26,15 +26,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.appwidget.AppWidgetManager
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
-import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -62,12 +57,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import me.kavishdevar.aln.MainActivity
 import me.kavishdevar.aln.R
@@ -259,42 +251,6 @@ class AirPodsService : Service() {
         widgetMobileBatteryEnabled = enabled
         updateBatteryWidget()
     }
-
-    @SuppressLint("MissingPermission")
-    fun scanForAirPods(bluetoothAdapter: BluetoothAdapter): Flow<List<ScanResult>> = callbackFlow {
-        val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-            ?: throw IllegalStateException("Bluetooth adapter unavailable")
-
-        val scanCallback = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                if (result.device != null) {
-                    trySend(listOf(result))
-                }
-            }
-
-            override fun onBatchScanResults(results: List<ScanResult>) {
-                trySend(results)
-            }
-
-            override fun onScanFailed(errorCode: Int) {
-                close(Exception("Scan failed with error: $errorCode"))
-            }
-        }
-
-        val scanSettings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
-
-        val scanFilters = listOf<ScanFilter>(
-            ScanFilter.Builder()
-                .setManufacturerData(0x004C, byteArrayOf())
-                .build()
-        )
-
-        bluetoothLeScanner.startScan(scanFilters, scanSettings, scanCallback)
-        awaitClose { bluetoothLeScanner.stopScan(scanCallback) }
-    }
-
 
     @OptIn(ExperimentalMaterial3Api::class)
     fun startForegroundNotification() {
@@ -718,29 +674,6 @@ class AirPodsService : Service() {
         }
 
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
-        if (bluetoothAdapter.isEnabled) {
-            CoroutineScope(Dispatchers.IO).launch {
-                var lastData = byteArrayOf()
-                scanForAirPods(bluetoothAdapter).collect { scanResults ->
-                    scanResults.forEach { scanResult ->
-                        val device = scanResult.device
-                        device.fetchUuidsWithSdp()
-                        val manufacturerData =
-                            scanResult.scanRecord?.manufacturerSpecificData?.get(0x004C)
-                        if (manufacturerData != null && manufacturerData != lastData) {
-                            lastData = manufacturerData
-                            val formattedHex =
-                                manufacturerData.joinToString(" ") { "%02X".format(it) }
-                            val rssi = scanResult.rssi
-                            Log.d(
-                                "AirPodsBLEService",
-                                "Received broadcast of size ${manufacturerData.size} from ${device.address} | $rssi | $formattedHex"
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         bluetoothAdapter.bondedDevices.forEach { device ->
             device.fetchUuidsWithSdp()
