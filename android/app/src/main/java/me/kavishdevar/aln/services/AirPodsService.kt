@@ -72,9 +72,10 @@ import me.kavishdevar.aln.utils.CrossDevicePackets
 import me.kavishdevar.aln.utils.Enums
 import me.kavishdevar.aln.utils.IslandType
 import me.kavishdevar.aln.utils.IslandWindow
-import me.kavishdevar.aln.utils.LongPressPackets
+import me.kavishdevar.aln.utils.LongPressMode
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.PopupWindow
+import me.kavishdevar.aln.utils.determinePacket
 import me.kavishdevar.aln.widgets.BatteryWidget
 import me.kavishdevar.aln.widgets.NoiseControlWidget
 import org.lsposed.hiddenapibypass.HiddenApiBypass
@@ -1390,7 +1391,6 @@ class AirPodsService : Service() {
     fun updateLongPress(
         oldLongPressArray: BooleanArray,
         newLongPressArray: BooleanArray,
-        offListeningMode: Boolean
     ) {
         if (oldLongPressArray.contentEquals(newLongPressArray)) {
             return
