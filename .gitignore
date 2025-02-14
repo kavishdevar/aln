@@ -1,5 +1,14 @@
-# Created by https://www.toptal.com/developers/gitignore/api/qt,c++,clion,kotlin,python,android,pycharm,androidstudio,visualstudiocode,linux
-# Edit at https://www.toptal.com/developers/gitignore?templates=qt,c++,clion,kotlin,python,android,pycharm,androidstudio,visualstudiocode,linux
+
+wak.toml
+log.txt
+btl2capfix.zip
+root-module-manual
+.vscode
+testing.py
+.DS_Store
+CMakeLists.txt.user*
+# Android Template
+
 
 ### Android ###
 # Gradle files
