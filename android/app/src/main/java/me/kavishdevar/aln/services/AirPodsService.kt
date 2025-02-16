@@ -73,7 +73,6 @@ import me.kavishdevar.aln.utils.Enums
 import me.kavishdevar.aln.utils.IslandType
 import me.kavishdevar.aln.utils.IslandWindow
 import me.kavishdevar.aln.utils.LongPressMode
-import me.kavishdevar.aln.utils.LongPressPackets
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.PopupWindow
 import me.kavishdevar.aln.utils.determinePacket
@@ -773,12 +772,12 @@ class AirPodsService : Service() {
                     socket = HiddenApiBypass.newInstance(
                         BluetoothSocket::class.java,
                         3,
-                        1,
+                        0,
                         true,
                         true,
                         device,
                         0x1001,
-                        uuid
+                        null
                     ) as BluetoothSocket
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -1392,7 +1391,6 @@ class AirPodsService : Service() {
     fun updateLongPress(
         oldLongPressArray: BooleanArray,
         newLongPressArray: BooleanArray,
-        offListeningMode: Boolean
     ) {
         if (oldLongPressArray.contentEquals(newLongPressArray)) {
             return
