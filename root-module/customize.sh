@@ -85,6 +85,7 @@ fi
 
 for lib_path in \
     "/apex/com.android.btservices/lib64/libbluetooth_jni.so" \
+    "/apex/com.android.bt/lib64/libbluetooth_jni.so" \
     "/system/lib64/libbluetooth_jni.so" \
     "/system/lib64/libbluetooth_qti.so" \
     "/system_ext/lib64/libbluetooth_qti.so"; do
@@ -170,6 +171,12 @@ if [ -f "$TEMP_DIR/$LIBRARY_NAME" ]; then
             APEX_LIB_DIR="/apex/com.android.btservices/lib64"
             MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.btservices/lib64"
             WORK_DIR="$MODPATH/apex/com.android.btservices/work"
+
+            if [ ! -d "$APEX_LIB_DIR" ]; then
+                APEX_LIB_DIR="/apex/com.android.bt/lib64"
+                MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.bt/lib64"
+                WORK_DIR="$MODPATH/apex/com.android.bt/work"
+            fi
 
             mkdir -p "$MOD_APEX_LIB_DIR" "$WORK_DIR"
 
