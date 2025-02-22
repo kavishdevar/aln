@@ -160,26 +160,37 @@ if [ -f "$TEMP_DIR/$LIBRARY_NAME" ]; then
     ui_print "Patched file installed at $TARGET_DIR/$LIBRARY_NAME"
 
     if [ "$APEX_DIR" = true ]; then
-        POST_DATA_FS_SCRIPT="$MODPATH/post-data-fs.sh"
-        APEX_LIB_DIR="/apex/com.android.btservices/lib64"
-        MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.btservices/lib64"
-        WORK_DIR="$MODPATH/apex/com.android.btservices/work"
+        # Check if OverlayFS is supported
+        mkdir -p /tmp/overlayfs-test/{lower,upper,work,mount}
+        if mount -t overlay overlay -o lowerdir=/tmp/overlayfs-test/lower,upperdir=/tmp/overlayfs-test/upper,workdir=/tmp/overlayfs-test/work /tmp/overlayfs-test/mount 2>/dev/null; then
+            ui_print "OverlayFS is supported."
+            umount /tmp/overlayfs-test/mount
 
-        mkdir -p "$MOD_APEX_LIB_DIR" "$WORK_DIR"
+            POST_DATA_FS_SCRIPT="$MODPATH/post-data-fs.sh"
+            APEX_LIB_DIR="/apex/com.android.btservices/lib64"
+            MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.btservices/lib64"
+            WORK_DIR="$MODPATH/apex/com.android.btservices/work"
 
-        cp "$TEMP_DIR/$LIBRARY_NAME" "$MOD_APEX_LIB_DIR/$LIBRARY_NAME"
-        set_perm "$MOD_APEX_LIB_DIR/$LIBRARY_NAME" 0 0 644
+            mkdir -p "$MOD_APEX_LIB_DIR" "$WORK_DIR"
 
-        cat <<EOF > "$POST_DATA_FS_SCRIPT"
+            cp "$TEMP_DIR/$LIBRARY_NAME" "$MOD_APEX_LIB_DIR/$LIBRARY_NAME"
+            set_perm "$MOD_APEX_LIB_DIR/$LIBRARY_NAME" 0 0 644
+
+            cat <<EOF > "$POST_DATA_FS_SCRIPT"
 #!/system/bin/sh
 mount -t overlay overlay -o lowerdir=$APEX_LIB_DIR,upperdir=$MOD_APEX_LIB_DIR,workdir=$WORK_DIR $APEX_LIB_DIR
 EOF
 
-        set_perm "$POST_DATA_FS_SCRIPT" 0 0 755
-        ui_print "Created script for apex library handling."
-        ui_print "You can now restart your device and test aln!"
-        ui_print "Note: If your Bluetooth doesn't work anymore after restarting, then uninstall this module and report the issue at the link below."
-        ui_print "https://github.com/kavishdevar/aln/issues/new"
+            set_perm "$POST_DATA_FS_SCRIPT" 0 0 755
+            ui_print "Created script for apex library handling."
+            ui_print "You can now restart your device and test aln!"
+            ui_print "Note: If your Bluetooth doesn't work anymore after restarting, then uninstall this module and report the issue at the link below."
+            ui_print "https://github.com/kavishdevar/aln/issues/new"
+        else
+            ui_print "OverlayFS is not supported. Aborting..."
+            abort "OverlayFS is not supported."
+        fi
+        rm -rf /tmp/overlayfs-test
     fi
 else
     ui_print "Error: patched file missing."
