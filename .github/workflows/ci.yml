@@ -63,12 +63,11 @@ jobs:
         run: |
           COMMITS=$(git log ${{ steps.fetch-tag.outputs.tag }}..HEAD --pretty=format:"- %s (%h)" --abbrev-commit)
           echo "::set-output name=commits::${COMMITS}"
-      - name: Zip root-module directory
-        run: zip -r -0 ../btl2capfix.zip * --verbose
-        working-directory: root-module
+      - name: Build and zip root-module
+        run: ./build-magisk-module.sh "../${{ env.APK_NAME }}.zip"
       - name: Delete release if exist then create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
-          gh release create "nightly" "./$APK_NAME" "./btl2capfix.zip" -p -t "Nightly Release" -n "${{ steps.get-commits.outputs.commits }}" --generate-notes
+          gh release create "nightly" "./$APK_NAME" "../${{ env.APK_NAME }}.zip" -p -t "Nightly Release" -n "${{ steps.get-commits.outputs.commits }}" --generate-notes
