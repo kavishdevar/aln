@@ -9,7 +9,7 @@ exec 2> >(while read -r line; do echo "$line" | grep -qv "Cannot determine entry
 
 TEMP_DIR="/data/local/tmp/aln_patch"
 
-# Note: this dir cannot be changed without recompiling radare2 because this prefix are hardcoded inside the radare2 binaries: /data/local/tmp/aln_unzip/org.radare.radare2installer/radare2/
+# Note: this dir cannot be changed without recompiling radare2 because the path "/data/local/tmp/aln_unzip/org.radare.radare2installer/radare2/" is hardcoded at compile-time inside the radare2 binaries
 UNZIP_DIR="/data/local/tmp/aln_unzip"
 SOURCE_FILE=""
 LIBRARY_NAME=""
@@ -38,7 +38,7 @@ set_perm "$XZ" 0 0 755
 # The bundled radare2 is a custom build that works without Termux: https://github.com/devnoname120/radare2
 ui_print "Extracting radare2 to /data/local/tmp/aln_unzip..."
 $BUSYBOX tar xzf "$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz" -C / || {
-    abort "Failed to extract "$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz"."
+    abort "Failed to extract \"$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz\"."
 }
 
 
@@ -49,7 +49,7 @@ if [ "$(uname -m)" = "aarch64" ]; then
     export RABIN2="$UNZIP_DIR/org.radare.radare2installer/radare2/bin/rabin2"
     export RADARE2="$UNZIP_DIR/org.radare.radare2installer/radare2/bin/radare2"
 else
-    abort "arm64 archicture required, arm32 not supported"
+    abort "arm64 architecture required, arm32 not supported"
 fi
 
 set_perm "$RABIN2" 0 0 755
