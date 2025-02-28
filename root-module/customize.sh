@@ -9,7 +9,7 @@ exec 2> >(while read -r line; do echo "$line" | grep -qv "Cannot determine entry
 
 TEMP_DIR="/data/local/tmp/aln_patch"
 
-# Note: this dir cannot be changed without recompiling radare2 because this prefix are hardcoded inside the radare2 binaries: /data/local/tmp/aln_unzip/org.radare.radare2installer/radare2/
+# Note: this dir cannot be changed without recompiling radare2 because the path "/data/local/tmp/aln_unzip/org.radare.radare2installer/radare2/" is hardcoded at compile-time inside the radare2 binaries
 UNZIP_DIR="/data/local/tmp/aln_unzip"
 SOURCE_FILE=""
 LIBRARY_NAME=""
@@ -38,7 +38,7 @@ set_perm "$XZ" 0 0 755
 # The bundled radare2 is a custom build that works without Termux: https://github.com/devnoname120/radare2
 ui_print "Extracting radare2 to /data/local/tmp/aln_unzip..."
 $BUSYBOX tar xzf "$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz" -C / || {
-    abort "Failed to extract "$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz"."
+    abort "Failed to extract \"$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz\"."
 }
 
 
@@ -49,7 +49,7 @@ if [ "$(uname -m)" = "aarch64" ]; then
     export RABIN2="$UNZIP_DIR/org.radare.radare2installer/radare2/bin/rabin2"
     export RADARE2="$UNZIP_DIR/org.radare.radare2installer/radare2/bin/radare2"
 else
-    abort "arm64 archicture required, arm32 not supported"
+    abort "arm64 architecture required, arm32 not supported"
 fi
 
 set_perm "$RABIN2" 0 0 755
@@ -85,6 +85,7 @@ fi
 
 for lib_path in \
     "/apex/com.android.btservices/lib64/libbluetooth_jni.so" \
+    "/apex/com.android.bt/lib64/libbluetooth_jni.so" \
     "/system/lib64/libbluetooth_jni.so" \
     "/system/lib64/libbluetooth_qti.so" \
     "/system_ext/lib64/libbluetooth_qti.so"; do
@@ -160,26 +161,43 @@ if [ -f "$TEMP_DIR/$LIBRARY_NAME" ]; then
     ui_print "Patched file installed at $TARGET_DIR/$LIBRARY_NAME"
 
     if [ "$APEX_DIR" = true ]; then
-        POST_DATA_FS_SCRIPT="$MODPATH/post-data-fs.sh"
-        APEX_LIB_DIR="/apex/com.android.btservices/lib64"
-        MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.btservices/lib64"
-        WORK_DIR="$MODPATH/apex/com.android.btservices/work"
+        # Check if OverlayFS is supported
+        mkdir -p /tmp/overlayfs-test/{lower,upper,work,mount}
+        if mount -t overlay overlay -o lowerdir=/tmp/overlayfs-test/lower,upperdir=/tmp/overlayfs-test/upper,workdir=/tmp/overlayfs-test/work /tmp/overlayfs-test/mount 2>/dev/null; then
+            ui_print "OverlayFS is supported."
+            umount /tmp/overlayfs-test/mount
 
-        mkdir -p "$MOD_APEX_LIB_DIR" "$WORK_DIR"
+            POST_DATA_FS_SCRIPT="$MODPATH/post-data-fs.sh"
+            APEX_LIB_DIR="/apex/com.android.btservices/lib64"
+            MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.btservices/lib64"
+            WORK_DIR="$MODPATH/apex/com.android.btservices/work"
 
-        cp "$TEMP_DIR/$LIBRARY_NAME" "$MOD_APEX_LIB_DIR/$LIBRARY_NAME"
-        set_perm "$MOD_APEX_LIB_DIR/$LIBRARY_NAME" 0 0 644
+            if [ ! -d "$APEX_LIB_DIR" ]; then
+                APEX_LIB_DIR="/apex/com.android.bt/lib64"
+                MOD_APEX_LIB_DIR="$MODPATH/apex/com.android.bt/lib64"
+                WORK_DIR="$MODPATH/apex/com.android.bt/work"
+            fi
 
-        cat <<EOF > "$POST_DATA_FS_SCRIPT"
+            mkdir -p "$MOD_APEX_LIB_DIR" "$WORK_DIR"
+
+            cp "$TEMP_DIR/$LIBRARY_NAME" "$MOD_APEX_LIB_DIR/$LIBRARY_NAME"
+            set_perm "$MOD_APEX_LIB_DIR/$LIBRARY_NAME" 0 0 644
+
+            cat <<EOF > "$POST_DATA_FS_SCRIPT"
 #!/system/bin/sh
 mount -t overlay overlay -o lowerdir=$APEX_LIB_DIR,upperdir=$MOD_APEX_LIB_DIR,workdir=$WORK_DIR $APEX_LIB_DIR
 EOF
 
-        set_perm "$POST_DATA_FS_SCRIPT" 0 0 755
-        ui_print "Created script for apex library handling."
-        ui_print "You can now restart your device and test aln!"
-        ui_print "Note: If your Bluetooth doesn't work anymore after restarting, then uninstall this module and report the issue at the link below."
-        ui_print "https://github.com/kavishdevar/aln/issues/new"
+            set_perm "$POST_DATA_FS_SCRIPT" 0 0 755
+            ui_print "Created script for apex library handling."
+            ui_print "You can now restart your device and test aln!"
+            ui_print "Note: If your Bluetooth doesn't work anymore after restarting, then uninstall this module and report the issue at the link below."
+            ui_print "https://github.com/kavishdevar/aln/issues/new"
+        else
+            ui_print "OverlayFS is not supported. Aborting..."
+            abort "OverlayFS is not supported."
+        fi
+        rm -rf /tmp/overlayfs-test
     fi
 else
     ui_print "Error: patched file missing."

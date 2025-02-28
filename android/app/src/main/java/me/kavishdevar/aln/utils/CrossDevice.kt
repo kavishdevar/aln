@@ -24,14 +24,9 @@ import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothServerSocket
 import android.bluetooth.BluetoothSocket
-import android.bluetooth.le.AdvertiseCallback
-import android.bluetooth.le.AdvertiseData
-import android.bluetooth.le.AdvertiseSettings
-import android.bluetooth.le.BluetoothLeAdvertiser
 import android.content.Context
 import android.content.Intent
 import android.content.SharedPreferences
-import android.os.ParcelUuid
 import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -58,9 +53,9 @@ object CrossDevice {
     private var serverSocket: BluetoothServerSocket? = null
     private var clientSocket: BluetoothSocket? = null
     private lateinit var bluetoothAdapter: BluetoothAdapter
-    private lateinit var bluetoothLeAdvertiser: BluetoothLeAdvertiser
-    private const val MANUFACTURER_ID = 0x1234
-    private const val MANUFACTURER_DATA = "ALN_AirPods"
+//    private lateinit var bluetoothLeAdvertiser: BluetoothLeAdvertiser
+//    private const val MANUFACTURER_ID = 0x1234
+//    private const val MANUFACTURER_DATA = "ALN_AirPods"
     var isAvailable: Boolean = false // set to true when airpods are connected to another device
     var batteryBytes: ByteArray = byteArrayOf()
     var ancBytes: ByteArray = byteArrayOf()
@@ -76,8 +71,8 @@ object CrossDevice {
             sharedPreferences = context.getSharedPreferences("packet_logs", Context.MODE_PRIVATE)
             sharedPreferences.edit().putBoolean("CrossDeviceIsAvailable", false).apply()
             this@CrossDevice.bluetoothAdapter = context.getSystemService(BluetoothManager::class.java).adapter
-            this@CrossDevice.bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
-            startAdvertising()
+//            this@CrossDevice.bluetoothLeAdvertiser = bluetoothAdapter.bluetoothLeAdvertiser
+//            startAdvertising()
             startServer()
             initialized = true
         }
@@ -100,35 +95,35 @@ object CrossDevice {
         }
     }
 
-    @SuppressLint("MissingPermission")
-    private fun startAdvertising() {
-        CoroutineScope(Dispatchers.IO).launch {
-            val settings = AdvertiseSettings.Builder()
-                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
-                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
-                .setConnectable(true)
-                .build()
-
-            val data = AdvertiseData.Builder()
-                .setIncludeDeviceName(true)
-                .addManufacturerData(MANUFACTURER_ID, MANUFACTURER_DATA.toByteArray())
-                .addServiceUuid(ParcelUuid(uuid))
-                .build()
-
-            bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
-            Log.d("CrossDevice", "BLE Advertising started")
-        }
-    }
-
-    private val advertiseCallback = object : AdvertiseCallback() {
-        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
-            Log.d("CrossDevice", "BLE Advertising started successfully")
-        }
-
-        override fun onStartFailure(errorCode: Int) {
-            Log.e("CrossDevice", "BLE Advertising failed with error code: $errorCode")
-        }
-    }
+//    @SuppressLint("MissingPermission")
+//    private fun startAdvertising() {
+//        CoroutineScope(Dispatchers.IO).launch {
+//            val settings = AdvertiseSettings.Builder()
+//                .setAdvertiseMode(AdvertiseSettings.ADVERTISE_MODE_LOW_LATENCY)
+//                .setTxPowerLevel(AdvertiseSettings.ADVERTISE_TX_POWER_HIGH)
+//                .setConnectable(true)
+//                .build()
+//
+//            val data = AdvertiseData.Builder()
+//                .setIncludeDeviceName(true)
+//                .addManufacturerData(MANUFACTURER_ID, MANUFACTURER_DATA.toByteArray())
+//                .addServiceUuid(ParcelUuid(uuid))
+//                .build()
+//
+//            bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
+//            Log.d("CrossDevice", "BLE Advertising started")
+//        }
+//    }
+//
+//    private val advertiseCallback = object : AdvertiseCallback() {
+//        override fun onStartSuccess(settingsInEffect: AdvertiseSettings) {
+//            Log.d("CrossDevice", "BLE Advertising started successfully")
+//        }
+//
+//        override fun onStartFailure(errorCode: Int) {
+//            Log.e("CrossDevice", "BLE Advertising failed with error code: $errorCode")
+//        }
+//    }
 
     fun setAirPodsConnected(connected: Boolean) {
         if (connected) {

@@ -44,6 +44,8 @@ jobs:
       - uses: actions/download-artifact@v4
       - name: Export APK_NAME for later use
         run: echo "APK_NAME=ALN-$(echo ${{ github.sha }} | cut -c1-7).apk" >> $GITHUB_ENV
+      - name: Export ZIP_NAME for later use
+        run: echo "ZIP_NAME=btl2capfix-$(echo ${{ github.sha }} | cut -c1-7).zip" >> $GITHUB_ENV
       - name: Rename .apk file
         run: mv "./Debug APK/debug/"*.apk "./$APK_NAME"
       - name: Decode keystore file
@@ -63,12 +65,17 @@ jobs:
         run: |
           COMMITS=$(git log ${{ steps.fetch-tag.outputs.tag }}..HEAD --pretty=format:"- %s (%h)" --abbrev-commit)
           echo "::set-output name=commits::${COMMITS}"
-      - name: Zip root-module directory
-        run: zip -r -0 ../btl2capfix.zip * --verbose
-        working-directory: root-module
+      - name: Build and zip root-module
+        run: ./build-magisk-module.sh "${{ github.workspace }}/${{ env.ZIP_NAME }}"
+      - name: Verify zip file exists
+        run: |
+          if [ ! -f "${{ github.workspace }}/${{ env.ZIP_NAME }}" ]; then
+            echo "Error: Zip file not found!"
+            exit 1
+          fi
       - name: Delete release if exist then create release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
-          gh release create "nightly" "./$APK_NAME" "./btl2capfix.zip" -p -t "Nightly Release" -n "${{ steps.get-commits.outputs.commits }}" --generate-notes
+          gh release create "nightly" "./$APK_NAME" "${{ github.workspace }}/${{ env.ZIP_NAME }}" -p -t "Nightly Release" -n "${{ steps.get-commits.outputs.commits }}" --generate-notes

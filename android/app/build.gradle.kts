@@ -8,7 +8,6 @@ plugins {
 android {
     namespace = "me.kavishdevar.aln"
     compileSdk = 35
-
     defaultConfig {
         applicationId = "me.kavishdevar.aln"
         minSdk = 28
@@ -18,10 +17,10 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
-
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

@@ -26,15 +26,10 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.app.Service
 import android.appwidget.AppWidgetManager
-import android.bluetooth.BluetoothAdapter
 import android.bluetooth.BluetoothDevice
 import android.bluetooth.BluetoothManager
 import android.bluetooth.BluetoothProfile
 import android.bluetooth.BluetoothSocket
-import android.bluetooth.le.ScanCallback
-import android.bluetooth.le.ScanFilter
-import android.bluetooth.le.ScanResult
-import android.bluetooth.le.ScanSettings
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
@@ -62,12 +57,9 @@ import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.launch
 import me.kavishdevar.aln.MainActivity
 import me.kavishdevar.aln.R
@@ -80,9 +72,10 @@ import me.kavishdevar.aln.utils.CrossDevicePackets
 import me.kavishdevar.aln.utils.Enums
 import me.kavishdevar.aln.utils.IslandType
 import me.kavishdevar.aln.utils.IslandWindow
-import me.kavishdevar.aln.utils.LongPressPackets
+import me.kavishdevar.aln.utils.LongPressMode
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.PopupWindow
+import me.kavishdevar.aln.utils.determinePacket
 import me.kavishdevar.aln.widgets.BatteryWidget
 import me.kavishdevar.aln.widgets.NoiseControlWidget
 import org.lsposed.hiddenapibypass.HiddenApiBypass
@@ -259,42 +252,6 @@ class AirPodsService : Service() {
         widgetMobileBatteryEnabled = enabled
         updateBatteryWidget()
     }
-
-    @SuppressLint("MissingPermission")
-    fun scanForAirPods(bluetoothAdapter: BluetoothAdapter): Flow<List<ScanResult>> = callbackFlow {
-        val bluetoothLeScanner = bluetoothAdapter.bluetoothLeScanner
-            ?: throw IllegalStateException("Bluetooth adapter unavailable")
-
-        val scanCallback = object : ScanCallback() {
-            override fun onScanResult(callbackType: Int, result: ScanResult) {
-                if (result.device != null) {
-                    trySend(listOf(result))
-                }
-            }
-
-            override fun onBatchScanResults(results: List<ScanResult>) {
-                trySend(results)
-            }
-
-            override fun onScanFailed(errorCode: Int) {
-                close(Exception("Scan failed with error: $errorCode"))
-            }
-        }
-
-        val scanSettings = ScanSettings.Builder()
-            .setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY)
-            .build()
-
-        val scanFilters = listOf<ScanFilter>(
-            ScanFilter.Builder()
-                .setManufacturerData(0x004C, byteArrayOf())
-                .build()
-        )
-
-        bluetoothLeScanner.startScan(scanFilters, scanSettings, scanCallback)
-        awaitClose { bluetoothLeScanner.stopScan(scanCallback) }
-    }
-
 
     @OptIn(ExperimentalMaterial3Api::class)
     fun startForegroundNotification() {
@@ -718,29 +675,6 @@ class AirPodsService : Service() {
         }
 
         val bluetoothAdapter = getSystemService(BluetoothManager::class.java).adapter
-        if (bluetoothAdapter.isEnabled) {
-            CoroutineScope(Dispatchers.IO).launch {
-                var lastData = byteArrayOf()
-                scanForAirPods(bluetoothAdapter).collect { scanResults ->
-                    scanResults.forEach { scanResult ->
-                        val device = scanResult.device
-                        device.fetchUuidsWithSdp()
-                        val manufacturerData =
-                            scanResult.scanRecord?.manufacturerSpecificData?.get(0x004C)
-                        if (manufacturerData != null && manufacturerData != lastData) {
-                            lastData = manufacturerData
-                            val formattedHex =
-                                manufacturerData.joinToString(" ") { "%02X".format(it) }
-                            val rssi = scanResult.rssi
-                            Log.d(
-                                "AirPodsBLEService",
-                                "Received broadcast of size ${manufacturerData.size} from ${device.address} | $rssi | $formattedHex"
-                            )
-                        }
-                    }
-                }
-            }
-        }
 
         bluetoothAdapter.bondedDevices.forEach { device ->
             device.fetchUuidsWithSdp()
@@ -838,12 +772,12 @@ class AirPodsService : Service() {
                     socket = HiddenApiBypass.newInstance(
                         BluetoothSocket::class.java,
                         3,
-                        1,
+                        0,
                         true,
                         true,
                         device,
                         0x1001,
-                        uuid
+                        null
                     ) as BluetoothSocket
                 } catch (e: Exception) {
                     e.printStackTrace()
@@ -1457,136 +1391,27 @@ class AirPodsService : Service() {
     fun updateLongPress(
         oldLongPressArray: BooleanArray,
         newLongPressArray: BooleanArray,
-        offListeningMode: Boolean
     ) {
         if (oldLongPressArray.contentEquals(newLongPressArray)) {
             return
         }
-        val oldOffEnabled = oldLongPressArray[0]
-        val oldAncEnabled = oldLongPressArray[1]
-        val oldTransparencyEnabled = oldLongPressArray[2]
-        val oldAdaptiveEnabled = oldLongPressArray[3]
+        val oldModes = mutableSetOf<LongPressMode>()
+        val newModes = mutableSetOf<LongPressMode>()
 
-        val newOffEnabled = newLongPressArray[0]
-        val newAncEnabled = newLongPressArray[1]
-        val newTransparencyEnabled = newLongPressArray[2]
-        val newAdaptiveEnabled = newLongPressArray[3]
+        if (oldLongPressArray[0]) oldModes.add(LongPressMode.OFF)
+        if (oldLongPressArray[1]) oldModes.add(LongPressMode.ANC)
+        if (oldLongPressArray[2]) oldModes.add(LongPressMode.TRANSPARENCY)
+        if (oldLongPressArray[3]) oldModes.add(LongPressMode.ADAPTIVE)
+
+        if (newLongPressArray[0]) newModes.add(LongPressMode.OFF)
+        if (newLongPressArray[1]) newModes.add(LongPressMode.ANC)
+        if (newLongPressArray[2]) newModes.add(LongPressMode.TRANSPARENCY)
+        if (newLongPressArray[3]) newModes.add(LongPressMode.ADAPTIVE)
 
         val changedIndex = findChangedIndex(oldLongPressArray, newLongPressArray)
-        Log.d("AirPodsService", "changedIndex: $changedIndex")
-        var packet: ByteArray? = null
-        if (offListeningMode) {
-            packet = when (changedIndex) {
-                0 -> {
-                    if (newOffEnabled) {
-                        when {
-                            oldAncEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
-                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ANC.value
-                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_ADAPTIVE_AND_ANC.value
-                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
-                            else -> null
-                        }
-                    } else {
-                        when {
-                            oldAncEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_EVERYTHING.value
-                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ANC.value
-                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_ADAPTIVE_AND_ANC.value
-                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
-                            else -> null
-                        }
-                    }
-                }
+        val newEnabled = newLongPressArray[changedIndex]
 
-                1 -> {
-                    if (newAncEnabled) {
-                        when {
-                            oldOffEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
-                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ANC_FROM_OFF_AND_TRANSPARENCY.value
-                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_ANC_FROM_OFF_AND_ADAPTIVE.value
-                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
-                            else -> null
-                        }
-                    } else {
-                        when {
-                            oldOffEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_ANC_FROM_EVERYTHING.value
-                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ANC_FROM_OFF_AND_TRANSPARENCY.value
-                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_ANC_FROM_OFF_AND_ADAPTIVE.value
-                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
-                            else -> null
-                        }
-                    }
-                }
-
-                2 -> {
-                    if (newTransparencyEnabled) {
-                        when {
-                            oldOffEnabled && oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
-                            oldOffEnabled && oldAncEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_OFF_AND_ANC.value
-                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_OFF_AND_ADAPTIVE.value
-                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_ADAPTIVE_AND_ANC.value
-                            else -> null
-                        }
-                    } else {
-                        when {
-                            oldOffEnabled && oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_EVERYTHING.value
-                            oldOffEnabled && oldAncEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_OFF_AND_ANC.value
-                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_OFF_AND_ADAPTIVE.value
-                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_ADAPTIVE_AND_ANC.value
-                            else -> null
-                        }
-                    }
-                }
-
-                3 -> {
-                    if (newAdaptiveEnabled) {
-                        when {
-                            oldOffEnabled && oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
-                            oldOffEnabled && oldAncEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_OFF_AND_ANC.value
-                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_OFF_AND_TRANSPARENCY.value
-                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_TRANSPARENCY_AND_ANC.value
-                            else -> null
-                        }
-                    } else {
-                        when {
-                            oldOffEnabled && oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_EVERYTHING.value
-                            oldOffEnabled && oldAncEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_OFF_AND_ANC.value
-                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_OFF_AND_TRANSPARENCY.value
-                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_TRANSPARENCY_AND_ANC.value
-                            else -> null
-                        }
-                    }
-                }
-
-                else -> null
-            }
-        } else {
-            when (changedIndex) {
-                1 -> {
-                    packet = if (newLongPressArray[1]) {
-                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
-                    } else {
-                        LongPressPackets.DISABLE_ANC_OFF_DISABLED.value
-                    }
-                }
-
-                2 -> {
-                    packet = if (newLongPressArray[2]) {
-                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
-                    } else {
-                        LongPressPackets.DISABLE_TRANSPARENCY_OFF_DISABLED.value
-                    }
-                }
-
-                3 -> {
-                    packet = if (newLongPressArray[3]) {
-                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
-                    } else {
-                        LongPressPackets.DISABLE_ADAPTIVE_OFF_DISABLED.value
-                    }
-                }
-            }
-
-        }
+        val packet = determinePacket(changedIndex, newEnabled, oldModes, newModes)
         packet?.let {
             Log.d("AirPodsService", "Sending packet: ${it.joinToString(" ") { "%02X".format(it) }}")
             sendPacket(it)
