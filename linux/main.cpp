@@ -1,42 +1,4 @@
-#include <QApplication>
-#include <QQmlApplicationEngine>
-#include <QSystemTrayIcon>
-#include <QMenu>
-#include <QAction>
-#include <QActionGroup>
-#include <QBluetoothDeviceDiscoveryAgent>
-#include <QBluetoothLocalDevice>
-#include <QBluetoothServer>
-#include <QBluetoothSocket>
-#include <QQuickWindow>
-#include <QDebug>
-#include <QInputDialog>
-#include <QQmlContext>
-#include <QLoggingCategory>
-#include <QThread>
-#include <QTimer>
-#include <QPainter>
-#include <QPalette>
-#include <QDBusInterface>
-#include <QDBusReply>
-#include <QDBusConnectionInterface>
-#include <QProcess>
-#include <QRegularExpression>
-#include <QFile>
-#include <QTextStream>
-#include <QStandardPaths>
-#include <QBluetoothServer>
-#include <QBluetoothSocket>
-#include <QBluetoothDeviceDiscoveryAgent>
-#include <QBluetoothLocalDevice>
-#include <QBluetoothUuid>
-#include <QDBusConnection>
-#include <QDBusInterface>
-#include <QDBusReply>
-#include <QDBusMessage>
-#include <QDBusPendingCallWatcher>
-
-Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
+#include "main.h"
 
 #define LOG_INFO(msg) qCInfo(airpodsApp) << "\033[32m" << msg << "\033[0m"
 #define LOG_WARN(msg) qCWarning(airpodsApp) << "\033[33m" << msg << "\033[0m"
@@ -975,6 +937,5 @@ int main(int argc, char *argv[]) {
 
     return app.exec();
 }
-
 
 #include "main.moc"
