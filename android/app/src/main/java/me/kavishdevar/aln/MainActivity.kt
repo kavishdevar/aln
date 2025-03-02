@@ -40,6 +40,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,10 +52,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -70,6 +73,9 @@ import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.CrossDevice
+import me.kavishdevar.aln.screens.NoRootScreen
+import me.kavishdevar.aln.services.RootChecker
+
 
 lateinit var serviceConnection: ServiceConnection
 lateinit var connectionStatusReceiver: BroadcastReceiver
@@ -79,12 +85,23 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            ALNTheme {
-                getSharedPreferences("settings", MODE_PRIVATE).edit().putLong("textColor",
-                    MaterialTheme.colorScheme.onSurface.toArgb().toLong()).apply()
-                Main()
-                startService(Intent(this, AirPodsService::class.java))
+
+        if (RootChecker.hasRootAccess()) {
+            setContent {
+                ALNTheme {
+                    getSharedPreferences("settings", MODE_PRIVATE).edit().putLong(
+                        "textColor",
+                        MaterialTheme.colorScheme.onSurface.toArgb().toLong()
+                    ).apply()
+                    Main()
+                    startService(Intent(this, AirPodsService::class.java))
+                }
+            }
+        } else {
+            setContent {
+                ALNTheme {
+                    NoRootScreen()
+                }
             }
         }
     }
@@ -271,19 +288,26 @@ fun Main() {
             isConnected.value = true
         }
     } else {
-        Column (
-            modifier = Modifier.padding(24.dp),
-        ){
+        Column(
+            modifier = Modifier
+                .fillMaxSize() // Make the Column fill the entire screen
+                .background(if (isSystemInDarkTheme()) Color.Black else Color.White) // Set dark background
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center, // Center content vertically
+            horizontalAlignment = Alignment.CenterHorizontally // Center content horizontally
+        ) {
             val textToShow = if (permissionState.shouldShowRationale) {
-                // If the user has denied the permission but not permanently, explain why it's needed.
                 "Please enable Bluetooth and Notification permissions to use the app. The Nearby Devices is required to connect to your AirPods, and the notification is required to show the AirPods battery status."
             } else {
-                // If the user has permanently denied the permission, inform them to enable it in settings.
                 "Please enable Bluetooth and Notification permissions in the app settings to use the app."
             }
-            Text(textToShow)
+            Text(
+                textToShow,
+                color = MaterialTheme.colorScheme.onSurface, // Set text color for visibility
+                textAlign = TextAlign.Center
+            )
             Button(onClick = { permissionState.launchMultiplePermissionRequest() }) {
-                Text("Request permission")
+                Text("Request permission", color = Color.DarkGray) // Set button text color
             }
         }
     }
