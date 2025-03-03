@@ -219,7 +219,7 @@ object CrossDevice {
                             packet = packet.sliceArray(0 until half)
                         }
                     }
-                    var trimmedPacket = packet.drop(CrossDevicePackets.AIRPODS_DATA_HEADER.packet.size).toByteArray()
+                    val trimmedPacket = packet.drop(CrossDevicePackets.AIRPODS_DATA_HEADER.packet.size).toByteArray()
                     Log.d("CrossDevice", "Received relayed packet: ${trimmedPacket.joinToString("") { "%02x".format(it) }}")
                     if (ServiceManager.getService()?.isConnectedLocally == true) {
                         val packetInHex = trimmedPacket.joinToString("") { "%02x".format(it) }
