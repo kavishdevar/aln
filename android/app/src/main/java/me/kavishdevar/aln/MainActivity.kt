@@ -1,20 +1,20 @@
 /*
- * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- *
- * Copyright (C) 2024 Kavish Devar
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, either version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+* AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
+*
+* Copyright (C) 2024 Kavish Devar
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Affero General Public License for more details.
+*
+* You should have received a copy of the GNU Affero General Public License
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 package me.kavishdevar.aln
 
@@ -166,17 +166,28 @@ fun Main() {
         val navController = rememberNavController()
 
         val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
-        val isAvailableChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "CrossDeviceIsAvailable") {
-                Log.d("MainActivity", "CrossDeviceIsAvailable changed")
-                isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)
+        val isAvailableChangeListener =
+            SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                if (key == "CrossDeviceIsAvailable") {
+                    Log.d("MainActivity", "CrossDeviceIsAvailable changed")
+                    isRemotelyConnected.value =
+                        sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)
+                }
             }
-        }
         sharedPreferences.registerOnSharedPreferenceChangeListener(isAvailableChangeListener)
-        Log.d("MainActivity", "CrossDeviceIsAvailable: ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | isAvailable: ${CrossDevice.isAvailable}")
-        isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false) || CrossDevice.isAvailable
+        Log.d(
+            "MainActivity",
+            "CrossDeviceIsAvailable: ${
+                sharedPreferences.getBoolean(
+                    "CrossDeviceIsAvailable",
+                    false
+                )
+            } | isAvailable: ${CrossDevice.isAvailable}"
+        )
+        isRemotelyConnected.value =
+            sharedPreferences.getBoolean("CrossDeviceIsAvailable", false) || CrossDevice.isAvailable
         Log.d("MainActivity", "isRemotelyConnected: ${isRemotelyConnected.value}")
-        Box (
+        Box(
             modifier = Modifier
                 .padding(0.dp)
                 .fillMaxSize()
@@ -274,6 +285,7 @@ fun Main() {
                 }
             }
         }
+
         serviceConnection = remember {
             object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
@@ -287,7 +299,11 @@ fun Main() {
             }
         }
 
-        context.bindService(Intent(context, AirPodsService::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
+        context.bindService(
+            Intent(context, AirPodsService::class.java),
+            serviceConnection,
+            Context.BIND_AUTO_CREATE
+        )
 
         if (airPodsService.value?.isConnectedLocally == true) {
             isConnected.value = true
