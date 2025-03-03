@@ -41,7 +41,7 @@ fun NoRootScreen() {
         Spacer(modifier = Modifier.height(24.dp))
 
         Text(
-            text = "Root access is required for this app to function.",
+            text = "Root access is required, but was not detected",
             style = MaterialTheme.typography.headlineSmall,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface
@@ -50,7 +50,7 @@ fun NoRootScreen() {
         Spacer(modifier = Modifier.height(8.dp))
 
         Text(
-            text = "Please ensure your device is rooted.",
+            text = "Please grant root acces and restart the app.",
             style = MaterialTheme.typography.bodyMedium,
             textAlign = TextAlign.Center,
             color = MaterialTheme.colorScheme.onSurface
