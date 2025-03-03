@@ -1,4 +1,4 @@
-package me.kavishdevar.aln.services
+package me.kavishdevar.aln.utils
 
 import java.io.BufferedReader
 import java.io.InputStreamReader

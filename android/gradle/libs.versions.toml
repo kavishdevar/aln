@@ -15,8 +15,10 @@ navigationCompose = "2.8.4"
 constraintlayout = "2.2.0"
 haze = "1.1.1"
 hazeMaterials = "1.1.1"
+material = "1.12.0"
 
 [libraries]
+material = { group = "com.google.android.material", name = "material", version.ref = "material" }
 accompanist-permissions = { module = "com.google.accompanist:accompanist-permissions", version.ref = "accompanistPermissions" }
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 hiddenapibypass = { module = "org.lsposed.hiddenapibypass:hiddenapibypass", version.ref = "hiddenapibypass" }
