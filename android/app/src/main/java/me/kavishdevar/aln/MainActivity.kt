@@ -1,28 +1,9 @@
-/*
- * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- *
- * Copyright (C) 2024 Kavish Devar
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, either version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
-
 package me.kavishdevar.aln
 
 import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
-import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
@@ -75,7 +56,7 @@ import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.CrossDevice
 import me.kavishdevar.aln.screens.NoRootScreen
 import me.kavishdevar.aln.services.RootChecker
-
+import me.kavishdevar.aln.services.LibPatcher
 
 lateinit var serviceConnection: ServiceConnection
 lateinit var connectionStatusReceiver: BroadcastReceiver
@@ -87,6 +68,12 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         if (RootChecker.hasRootAccess()) {
+            if (LibPatcher.deployModule(this)) {
+                Log.d("MainActivity", "Module deployed successfully.")
+            } else {
+                Log.e("MainActivity", "Module deployment failed.")
+            }
+
             setContent {
                 ALNTheme {
                     getSharedPreferences("settings", MODE_PRIVATE).edit().putLong(
@@ -160,7 +147,7 @@ fun Main() {
         val context = LocalContext.current
         val navController = rememberNavController()
 
-        val sharedPreferences = context.getSharedPreferences("settings", MODE_PRIVATE)
+        val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
         val isAvailableChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == "CrossDeviceIsAvailable") {
                 Log.d("MainActivity", "CrossDeviceIsAvailable changed")
@@ -269,7 +256,7 @@ fun Main() {
                 }
             }
         }
-         serviceConnection = remember {
+        serviceConnection = remember {
             object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
                     val binder = service as AirPodsService.LocalBinder
@@ -290,11 +277,11 @@ fun Main() {
     } else {
         Column(
             modifier = Modifier
-                .fillMaxSize() // Make the Column fill the entire screen
-                .background(if (isSystemInDarkTheme()) Color.Black else Color.White) // Set dark background
+                .fillMaxSize()
+                .background(if (isSystemInDarkTheme()) Color.Black else Color.White)
                 .padding(24.dp),
-            verticalArrangement = Arrangement.Center, // Center content vertically
-            horizontalAlignment = Alignment.CenterHorizontally // Center content horizontally
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
             val textToShow = if (permissionState.shouldShowRationale) {
                 "Please enable Bluetooth and Notification permissions to use the app. The Nearby Devices is required to connect to your AirPods, and the notification is required to show the AirPods battery status."
@@ -303,11 +290,11 @@ fun Main() {
             }
             Text(
                 textToShow,
-                color = MaterialTheme.colorScheme.onSurface, // Set text color for visibility
+                color = MaterialTheme.colorScheme.onSurface,
                 textAlign = TextAlign.Center
             )
             Button(onClick = { permissionState.launchMultiplePermissionRequest() }) {
-                Text("Request permission", color = Color.DarkGray) // Set button text color
+                Text("Request permission", color = Color.DarkGray)
             }
         }
     }
