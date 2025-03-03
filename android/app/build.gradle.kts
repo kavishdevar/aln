@@ -42,6 +42,7 @@ android {
 }
 
 dependencies {
+    implementation(libs.material)
     implementation(libs.accompanist.permissions)
     implementation(libs.hiddenapibypass)
     implementation(libs.androidx.core.ktx)
