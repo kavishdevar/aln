@@ -10,6 +10,8 @@ qt_standard_project_setup(REQUIRES 6.5)
 
 qt_add_executable(applinux
     main.cpp
+    main.h
+    airpods_packets.h
 )
 
 qt_add_qml_module(applinux

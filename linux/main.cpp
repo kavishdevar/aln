@@ -1,4 +1,5 @@
 #include "main.h"
+#include "airpods_packets.h"
 
 #define LOG_INFO(msg) qCInfo(airpodsApp) << "\033[32m" << msg << "\033[0m"
 #define LOG_WARN(msg) qCWarning(airpodsApp) << "\033[33m" << msg << "\033[0m"
@@ -187,16 +188,18 @@ private:
         QDBusConnection::systemBus().registerService("me.kavishdevar.aln");
     }
 
-    void notifyAndroidDevice() {
-        if (phoneSocket && phoneSocket->isOpen()) {
-            QByteArray notificationPacket = QByteArray::fromHex("00040001");
-            phoneSocket->write(notificationPacket);
-            LOG_DEBUG("Sent notification packet to Android: " << notificationPacket.toHex());
-        } else {
+    void notifyAndroidDevice()
+    {
+        if (phoneSocket && phoneSocket->isOpen())
+        {
+            phoneSocket->write(AirPodsPackets::Phone::NOTIFICATION);
+            LOG_DEBUG("Sent notification packet to Android: " << AirPodsPackets::Phone::NOTIFICATION.toHex());
+        }
+        else
+        {
             LOG_WARN("Phone socket is not open, cannot send notification packet");
         }
     }
-
     void onNameOwnerChanged(const QString &name, const QString &oldOwner, const QString &newOwner) {
         if (name == "org.bluez") {
             if (newOwner.isEmpty()) {
@@ -257,38 +260,48 @@ public slots:
         }
     }
 
-    void setNoiseControlMode(NoiseControlMode mode) {
+    void setNoiseControlMode(NoiseControlMode mode)
+    {
         LOG_INFO("Setting noise control mode to: " << mode);
         QByteArray packet;
-        switch (mode) {
-            case Off:
-                packet = QByteArray::fromHex("0400040009000D01000000");
-                break;
-            case NoiseCancellation:
-                packet = QByteArray::fromHex("0400040009000D02000000");
-                break;
-            case Transparency:
-                packet = QByteArray::fromHex("0400040009000D03000000");
-                break;
-            case Adaptive:
-                packet = QByteArray::fromHex("0400040009000D04000000");
-                break;
+        switch (mode)
+        {
+        case Off:
+            packet = AirPodsPackets::NoiseControl::OFF;
+            break;
+        case NoiseCancellation:
+            packet = AirPodsPackets::NoiseControl::NOISE_CANCELLATION;
+            break;
+        case Transparency:
+            packet = AirPodsPackets::NoiseControl::TRANSPARENCY;
+            break;
+        case Adaptive:
+            packet = AirPodsPackets::NoiseControl::ADAPTIVE;
+            break;
         }
-        if (socket && socket->isOpen()) {
+        if (socket && socket->isOpen())
+        {
             socket->write(packet);
             LOG_DEBUG("Noise control mode packet written: " << packet.toHex());
-        } else {
+        }
+        else
+        {
             LOG_ERROR("Socket is not open, cannot write noise control mode packet");
         }
     }
 
-    void setConversationalAwareness(bool enabled) {
+    void setConversationalAwareness(bool enabled)
+    {
         LOG_INFO("Setting conversational awareness to: " << (enabled ? "enabled" : "disabled"));
-        QByteArray packet = enabled ? QByteArray::fromHex("0400040009002801000000") : QByteArray::fromHex("0400040009002802000000");
-        if (socket && socket->isOpen()) {
+        QByteArray packet = enabled ? AirPodsPackets::ConversationalAwareness::ENABLED
+                                    : AirPodsPackets::ConversationalAwareness::DISABLED;
+        if (socket && socket->isOpen())
+        {
             socket->write(packet);
             LOG_DEBUG("Conversational awareness packet written: " << packet.toHex());
-        } else {
+        }
+        else
+        {
             LOG_ERROR("Socket is not open, cannot write conversational awareness packet");
         }
     }
@@ -468,17 +481,19 @@ public slots:
         }
     }
 
-    void onDeviceDisconnected(const QBluetoothAddress &address) {
+    void onDeviceDisconnected(const QBluetoothAddress &address)
+    {
         LOG_INFO("Device disconnected: " << address.toString());
-        if (socket) {
+        if (socket)
+        {
             LOG_WARN("Socket is still open, closing it");
             socket->close();
             socket = nullptr;
         }
-        if (phoneSocket && phoneSocket->isOpen()) {
-            QByteArray airpodsDisconnectedPacket = QByteArray::fromHex("00010000");
-            phoneSocket->write(airpodsDisconnectedPacket);
-            LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << airpodsDisconnectedPacket.toHex());
+        if (phoneSocket && phoneSocket->isOpen())
+        {
+            phoneSocket->write(AirPodsPackets::Connection::AIRPODS_DISCONNECTED);
+            LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << AirPodsPackets::Connection::AIRPODS_DISCONNECTED.toHex());
         }
     }
 
@@ -494,9 +509,9 @@ public slots:
             LOG_INFO("Connected to device, sending initial packets");
             discoveryAgent->stop();
 
-            QByteArray handshakePacket = QByteArray::fromHex("00000400010002000000000000000000");
-            QByteArray setSpecificFeaturesPacket = QByteArray::fromHex("040004004d00ff00000000000000");
-            QByteArray requestNotificationsPacket = QByteArray::fromHex("040004000f00ffffffffff");
+            QByteArray handshakePacket = AirPodsPackets::Connection::HANDSHAKE;
+            QByteArray setSpecificFeaturesPacket = AirPodsPackets::Connection::SET_SPECIFIC_FEATURES;
+            QByteArray requestNotificationsPacket = AirPodsPackets::Connection::REQUEST_NOTIFICATIONS;
 
             qint64 bytesWritten = localSocket->write(handshakePacket);
             LOG_DEBUG("Handshake packet written: " << handshakePacket.toHex() << ", bytes written: " << bytesWritten);
@@ -557,10 +572,14 @@ public slots:
                                                             : "In case";
     }
 
-    void parseData(const QByteArray &data) {
+    void parseData(const QByteArray &data)
+    {
         LOG_DEBUG("Received: " << data.toHex());
-        if (data.size() == 11 && data.startsWith(QByteArray::fromHex("0400040009000D"))) {
-            quint8 rawMode = data[7] - 1;
+
+        // Noise Control Mode
+        if (data.size() == 11 && data.startsWith(AirPodsPackets::NoiseControl::HEADER))
+        {
+            quint8 rawMode = data[7] - 1; // Offset still needed due to protocol
             if (rawMode >= NoiseControlMode::MinValue && rawMode <= NoiseControlMode::MaxValue)
             {
                 NoiseControlMode mode = static_cast<NoiseControlMode>(rawMode);
@@ -571,30 +590,41 @@ public slots:
             {
                 LOG_ERROR("Invalid noise control mode value received: " << rawMode);
             }
-        } else if (data.size() == 8 && data.startsWith(QByteArray::fromHex("040004000600"))) {
+        }
+        // Ear Detection
+        else if (data.size() == 8 && data.startsWith(AirPodsPackets::Parse::EAR_DETECTION))
+        {
             char primary = data[6];
             char secondary = data[7];
             QString earDetectionStatus = QString("Primary: %1, Secondary: %2")
-                .arg(getEarStatus(primary), getEarStatus(secondary));                
+                                             .arg(getEarStatus(primary), getEarStatus(secondary));
             LOG_INFO("Ear detection status: " << earDetectionStatus);
             emit earDetectionStatusChanged(earDetectionStatus);
-        } else if (data.size() == 22 && data.startsWith(QByteArray::fromHex("040004000400"))) {
+        }
+        // Battery Status
+        else if (data.size() == 22 && data.startsWith(AirPodsPackets::Parse::BATTERY_STATUS))
+        {
             int leftLevel = data[9];
             int rightLevel = data[14];
             int caseLevel = data[19];
             QString batteryStatus = QString("Left: %1%, Right: %2%, Case: %3%")
-                .arg(leftLevel)
-                .arg(rightLevel)
-                .arg(caseLevel);
+                                        .arg(leftLevel)
+                                        .arg(rightLevel)
+                                        .arg(caseLevel);
             LOG_INFO("Battery status: " << batteryStatus);
             emit batteryStatusChanged(batteryStatus);
-                                                                    
-        } else if (data.size() == 10 && data.startsWith(QByteArray::fromHex("040004004B00020001"))) {
+        }
+        // Conversational Awareness Data
+        else if (data.size() == 10 && data.startsWith(AirPodsPackets::ConversationalAwareness::DATA_HEADER))
+        {
             LOG_INFO("Received conversational awareness data");
             handleConversationalAwareness(data);
         }
+        else
+        {
+            LOG_DEBUG("Unrecognized packet format: " << data.toHex());
+        }
     }
-
     void handleConversationalAwareness(const QByteArray &data) {
         LOG_DEBUG("Handling conversational awareness data: " << data.toHex());
         static int initialVolume = -1;
@@ -692,18 +722,22 @@ public slots:
         phoneSocket->connectToService(phoneAddress, QBluetoothUuid("1abbb9a4-10e4-4000-a75c-8953c5471342"));
     }
 
-    void relayPacketToPhone(const QByteArray &packet) {
-        if (phoneSocket && phoneSocket->isOpen()) {
-            QByteArray header = QByteArray::fromHex("00040001");
-            phoneSocket->write(header + packet);
-        } else {
+    void relayPacketToPhone(const QByteArray &packet)
+    {
+        if (phoneSocket && phoneSocket->isOpen())
+        {
+            phoneSocket->write(AirPodsPackets::Phone::NOTIFICATION + packet);
+        }
+        else
+        {
             connectToPhone();
             LOG_WARN("Phone socket is not open, cannot relay packet");
         }
     }
 
     void handlePhonePacket(const QByteArray &packet) {
-        if (packet.startsWith(QByteArray::fromHex("00040001"))) {
+        if (packet.startsWith(AirPodsPackets::Phone::NOTIFICATION))
+        {
             QByteArray airpodsPacket = packet.mid(4);
             if (socket && socket->isOpen()) {
                 socket->write(airpodsPacket);
@@ -711,20 +745,29 @@ public slots:
             } else {
                 LOG_ERROR("Socket is not open, cannot relay packet to AirPods");
             }
-        } else if (packet.startsWith(QByteArray::fromHex("00010001"))) {
+        }
+        else if (packet.startsWith(AirPodsPackets::Phone::CONNECTED))
+        {
             LOG_INFO("AirPods connected");
             isConnectedLocally = true;
             CrossDevice.isAvailable = false;
-        } else if (packet.startsWith(QByteArray::fromHex("00010000"))) {
+        }
+        else if (packet.startsWith(AirPodsPackets::Phone::DISCONNECTED))
+        {
             LOG_INFO("AirPods disconnected");
             isConnectedLocally = false;
             CrossDevice.isAvailable = true;
-        } else if (packet.startsWith(QByteArray::fromHex("00020003"))) {
+        }
+        else if (packet.startsWith(AirPodsPackets::Phone::STATUS_REQUEST))
+        {
             LOG_INFO("Connection status request received");
-            QByteArray response = (socket && socket->isOpen()) ? QByteArray::fromHex("00010001") : QByteArray::fromHex("00010000");
+            QByteArray response = (socket && socket->isOpen()) ? AirPodsPackets::Phone::CONNECTED
+                                                               : AirPodsPackets::Phone::DISCONNECTED;
             phoneSocket->write(response);
             LOG_DEBUG("Sent connection status response: " << response.toHex());
-        } else if (packet.startsWith(QByteArray::fromHex("00020000"))) {
+        }
+        else if (packet.startsWith(AirPodsPackets::Phone::DISCONNECT_REQUEST))
+        {
             LOG_INFO("Disconnect request received");
             if (socket && socket->isOpen()) {
                 socket->close();
@@ -737,7 +780,9 @@ public slots:
                 isConnectedLocally = false;
                 CrossDevice.isAvailable = true;
             }
-        } else {
+        }
+        else
+        {
             if (socket && socket->isOpen()) {
                 socket->write(packet);
                 LOG_DEBUG("Relayed packet to AirPods: " << packet.toHex());
@@ -787,12 +832,15 @@ public slots:
         playerctlProcess->start("playerctl", QStringList() << "--follow" << "status");
     }
 
-    void sendDisconnectRequestToAndroid() {
-        if (phoneSocket && phoneSocket->isOpen()) {
-            QByteArray disconnectRequest = QByteArray::fromHex("00020000");
-            phoneSocket->write(disconnectRequest);
-            LOG_DEBUG("Sent disconnect request to Android: " << disconnectRequest.toHex());
-        } else {
+    void sendDisconnectRequestToAndroid()
+    {
+        if (phoneSocket && phoneSocket->isOpen())
+        {
+            phoneSocket->write(AirPodsPackets::Phone::DISCONNECT_REQUEST);
+            LOG_DEBUG("Sent disconnect request to Android: " << AirPodsPackets::Phone::DISCONNECT_REQUEST.toHex());
+        }
+        else
+        {
             LOG_WARN("Phone socket is not open, cannot send disconnect request");
         }
     }
