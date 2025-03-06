@@ -322,6 +322,7 @@ fun Main() {
             } else {
                 "Please enable Bluetooth and Notification permissions in the app settings to use the app."
             }
+            // If the user has denied the permission but not permanently, explain why it's needed.
             Text(
                 textToShow,
                 color = MaterialTheme.colorScheme.onSurface,

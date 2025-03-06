@@ -92,7 +92,7 @@ class CustomDevice : ComponentActivity() {
                         override fun onConnectionStateChange(gatt: BluetoothGatt, status: Int, newState: Int) {
                             if (newState == BluetoothGatt.STATE_CONNECTED) {
                                 Log.d("GATT", "Connected to GATT server")
-                                gatt.discoverServices()
+                                gatt.discoverServices() // Discover services after connection
                             }
                         }
 
@@ -148,6 +148,7 @@ fun sendWriteRequest(
     characteristicUuid: String,
     value: ByteArray
 ) {
+    // Retrieve the service containing the characteristic
     val service = gatt.services.find { service ->
         service.characteristics.any { it.uuid.toString() == characteristicUuid }
     }
@@ -156,13 +157,13 @@ fun sendWriteRequest(
         Log.e("GATT", "Service containing characteristic UUID $characteristicUuid not found.")
         return
     }
-
+    // Retrieve the characteristic
     val characteristic = service.getCharacteristic(UUID.fromString(characteristicUuid))
     if (characteristic == null) {
         Log.e("GATT", "Characteristic with UUID $characteristicUuid not found.")
         return
     }
-
+    // Send the write request
     val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         gatt.writeCharacteristic(characteristic, value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)
     } else {

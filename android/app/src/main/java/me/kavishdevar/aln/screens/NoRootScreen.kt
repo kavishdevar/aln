@@ -30,16 +30,17 @@ fun NoRootScreen() {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Replace with your actual icon
+        // Replace with your favorite icon
         Image(
             painter = painterResource(id = R.drawable.ic_root_required),
             contentDescription = "Root Required Icon",
-            modifier = Modifier.size(200.dp), // Increased size
-            colorFilter = ColorFilter.tint(iconColor) // Apply color filter
+            modifier = Modifier.size(200.dp),
+            colorFilter = ColorFilter.tint(iconColor)
         )
 
         Spacer(modifier = Modifier.height(24.dp))
 
+        // Display the main message indicating that root access is required.
         Text(
             text = "Root access is required, but was not detected",
             style = MaterialTheme.typography.headlineSmall,
@@ -49,6 +50,7 @@ fun NoRootScreen() {
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Display the sub-message instructing the user to grant root access and restart the app.
         Text(
             text = "Please grant root acces and restart the app.",
             style = MaterialTheme.typography.bodyMedium,
