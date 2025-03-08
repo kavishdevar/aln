@@ -11,6 +11,9 @@ qt_standard_project_setup(REQUIRES 6.5)
 qt_add_executable(applinux
     main.cpp
     main.h
+    logger.h
+    mediacontroller.cpp
+    mediacontroller.h
     airpods_packets.h
 )
 
