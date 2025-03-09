@@ -1,15 +1,9 @@
 #include "main.h"
 #include "airpods_packets.h"
+#include "logger.h"
+#include "mediacontroller.h"
 
-#define LOG_INFO(msg) qCInfo(airpodsApp) << "\033[32m" << msg << "\033[0m"
-#define LOG_WARN(msg) qCWarning(airpodsApp) << "\033[33m" << msg << "\033[0m"
-#define LOG_ERROR(msg) qCCritical(airpodsApp) << "\033[31m" << msg << "\033[0m"
-#define LOG_DEBUG(msg) qCDebug(airpodsApp) << "\033[34m" << msg << "\033[0m"
-
-#define PHONE_MAC_ADDRESS "22:22:F5:BB:1C:A0"
-
-#define MANUFACTURER_ID 0x1234
-#define MANUFACTURER_DATA "ALN_AirPods"
+Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
 
 class AirPodsTrayApp : public QObject {
     Q_OBJECT
@@ -87,12 +81,18 @@ public:
         connect(this, &AirPodsTrayApp::noiseControlModeChanged, this, &AirPodsTrayApp::updateNoiseControlMenu);
         connect(this, &AirPodsTrayApp::batteryStatusChanged, this, &AirPodsTrayApp::updateBatteryTooltip);
         connect(this, &AirPodsTrayApp::batteryStatusChanged, this, &AirPodsTrayApp::updateTrayIcon);
-        connect(this, &AirPodsTrayApp::earDetectionStatusChanged, this, &AirPodsTrayApp::handleEarDetection);
 
         trayIcon->setContextMenu(trayMenu);
         trayIcon->show();
 
         connect(trayIcon, &QSystemTrayIcon::activated, this, &AirPodsTrayApp::onTrayIconActivated);
+
+        // Initialize MediaController and connect signals
+        mediaController = new MediaController(this);
+        connect(this, &AirPodsTrayApp::earDetectionStatusChanged, mediaController, &MediaController::handleEarDetection);
+        connect(mediaController, &MediaController::mediaStateChanged, this, &AirPodsTrayApp::handleMediaStateChange);
+        mediaController->initializeMprisInterface();
+        mediaController->followMediaChanges();
 
         discoveryAgent = new QBluetoothDeviceDiscoveryAgent();
         discoveryAgent->setLowEnergyDiscoveryTimeout(15000);
@@ -114,7 +114,6 @@ public:
                 return;
             }
         }
-        initializeMprisInterface();
         connect(phoneSocket, &QBluetoothSocket::readyRead, this, &AirPodsTrayApp::onPhoneDataReceived);
 
         QDBusInterface iface("org.bluez", "/org/bluez", "org.bluez.Adapter1");
@@ -350,70 +349,6 @@ public slots:
         trayIcon->setIcon(QIcon(pixmap));
     }
 
-    void handleEarDetection(const QString &status) {
-        static bool wasPausedByApp = false;
-    
-        QStringList parts = status.split(", ");
-        bool primaryInEar = parts[0].contains("In Ear");
-        bool secondaryInEar = parts[1].contains("In Ear");
-    
-        LOG_DEBUG("Ear detection status: primaryInEar=" << primaryInEar << ", secondaryInEar=" << secondaryInEar << isActiveOutputDeviceAirPods());
-        if (primaryInEar || secondaryInEar) {
-            LOG_INFO("At least one AirPod is in ear");
-            activateA2dpProfile();
-        } else {
-            LOG_INFO("Both AirPods are out of ear");
-            removeAudioOutputDevice();
-        }
-    
-        if (primaryInEar && secondaryInEar) {
-            if (wasPausedByApp && isActiveOutputDeviceAirPods()) {
-                int result = QProcess::execute("playerctl", QStringList() << "play");
-                LOG_DEBUG("Executed 'playerctl play' with result: " << result);
-                if (result == 0) {
-                    LOG_INFO("Resumed playback via Playerctl");
-                    wasPausedByApp = false;
-                } else {
-                    LOG_ERROR("Failed to resume playback via Playerctl");
-                }
-            }
-        } else {
-            if (isActiveOutputDeviceAirPods()) {
-                QProcess process;
-                process.start("playerctl", QStringList() << "status");
-                process.waitForFinished();
-                QString playbackStatus = process.readAllStandardOutput().trimmed();
-                LOG_DEBUG("Playback status: " << playbackStatus);
-                if (playbackStatus == "Playing") {
-                    int result = QProcess::execute("playerctl", QStringList() << "pause");
-                    LOG_DEBUG("Executed 'playerctl pause' with result: " << result);
-                    if (result == 0) {
-                        LOG_INFO("Paused playback via Playerctl");
-                        wasPausedByApp = true;
-                    } else {
-                        LOG_ERROR("Failed to pause playback via Playerctl");
-                    }
-                }
-            }
-        }
-    }
-
-    void activateA2dpProfile() {
-        LOG_INFO("Activating A2DP profile for AirPods");
-        int result = QProcess::execute("pactl", QStringList() << "set-card-profile" << "bluez_card." + connectedDeviceMacAddress.replace(":", "_") << "a2dp-sink");
-        if (result != 0) {
-            LOG_ERROR("Failed to activate A2DP profile");
-        }
-    }
-    
-    void removeAudioOutputDevice() {
-        LOG_INFO("Removing AirPods as audio output device");
-        int result = QProcess::execute("pactl", QStringList() << "set-card-profile" << "bluez_card." + connectedDeviceMacAddress.replace(":", "_") << "off");
-        if (result != 0) {
-            LOG_ERROR("Failed to remove AirPods as audio output device");
-        }
-    }
-
     bool loadConversationalAwarenessState() {
         QFile file(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/ca_state.txt");
         if (file.open(QIODevice::ReadOnly)) {
@@ -563,6 +498,7 @@ public slots:
         localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         socket = localSocket;
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
+        mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         notifyAndroidDevice();
     }
 
@@ -618,81 +554,12 @@ public slots:
         else if (data.size() == 10 && data.startsWith(AirPodsPackets::ConversationalAwareness::DATA_HEADER))
         {
             LOG_INFO("Received conversational awareness data");
-            handleConversationalAwareness(data);
+            mediaController->handleConversationalAwareness(data);
         }
         else
         {
             LOG_DEBUG("Unrecognized packet format: " << data.toHex());
         }
-    }
-    void handleConversationalAwareness(const QByteArray &data) {
-        LOG_DEBUG("Handling conversational awareness data: " << data.toHex());
-        static int initialVolume = -1;
-        bool lowered = data[9] == 0x01;
-        LOG_INFO("Conversational awareness: " << (lowered ? "enabled" : "disabled"));
-
-        if (lowered) {
-            if (initialVolume == -1 && isActiveOutputDeviceAirPods()) {
-                QProcess process;
-                process.start("pactl", QStringList() << "get-sink-volume" << "@DEFAULT_SINK@");
-                process.waitForFinished();
-                QString output = process.readAllStandardOutput();
-                QRegularExpression re("front-left: \\d+ /\\s*(\\d+)%");
-                QRegularExpressionMatch match = re.match(output);
-                if (match.hasMatch()) {
-                    LOG_DEBUG("Matched: " << match.captured(1));
-                    initialVolume = match.captured(1).toInt();
-                } else {
-                    LOG_ERROR("Failed to parse initial volume from output: " << output);
-                    return;
-                }
-            }
-            QProcess::execute("pactl", QStringList() << "set-sink-volume" << "@DEFAULT_SINK@" << QString::number(initialVolume * 0.20) + "%");
-            LOG_INFO("Volume lowered to 0.20 of initial which is " << initialVolume * 0.20 << "%");
-        } else {
-            if (initialVolume != -1 && isActiveOutputDeviceAirPods()) {
-                QProcess::execute("pactl", QStringList() << "set-sink-volume" << "@DEFAULT_SINK@" << QString::number(initialVolume) + "%");
-                LOG_INFO("Volume restored to " << initialVolume << "%");
-                initialVolume = -1;
-            }
-        }
-    }
-
-    bool isActiveOutputDeviceAirPods() {
-        QProcess process;
-        process.start("pactl", QStringList() << "get-default-sink");
-        process.waitForFinished();
-        QString output = process.readAllStandardOutput().trimmed();
-        LOG_DEBUG("Default sink: " << output);
-        return output.contains(connectedDeviceMacAddress.replace(":", "_"));
-    }
-
-    void initializeMprisInterface() {
-        QStringList services = QDBusConnection::sessionBus().interface()->registeredServiceNames();
-        QString mprisService;
-
-        foreach (const QString &service, services) {
-            if (service.startsWith("org.mpris.MediaPlayer2.") && service != "org.mpris.MediaPlayer2") {
-                mprisService = service;
-                break;
-            }
-        }
-
-        if (!mprisService.isEmpty()) {
-            mprisInterface = new QDBusInterface(mprisService,
-                                                "/org/mpris/MediaPlayer2",
-                                                "org.mpris.MediaPlayer2.Player",
-                                                QDBusConnection::sessionBus(),
-                                                this);
-            if (!mprisInterface->isValid()) {
-                LOG_ERROR("Failed to initialize MPRIS interface for service: " << mprisService);
-            } else {
-                LOG_INFO("Connected to MPRIS service: " << mprisService);
-            }
-        } else {
-            LOG_WARN("No active MPRIS media players found");
-        }
-        connectToPhone();
     }
 
     void connectToPhone() {
@@ -818,19 +685,14 @@ public slots:
         }
     }
 
-    public: void followMediaChanges() {
-        QProcess *playerctlProcess = new QProcess(this);
-        connect(playerctlProcess, &QProcess::readyReadStandardOutput, this, [this, playerctlProcess]() {
-            QString output = playerctlProcess->readAllStandardOutput().trimmed();
-            LOG_DEBUG("Playerctl output: " << output);
-            if (output == "Playing" && isPhoneConnected()) {
+    public:
+        void handleMediaStateChange(MediaController::MediaState state) {
+            if (state == MediaController::MediaState::Playing) {
                 LOG_INFO("Media started playing, sending disconnect request to Android and taking over audio");
                 sendDisconnectRequestToAndroid();
                 connectToAirPods(true);
             }
-        });
-        playerctlProcess->start("playerctl", QStringList() << "--follow" << "status");
-    }
+        }
 
     void sendDisconnectRequestToAndroid()
     {
@@ -922,6 +784,7 @@ private:
     QString connectedDeviceMacAddress;
     QByteArray lastBatteryStatus;
     QByteArray lastEarDetectionStatus;
+    MediaController* mediaController;
 };
 
 int main(int argc, char *argv[]) {
@@ -980,8 +843,6 @@ int main(int argc, char *argv[]) {
             LOG_ERROR("Root object not found");
         }
     });
-
-    trayApp.followMediaChanges();
 
     return app.exec();
 }
