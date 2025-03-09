@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -73,27 +73,19 @@ class CustomDevice : ComponentActivity() {
                 ) { innerPadding ->
                     HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
                     val manager = getSystemService(BLUETOOTH_SERVICE) as BluetoothManager
-//                    val device: BluetoothDevice = manager.adapter.getRemoteDevice("EC:D6:F4:3D:89:B8")
                     val device: BluetoothDevice = manager.adapter.getRemoteDevice("E7:48:92:3B:7D:A5")
-//                    val socket = device.createInsecureL2capChannel(31)
 
-//                    val batteryLevel = remember { mutableStateOf("") }
-//                    socket.outputStream.write(byteArrayOf(0x12,0x3B,0x00,0x02, 0x00))
-//                    socket.outputStream.write(byteArrayOf(0x12, 0x3A, 0x00, 0x01, 0x00, 0x08,0x01))
-
-                    val gatt = device.connectGatt(this, true, object: BluetoothGattCallback() {
+                    val gatt = device.connectGatt(this, true, object : BluetoothGattCallback() {
                         override fun onServicesDiscovered(gatt: BluetoothGatt, status: Int) {
                             if (status == BluetoothGatt.GATT_SUCCESS) {
-                                // Step 2: Iterate through the services and characteristics
                                 gatt.services.forEach { service ->
                                     Log.d("GATT", "Service UUID: ${service.uuid}")
                                     service.characteristics.forEach { characteristic ->
                                         characteristic.descriptors.forEach { descriptor ->
-                                            Log.d("GATT", "         Descriptor UUID: ${descriptor.uuid}: ${gatt.readDescriptor(descriptor)}")
+                                            Log.d("GATT", "Descriptor UUID: ${descriptor.uuid}: ${gatt.readDescriptor(descriptor)}")
                                         }
                                     }
                                 }
-
                             }
                         }
 
@@ -120,30 +112,26 @@ class CustomDevice : ComponentActivity() {
                     if (connect.value) {
                         try {
                             gatt.connect()
-                        }
-                        catch (e: Exception) {
+                        } catch (e: Exception) {
                             e.printStackTrace()
                         }
                         connect.value = false
                     }
 
-                    Column (
+                    Column(
                         modifier = Modifier.padding(innerPadding),
                         verticalArrangement = Arrangement.spacedBy(16.dp)
-                    )
-                    {
+                    ) {
                         Button(
                             onClick = { connect.value = true }
-                        )
-                        {
+                        ) {
                             Text("Connect")
                         }
 
                         Button(onClick = {
                             val characteristicUuid = "94110001-6D9B-4225-A4F1-6A4A7F01B0DE"
-                            val value = byteArrayOf(0x01, 0x00, 0x00, 0x00, 0x00 ,0x00 ,0x01)
+                            val value = byteArrayOf(0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01)
                             sendWriteRequest(gatt, characteristicUuid, value)
-                        
                         }) {
                             Text("batteryLevel.value")
                         }
@@ -169,15 +157,12 @@ fun sendWriteRequest(
         Log.e("GATT", "Service containing characteristic UUID $characteristicUuid not found.")
         return
     }
-
     // Retrieve the characteristic
     val characteristic = service.getCharacteristic(UUID.fromString(characteristicUuid))
     if (characteristic == null) {
         Log.e("GATT", "Characteristic with UUID $characteristicUuid not found.")
         return
     }
-
-
     // Send the write request
     val success = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
         gatt.writeCharacteristic(characteristic, value, BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT)

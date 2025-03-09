@@ -1,20 +1,20 @@
 /*
- * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- *
- * Copyright (C) 2024 Kavish Devar
- *
- * This program is free software: you can redistribute it and/or modify
- * it under the terms of the GNU Affero General Public License as published
- * by the Free Software Foundation, either version 3 of the License.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU Affero General Public License for more details.
- *
- * You should have received a copy of the GNU Affero General Public License
- * along with this program. If not, see <https://www.gnu.org/licenses/>.
- */
+* AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
+*
+* Copyright (C) 2024 Kavish Devar
+*
+* This program is free software: you can redistribute it and/or modify
+* it under the terms of the GNU Affero General Public License as published
+* by the Free Software Foundation, either version 3 of the License.
+*
+* This program is distributed in the hope that it will be useful,
+* but WITHOUT ANY WARRANTY; without even the implied warranty of
+* MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+* GNU Affero General Public License for more details.
+*
+* You should have received a copy of the GNU Affero General Public License
+* along with this program. If not, see <https://www.gnu.org/licenses/>.
+*/
 
 package me.kavishdevar.aln
 
@@ -22,7 +22,6 @@ import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
-import android.content.Context.MODE_PRIVATE
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.SharedPreferences
@@ -40,6 +39,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -51,10 +51,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -70,6 +72,9 @@ import me.kavishdevar.aln.services.AirPodsService
 import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.CrossDevice
+import me.kavishdevar.aln.screens.NoRootScreen
+import me.kavishdevar.aln.utils.RootChecker
+import me.kavishdevar.aln.utils.LibPatcher
 
 lateinit var serviceConnection: ServiceConnection
 lateinit var connectionStatusReceiver: BroadcastReceiver
@@ -79,12 +84,29 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            ALNTheme {
-                getSharedPreferences("settings", MODE_PRIVATE).edit().putLong("textColor",
-                    MaterialTheme.colorScheme.onSurface.toArgb().toLong()).apply()
-                Main()
-                startService(Intent(this, AirPodsService::class.java))
+
+        if (RootChecker.hasRootAccess()) {
+            if (LibPatcher.deployModule(this)) {
+                Log.d("MainActivity", "Module deployed successfully.")
+            } else {
+                Log.e("MainActivity", "Module deployment failed.")
+            }
+
+            setContent {
+                ALNTheme {
+                    getSharedPreferences("settings", MODE_PRIVATE).edit().putLong(
+                        "textColor",
+                        MaterialTheme.colorScheme.onSurface.toArgb().toLong()
+                    ).apply()
+                    Main()
+                    startService(Intent(this, AirPodsService::class.java))
+                }
+            }
+        } else {
+            setContent {
+                ALNTheme {
+                    NoRootScreen()
+                }
             }
         }
     }
@@ -143,18 +165,29 @@ fun Main() {
         val context = LocalContext.current
         val navController = rememberNavController()
 
-        val sharedPreferences = context.getSharedPreferences("settings", MODE_PRIVATE)
-        val isAvailableChangeListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-            if (key == "CrossDeviceIsAvailable") {
-                Log.d("MainActivity", "CrossDeviceIsAvailable changed")
-                isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)
+        val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
+        val isAvailableChangeListener =
+            SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+                if (key == "CrossDeviceIsAvailable") {
+                    Log.d("MainActivity", "CrossDeviceIsAvailable changed")
+                    isRemotelyConnected.value =
+                        sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)
+                }
             }
-        }
         sharedPreferences.registerOnSharedPreferenceChangeListener(isAvailableChangeListener)
-        Log.d("MainActivity", "CrossDeviceIsAvailable: ${sharedPreferences.getBoolean("CrossDeviceIsAvailable", false)} | isAvailable: ${CrossDevice.isAvailable}")
-        isRemotelyConnected.value = sharedPreferences.getBoolean("CrossDeviceIsAvailable", false) || CrossDevice.isAvailable
+        Log.d(
+            "MainActivity",
+            "CrossDeviceIsAvailable: ${
+                sharedPreferences.getBoolean(
+                    "CrossDeviceIsAvailable",
+                    false
+                )
+            } | isAvailable: ${CrossDevice.isAvailable}"
+        )
+        isRemotelyConnected.value =
+            sharedPreferences.getBoolean("CrossDeviceIsAvailable", false) || CrossDevice.isAvailable
         Log.d("MainActivity", "isRemotelyConnected: ${isRemotelyConnected.value}")
-        Box (
+        Box(
             modifier = Modifier
                 .padding(0.dp)
                 .fillMaxSize()
@@ -252,7 +285,8 @@ fun Main() {
                 }
             }
         }
-         serviceConnection = remember {
+
+        serviceConnection = remember {
             object : ServiceConnection {
                 override fun onServiceConnected(name: ComponentName?, service: IBinder?) {
                     val binder = service as AirPodsService.LocalBinder
@@ -265,25 +299,37 @@ fun Main() {
             }
         }
 
-        context.bindService(Intent(context, AirPodsService::class.java), serviceConnection, Context.BIND_AUTO_CREATE)
+        context.bindService(
+            Intent(context, AirPodsService::class.java),
+            serviceConnection,
+            Context.BIND_AUTO_CREATE
+        )
 
         if (airPodsService.value?.isConnectedLocally == true) {
             isConnected.value = true
         }
     } else {
-        Column (
-            modifier = Modifier.padding(24.dp),
-        ){
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(if (isSystemInDarkTheme()) Color.Black else Color.White)
+                .padding(24.dp),
+            verticalArrangement = Arrangement.Center,
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
             val textToShow = if (permissionState.shouldShowRationale) {
-                // If the user has denied the permission but not permanently, explain why it's needed.
                 "Please enable Bluetooth and Notification permissions to use the app. The Nearby Devices is required to connect to your AirPods, and the notification is required to show the AirPods battery status."
             } else {
-                // If the user has permanently denied the permission, inform them to enable it in settings.
                 "Please enable Bluetooth and Notification permissions in the app settings to use the app."
             }
-            Text(textToShow)
+            // If the user has denied the permission but not permanently, explain why it's needed.
+            Text(
+                textToShow,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = TextAlign.Center
+            )
             Button(onClick = { permissionState.launchMultiplePermissionRequest() }) {
-                Text("Request permission")
+                Text("Request permission", color = Color.DarkGray)
             }
         }
     }

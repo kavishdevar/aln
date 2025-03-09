@@ -267,7 +267,7 @@ data class LongPressPacket(val modes: Set<LongPressMode>) {
     }
 }
 
-fun determinePacket(changedIndex: Int, newEnabled: Boolean, oldModes: Set<LongPressMode>, newModes: Set<LongPressMode>): ByteArray? {
+fun determinePacket(changedIndex: Int, newEnabled: Boolean, oldModes: Set<LongPressMode>, newModes: Set<LongPressMode>): ByteArray {
     return if (newEnabled) {
         LongPressPacket(oldModes + newModes.elementAt(changedIndex)).value
     } else {
