@@ -1,26 +1,24 @@
+#include <QSettings>
+
 #include "main.h"
 #include "airpods_packets.h"
 #include "logger.h"
 #include "mediacontroller.h"
+#include "trayiconmanager.h"
+#include "enums.h"
+
+using namespace AirpodsTrayApp::Enums;
 
 Q_LOGGING_CATEGORY(airpodsApp, "airpodsApp")
 
 class AirPodsTrayApp : public QObject {
     Q_OBJECT
+    Q_PROPERTY(QString batteryStatus READ batteryStatus NOTIFY batteryStatusChanged)
+    Q_PROPERTY(QString earDetectionStatus READ earDetectionStatus NOTIFY earDetectionStatusChanged)
+    Q_PROPERTY(int noiseControlMode READ noiseControlMode WRITE setNoiseControlMode NOTIFY noiseControlModeChanged)
+    Q_PROPERTY(bool conversationalAwareness READ conversationalAwareness WRITE setConversationalAwareness NOTIFY conversationalAwarenessChanged)
 
 public:
-    enum NoiseControlMode : quint8
-    {
-        Off = 0,
-        NoiseCancellation = 1,
-        Transparency = 2,
-        Adaptive = 3,
-
-        MinValue = Off,
-        MaxValue = Adaptive,
-    };
-    Q_ENUM(NoiseControlMode)
-
     AirPodsTrayApp(bool debugMode) : debugMode(debugMode) {
         if (debugMode) {
             QLoggingCategory::setFilterRules("airpodsApp.debug=true");
@@ -28,64 +26,15 @@ public:
             QLoggingCategory::setFilterRules("airpodsApp.debug=false");
         }
         LOG_INFO("Initializing AirPodsTrayApp");
-        trayIcon = new QSystemTrayIcon(QIcon(":/icons/airpods.png"));
-        trayMenu = new QMenu();
 
-        bool caState = loadConversationalAwarenessState();
-        QAction *caToggleAction = new QAction("Toggle Conversational Awareness", trayMenu);
-        caToggleAction->setCheckable(true);
-        caToggleAction->setChecked(caState);
-        connect(caToggleAction, &QAction::triggered, this, [this, caToggleAction]() {
-            bool newState = !caToggleAction->isChecked();
-            setConversationalAwareness(newState);
-            saveConversationalAwarenessState(newState);
-            caToggleAction->setChecked(newState);
-        });
-        trayMenu->addAction(caToggleAction);
-
-        QAction *offAction = new QAction("Off", trayMenu);
-        QAction *transparencyAction = new QAction("Transparency", trayMenu);
-        QAction *adaptiveAction = new QAction("Adaptive", trayMenu);
-        QAction *noiseCancellationAction = new QAction("Noise Cancellation", trayMenu);
-
-        offAction->setData(NoiseControlMode::Off);
-        transparencyAction->setData(NoiseControlMode::Transparency);
-        adaptiveAction->setData(NoiseControlMode::Adaptive);
-        noiseCancellationAction->setData(NoiseControlMode::NoiseCancellation);
-
-        offAction->setCheckable(true);
-        transparencyAction->setCheckable(true);
-        adaptiveAction->setCheckable(true);
-        noiseCancellationAction->setCheckable(true);
-
-        trayMenu->addAction(offAction);
-        trayMenu->addAction(transparencyAction);
-        trayMenu->addAction(adaptiveAction);
-        trayMenu->addAction(noiseCancellationAction);
-
-        QActionGroup *noiseControlGroup = new QActionGroup(trayMenu);
-        noiseControlGroup->addAction(offAction);
-        noiseControlGroup->addAction(transparencyAction);
-        noiseControlGroup->addAction(adaptiveAction);
-        noiseControlGroup->addAction(noiseCancellationAction);
-
-        connect(offAction, &QAction::triggered, this, [this]()
-                { setNoiseControlMode(NoiseControlMode::Off); });
-        connect(transparencyAction, &QAction::triggered, this, [this]()
-                { setNoiseControlMode(NoiseControlMode::Transparency); });
-        connect(adaptiveAction, &QAction::triggered, this, [this]()
-                { setNoiseControlMode(NoiseControlMode::Adaptive); });
-        connect(noiseCancellationAction, &QAction::triggered, this, [this]()
-                { setNoiseControlMode(NoiseControlMode::NoiseCancellation); });
-
-        connect(this, &AirPodsTrayApp::noiseControlModeChanged, this, &AirPodsTrayApp::updateNoiseControlMenu);
-        connect(this, &AirPodsTrayApp::batteryStatusChanged, this, &AirPodsTrayApp::updateBatteryTooltip);
-        connect(this, &AirPodsTrayApp::batteryStatusChanged, this, &AirPodsTrayApp::updateTrayIcon);
-
-        trayIcon->setContextMenu(trayMenu);
-        trayIcon->show();
-
-        connect(trayIcon, &QSystemTrayIcon::activated, this, &AirPodsTrayApp::onTrayIconActivated);
+        // Initialize tray icon and connect signals
+        trayManager = new TrayIconManager(this);
+        connect(trayManager, &TrayIconManager::trayClicked, this, &AirPodsTrayApp::onTrayIconActivated);
+        connect(trayManager, &TrayIconManager::noiseControlChanged, this, qOverload<NoiseControlMode>(&AirPodsTrayApp::setNoiseControlMode));
+        connect(trayManager, &TrayIconManager::conversationalAwarenessToggled, this, &AirPodsTrayApp::setConversationalAwareness);
+        connect(this, &AirPodsTrayApp::batteryStatusChanged, trayManager, &TrayIconManager::updateBatteryStatus);
+        connect(this, &AirPodsTrayApp::noiseControlModeChanged, trayManager, &TrayIconManager::updateNoiseControlState);
+        connect(this, &AirPodsTrayApp::conversationalAwarenessChanged, trayManager, &TrayIconManager::updateConversationalAwareness);
 
         // Initialize MediaController and connect signals
         mediaController = new MediaController(this);
@@ -93,6 +42,9 @@ public:
         connect(mediaController, &MediaController::mediaStateChanged, this, &AirPodsTrayApp::handleMediaStateChange);
         mediaController->initializeMprisInterface();
         mediaController->followMediaChanges();
+
+        // load conversational awareness state
+        setConversationalAwareness(loadConversationalAwarenessState());
 
         discoveryAgent = new QBluetoothDeviceDiscoveryAgent();
         discoveryAgent->setLowEnergyDiscoveryTimeout(15000);
@@ -138,6 +90,11 @@ public:
         delete socket;
         delete phoneSocket;
     }
+
+    QString batteryStatus() const { return m_batteryStatus; }
+    QString earDetectionStatus() const { return m_earDetectionStatus; }
+    int noiseControlMode() const { return static_cast<int>(m_noiseControlMode); }
+    bool conversationalAwareness() const { return m_conversationalAwareness; }
 
 private:
     bool debugMode;
@@ -265,120 +222,82 @@ public slots:
         QByteArray packet;
         switch (mode)
         {
-        case Off:
+        case NoiseControlMode::Off:
             packet = AirPodsPackets::NoiseControl::OFF;
             break;
-        case NoiseCancellation:
+        case NoiseControlMode::NoiseCancellation:
             packet = AirPodsPackets::NoiseControl::NOISE_CANCELLATION;
             break;
-        case Transparency:
+        case NoiseControlMode::Transparency:
             packet = AirPodsPackets::NoiseControl::TRANSPARENCY;
             break;
-        case Adaptive:
+        case NoiseControlMode::Adaptive:
             packet = AirPodsPackets::NoiseControl::ADAPTIVE;
             break;
         }
-        if (socket && socket->isOpen())
-        {
-            socket->write(packet);
-            LOG_DEBUG("Noise control mode packet written: " << packet.toHex());
-        }
-        else
-        {
-            LOG_ERROR("Socket is not open, cannot write noise control mode packet");
-        }
+        writePacketToSocket(packet, "Noise control mode packet written: ");
+    }
+    void setNoiseControlMode(int mode)
+    {
+        setNoiseControlMode(static_cast<NoiseControlMode>(mode));
     }
 
     void setConversationalAwareness(bool enabled)
     {
+        if (m_conversationalAwareness == enabled)
+        {
+            LOG_INFO("Conversational awareness is already " << (enabled ? "enabled" : "disabled"));
+            return;
+        }
+
         LOG_INFO("Setting conversational awareness to: " << (enabled ? "enabled" : "disabled"));
         QByteArray packet = enabled ? AirPodsPackets::ConversationalAwareness::ENABLED
                                     : AirPodsPackets::ConversationalAwareness::DISABLED;
+
+        writePacketToSocket(packet, "Conversational awareness packet written: ");
+        m_conversationalAwareness = enabled;
+        emit conversationalAwarenessChanged(enabled);
+        saveConversationalAwarenessState();
+    }
+
+    bool writePacketToSocket(const QByteArray &packet, const QString &logMessage)
+    {
         if (socket && socket->isOpen())
         {
             socket->write(packet);
-            LOG_DEBUG("Conversational awareness packet written: " << packet.toHex());
+            LOG_DEBUG(logMessage << packet.toHex());
+            return true;
         }
         else
         {
-            LOG_ERROR("Socket is not open, cannot write conversational awareness packet");
+            LOG_ERROR("Socket is not open, cannot write packet");
+            return false;
         }
     }
 
-    void updateNoiseControlMenu(NoiseControlMode mode) {
-        QList<QAction *> actions = trayMenu->actions();
-        for (QAction *action : actions) {
-            action->setChecked(action->data().toInt() == mode);
-        }
+    bool loadConversationalAwarenessState()
+    {
+        QSettings settings;
+        return settings.value("conversationalAwareness", false).toBool();
     }
 
-    void updateBatteryTooltip(const QString &status) {
-        trayIcon->setToolTip("Battery Status: " + status);
+    void saveConversationalAwarenessState()
+    {
+        QSettings settings;
+        settings.setValue("conversationalAwareness", m_conversationalAwareness);
+        settings.sync();
     }
 
-    void updateTrayIcon(const QString &status) {
-        QStringList parts = status.split(", ");
-        int leftLevel = parts[0].split(": ")[1].replace("%", "").toInt();
-        int rightLevel = parts[1].split(": ")[1].replace("%", "").toInt();
-        
-        int minLevel;
-        if (leftLevel == 0)
+private slots:
+    void onTrayIconActivated()
+    {
+        QQuickWindow *window = qobject_cast<QQuickWindow *>(
+            QGuiApplication::topLevelWindows().constFirst());
+        if (window)
         {
-            minLevel = rightLevel;
-        }
-        else if (rightLevel == 0)
-        {
-            minLevel = leftLevel;
-        }
-        else
-        {
-            minLevel = qMin(leftLevel, rightLevel);
-        }
-
-
-        QPixmap pixmap(32, 32);
-        pixmap.fill(Qt::transparent);
-
-        QPainter painter(&pixmap);
-        QColor textColor = QApplication::palette().color(QPalette::WindowText);
-        painter.setPen(textColor);
-        painter.setFont(QFont("Arial", 12, QFont::Bold));
-        painter.drawText(pixmap.rect(), Qt::AlignCenter, QString::number(minLevel) + "%");
-        painter.end();
-
-        trayIcon->setIcon(QIcon(pixmap));
-    }
-
-    bool loadConversationalAwarenessState() {
-        QFile file(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/ca_state.txt");
-        if (file.open(QIODevice::ReadOnly)) {
-            QTextStream in(&file);
-            QString state = in.readLine();
-            file.close();
-            return state == "true";
-        }
-        return false;
-    }
-
-    void saveConversationalAwarenessState(bool state) {
-        QFile file(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + "/ca_state.txt");
-        if (file.open(QIODevice::WriteOnly)) {
-            QTextStream out(&file);
-            out << (state ? "true" : "false");
-            file.close();
-        }
-    }
-    private slots:
-    void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason) {
-        if (reason == QSystemTrayIcon::Trigger) {
-            LOG_INFO("Tray icon activated");
-            QQuickWindow *window = qobject_cast<QQuickWindow *>(
-                QGuiApplication::topLevelWindows().constFirst());
-            if (window) {
-                window->show();
-                window->raise();
-                window->requestActivate();
-            }
+            window->show();
+            window->raise();
+            window->requestActivate();
         }
     }
 
@@ -516,11 +435,11 @@ public slots:
         if (data.size() == 11 && data.startsWith(AirPodsPackets::NoiseControl::HEADER))
         {
             quint8 rawMode = data[7] - 1; // Offset still needed due to protocol
-            if (rawMode >= NoiseControlMode::MinValue && rawMode <= NoiseControlMode::MaxValue)
+            if (rawMode >= (int)NoiseControlMode::MinValue && rawMode <= (int)NoiseControlMode::MaxValue)
             {
-                NoiseControlMode mode = static_cast<NoiseControlMode>(rawMode);
+                m_noiseControlMode = static_cast<NoiseControlMode>(rawMode);
                 LOG_INFO("Noise control mode: " << rawMode);
-                emit noiseControlModeChanged(mode);
+                emit noiseControlModeChanged(m_noiseControlMode);
             }
             else
             {
@@ -532,10 +451,10 @@ public slots:
         {
             char primary = data[6];
             char secondary = data[7];
-            QString earDetectionStatus = QString("Primary: %1, Secondary: %2")
-                                             .arg(getEarStatus(primary), getEarStatus(secondary));
-            LOG_INFO("Ear detection status: " << earDetectionStatus);
-            emit earDetectionStatusChanged(earDetectionStatus);
+            m_earDetectionStatus = QString("Primary: %1, Secondary: %2")
+                                       .arg(getEarStatus(primary), getEarStatus(secondary));
+            LOG_INFO("Ear detection status: " << m_earDetectionStatus);
+            emit earDetectionStatusChanged(m_earDetectionStatus);
         }
         // Battery Status
         else if (data.size() == 22 && data.startsWith(AirPodsPackets::Parse::BATTERY_STATUS))
@@ -543,12 +462,12 @@ public slots:
             int leftLevel = data[9];
             int rightLevel = data[14];
             int caseLevel = data[19];
-            QString batteryStatus = QString("Left: %1%, Right: %2%, Case: %3%")
-                                        .arg(leftLevel)
-                                        .arg(rightLevel)
-                                        .arg(caseLevel);
-            LOG_INFO("Battery status: " << batteryStatus);
-            emit batteryStatusChanged(batteryStatus);
+            m_batteryStatus = QString("Left: %1%, Right: %2%, Case: %3%")
+                                  .arg(leftLevel)
+                                  .arg(rightLevel)
+                                  .arg(caseLevel);
+            LOG_INFO("Battery status: " << m_batteryStatus);
+            emit batteryStatusChanged(m_batteryStatus);
         }
         // Conversational Awareness Data
         else if (data.size() == 10 && data.startsWith(AirPodsPackets::ConversationalAwareness::DATA_HEADER))
@@ -712,6 +631,11 @@ public slots:
     }
 
     void connectToAirPods(bool force) {
+        if (socket && socket->isOpen()) {
+            LOG_INFO("Already connected to AirPods");
+            return;
+        }
+
         if (force) {
             LOG_INFO("Forcing connection to AirPods");
             QProcess process;
@@ -773,6 +697,7 @@ signals:
     void noiseControlModeChanged(NoiseControlMode mode);
     void earDetectionStatusChanged(const QString &status);
     void batteryStatusChanged(const QString &status);
+    void conversationalAwarenessChanged(bool enabled);
 
 private:
     QSystemTrayIcon *trayIcon;
@@ -785,6 +710,12 @@ private:
     QByteArray lastBatteryStatus;
     QByteArray lastEarDetectionStatus;
     MediaController* mediaController;
+    TrayIconManager *trayManager;
+
+    QString m_batteryStatus;
+    QString m_earDetectionStatus;
+    NoiseControlMode m_noiseControlMode = NoiseControlMode::Off;
+    bool m_conversationalAwareness = false;
 };
 
 int main(int argc, char *argv[]) {
@@ -802,47 +733,6 @@ int main(int argc, char *argv[]) {
     AirPodsTrayApp trayApp(debugMode);
     engine.rootContext()->setContextProperty("airPodsTrayApp", &trayApp);
     engine.loadFromModule("linux", "Main");
-
-    QObject::connect(&trayApp, &AirPodsTrayApp::noiseControlModeChanged, &engine, [&engine](int mode) {
-        QObject *rootObject = engine.rootObjects().constFirst();
-
-        if (rootObject) {
-            QObject *noiseControlMode = rootObject->findChild<QObject*>("noiseControlMode");
-            if (noiseControlMode) {
-                if (mode >= 0 && mode <= 3) {
-                    QMetaObject::invokeMethod(noiseControlMode, "setCurrentIndex", Q_ARG(int, mode));
-                } else {
-                    LOG_ERROR("Invalid mode value: " << mode);
-                }
-            }
-        } else {
-            LOG_ERROR("Root object not found");
-        }
-    });
-
-    QObject::connect(&trayApp, &AirPodsTrayApp::earDetectionStatusChanged, [&engine](const QString &status) {
-        QObject *rootObject = engine.rootObjects().first();
-        if (rootObject) {
-            QObject *earDetectionStatus = rootObject->findChild<QObject*>("earDetectionStatus");
-            if (earDetectionStatus) {
-                earDetectionStatus->setProperty("text", "Ear Detection Status: " + status);
-            }
-        } else {
-            LOG_ERROR("Root object not found");
-        }
-    });
-
-    QObject::connect(&trayApp, &AirPodsTrayApp::batteryStatusChanged, [&engine](const QString &status) {
-        QObject *rootObject = engine.rootObjects().first();
-        if (rootObject) {
-            QObject *batteryStatus = rootObject->findChild<QObject*>("batteryStatus");
-            if (batteryStatus) {
-                batteryStatus->setProperty("text", "Battery Status: " + status);
-            }
-        } else {
-            LOG_ERROR("Root object not found");
-        }
-    });
 
     return app.exec();
 }

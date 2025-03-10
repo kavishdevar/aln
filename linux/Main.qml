@@ -6,58 +6,35 @@ ApplicationWindow {
     width: 400
     height: 300
     title: "AirPods Settings"
-    property bool ignoreNoiseControlChange: false
-    property bool isPlaying: false
-
-    Component.onCompleted: {
-        caToggle.checked = airPodsTrayApp.loadConversationalAwarenessState()
-    }
 
     Column {
         spacing: 20
         padding: 20
 
         Text {
-            text: "Battery Status: "
             id: batteryStatus
-            objectName: "batteryStatus"
+            text: "Battery Status: " + airPodsTrayApp.batteryStatus
             color: "#ffffff"
         }
 
         Text {
-            text: "Ear Detection Status: "
             id: earDetectionStatus
-            objectName: "earDetectionStatus"
+            text: "Ear Detection Status: " + airPodsTrayApp.earDetectionStatus
             color: "#ffffff"
         }
 
         ComboBox {
             id: noiseControlMode
             model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
-            currentIndex: 0
-            onCurrentIndexChanged: {
-                if (!ignoreNoiseControlChange) {
-                    airPodsTrayApp.setNoiseControlMode(currentIndex)
-                }
-            }
-            Connections {
-                target: airPodsTrayApp
-                onNoiseControlModeChanged: {
-                    ignoreNoiseControlChange = true
-                    noiseControlMode.currentIndex = mode;
-                    ignoreNoiseControlChange = false
-                }
-            }
+            currentIndex: airPodsTrayApp.noiseControlMode
+            onCurrentIndexChanged: airPodsTrayApp.noiseControlMode = currentIndex
         }
 
         Switch {
             id: caToggle
             text: "Conversational Awareness"
-            checked: isPlaying
-            onCheckedChanged: {
-                airPodsTrayApp.setConversationalAwareness(checked)
-                airPodsTrayApp.saveConversationalAwarenessState(checked)
-            }
+            checked: airPodsTrayApp.conversationalAwareness
+            onCheckedChanged: airPodsTrayApp.conversationalAwareness = checked
         }
     }
 }
