@@ -219,7 +219,7 @@ object CrossDevice {
                             packet = packet.sliceArray(0 until half)
                         }
                     }
-                    var trimmedPacket = packet.drop(CrossDevicePackets.AIRPODS_DATA_HEADER.packet.size).toByteArray()
+                    val trimmedPacket = packet.drop(CrossDevicePackets.AIRPODS_DATA_HEADER.packet.size).toByteArray()
                     Log.d("CrossDevice", "Received relayed packet: ${trimmedPacket.joinToString("") { "%02x".format(it) }}")
                     if (ServiceManager.getService()?.isConnectedLocally == true) {
                         val packetInHex = trimmedPacket.joinToString("") { "%02x".format(it) }
@@ -227,7 +227,7 @@ object CrossDevice {
                     } else if (ServiceManager.getService()?.batteryNotification?.isBatteryData(trimmedPacket) == true) {
                         batteryBytes = trimmedPacket
                         ServiceManager.getService()?.batteryNotification?.setBattery(trimmedPacket)
-                        Log.d("CrossDevice", "Battery data: ${ServiceManager.getService()?.batteryNotification?.getBattery()[0]?.level}")
+                        Log.d("CrossDevice", "Battery data: ${ServiceManager.getService()?.batteryNotification?.getBattery()!![0].level}")
                         ServiceManager.getService()?.updateBatteryWidget()
                         ServiceManager.getService()?.sendBatteryBroadcast()
                         ServiceManager.getService()?.sendBatteryNotification()

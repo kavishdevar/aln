@@ -1412,7 +1412,7 @@ class AirPodsService : Service() {
         val newEnabled = newLongPressArray[changedIndex]
 
         val packet = determinePacket(changedIndex, newEnabled, oldModes, newModes)
-        packet?.let {
+        packet.let {
             Log.d("AirPodsService", "Sending packet: ${it.joinToString(" ") { "%02X".format(it) }}")
             sendPacket(it)
         }
