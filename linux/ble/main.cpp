@@ -208,7 +208,7 @@ private slots:
                 deviceInfo.rawData = data; // Store the raw data
 
                 // Parse device model
-                deviceInfo.deviceModel = static_cast<quint16>(data[3]) | (static_cast<quint8>(data[4]) << 8);
+                deviceInfo.deviceModel = static_cast<quint16>(data[4]) | (static_cast<quint8>(data[3]) << 8);
 
                 // Store status byte (byte 5)
                 deviceInfo.status = static_cast<quint8>(data[5]);
