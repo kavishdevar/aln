@@ -12,6 +12,10 @@ find_package(Qt6 6.5 REQUIRED COMPONENTS Core Bluetooth Widgets)
 
 qt_add_executable(ble_monitor
     main.cpp
+    blemanager.h
+    blemanager.cpp
+    blescanner.h
+    blescanner.cpp
 )
 
 target_link_libraries(ble_monitor
