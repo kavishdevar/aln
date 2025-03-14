@@ -220,9 +220,9 @@ private slots:
 
                 // Parse charging status and case battery level (byte 7)
                 quint8 statusByte = static_cast<quint8>(data[7]);
-                deviceInfo.caseCharging = (statusByte & 0x02) == 0;
-                deviceInfo.rightCharging = (statusByte & 0x04) == 0;
-                deviceInfo.leftCharging = (statusByte & 0x08) == 0;
+                deviceInfo.caseCharging = (statusByte & 0x02) != 0;
+                deviceInfo.rightCharging = (statusByte & 0x04) != 0;
+                deviceInfo.leftCharging = (statusByte & 0x08) != 0;
                 deviceInfo.caseBattery = ((statusByte >> 4) & 0x0F) * 10; // Scale to 0-100
 
                 // Byte 8 is the lid open counter
@@ -389,18 +389,31 @@ private:
     {
         switch (modelId)
         {
+        // AirPods
         case 0x0220:
             return "AirPods 1st Gen";
         case 0x0F20:
             return "AirPods 2nd Gen";
         case 0x1320:
+            return "AirPods 3rd Gen";
+        case 0x1920:
+            return "AirPods 4th Gen";
+        case 0x1B20:
+            return "AirPods 4th Gen (ANC)";
+
+        // AirPods Max
+        case 0x0A20:
+            return "AirPods Max";
+        case 0x1F20:
+            return "AirPods Max (USB-C)";
+
+        // Airpods Pro
+        case 0x0e20:
             return "AirPods Pro";
         case 0x1420:
-            return "AirPods Max";
-        case 0x1520:
-            return "AirPods 3rd Gen";
-        case 0x1820:
             return "AirPods Pro 2nd Gen";
+        case 0x2420:
+            return "AirPods Pro 2nd Gen (USB-C)";
         default:
             return "Unknown Apple Device";
         }
