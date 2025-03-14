@@ -201,7 +201,7 @@ private slots:
             {
                 QString address = info.address().toString();
 
-                // Create or update device info
+                // Create or up  date device info
                 DeviceInfo deviceInfo;
                 deviceInfo.name = info.name().isEmpty() ? "AirPods" : info.name();
                 deviceInfo.address = address;
@@ -423,24 +423,32 @@ private:
     {
         switch (colorId)
         {
-        case 0:
+        case 0x00:
             return "White";
-        case 1:
+        case 0x01:
             return "Black";
-        case 2:
+        case 0x02:
             return "Red";
-        case 3:
+        case 0x03:
             return "Blue";
-        case 4:
+        case 0x04:
             return "Pink";
-        case 5:
+        case 0x05:
             return "Gray";
-        case 6:
+        case 0x06:
             return "Silver";
-        case 7:
+        case 0x07:
             return "Gold";
-        case 8:
+        case 0x08:
             return "Rose Gold";
+        case 0x09:
+            return "Space Gray";
+        case 0x0a:
+            return "Dark Blue";
+        case 0x0b:
+            return "Light Blue";
+        case 0x0c:
+            return "Yellow";
         default:
             return "Unknown";
         }
