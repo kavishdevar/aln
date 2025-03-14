@@ -36,6 +36,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.SharedPreferences
+import android.content.pm.PackageManager
 import android.content.res.Resources
 import android.media.AudioManager
 import android.os.BatteryManager
@@ -45,22 +46,27 @@ import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
 import android.os.ParcelUuid
+import android.telecom.TelecomManager
 import android.telephony.PhoneStateListener
 import android.telephony.TelephonyManager
 import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.widget.RemoteViews
+import android.widget.Toast
+import androidx.annotation.RequiresApi
 import androidx.annotation.RequiresPermission
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.core.app.NotificationCompat
 import androidx.core.content.edit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import me.kavishdevar.aln.MainActivity
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.utils.AirPodsNotifications
@@ -70,15 +76,19 @@ import me.kavishdevar.aln.utils.BatteryStatus
 import me.kavishdevar.aln.utils.CrossDevice
 import me.kavishdevar.aln.utils.CrossDevicePackets
 import me.kavishdevar.aln.utils.Enums
+import me.kavishdevar.aln.utils.GestureDetector
+import me.kavishdevar.aln.utils.HeadTracking
 import me.kavishdevar.aln.utils.IslandType
 import me.kavishdevar.aln.utils.IslandWindow
-import me.kavishdevar.aln.utils.LongPressMode
+import me.kavishdevar.aln.utils.LongPressPackets
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.PopupWindow
-import me.kavishdevar.aln.utils.determinePacket
+import me.kavishdevar.aln.utils.isHeadTrackingData
 import me.kavishdevar.aln.widgets.BatteryWidget
 import me.kavishdevar.aln.widgets.NoiseControlWidget
 import org.lsposed.hiddenapibypass.HiddenApiBypass
+import java.nio.ByteBuffer
+import java.nio.ByteOrder
 
 object ServiceManager {
     private var service: AirPodsService? = null
@@ -152,13 +162,25 @@ class AirPodsService : Service() {
     }
 
     fun clearLogs() {
-        clearPacketLogs() // Expose a method to clear logs
+        clearPacketLogs()
         _packetLogsFlow.value = emptySet()
     }
 
     override fun onBind(intent: Intent?): IBinder {
         return LocalBinder()
     }
+
+    private var gestureDetector: GestureDetector? = null
+    private var isInCall = false
+    private var callNumber: String? = null
+
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun initGestureDetector() {
+        if (gestureDetector == null) {
+            gestureDetector = GestureDetector(this)
+        }
+    }
+
 
     var popupShown = false
 
@@ -525,6 +547,98 @@ class AirPodsService : Service() {
         notificationManager.notify(1, updatedNotification)
     }
 
+    @RequiresApi(Build.VERSION_CODES.Q)
+    fun handleIncomingCall() {
+        if (isInCall) return
+
+        initGestureDetector()
+
+        gestureDetector?.startDetection { accepted ->
+            if (accepted) {
+                answerCall()
+            } else {
+                rejectCall()
+            }
+        }
+    }
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @RequiresApi(Build.VERSION_CODES.Q)
+
+    suspend fun testHeadGestures(): Boolean {
+        return suspendCancellableCoroutine { continuation ->
+            gestureDetector?.startDetection(doNotStop = true) { accepted ->
+                if (continuation.isActive) {
+                    continuation.resume(accepted) {
+                        gestureDetector?.stopDetection()
+                    }
+                }
+            }
+        }
+    }
+    private fun answerCall() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val telecomManager = getSystemService(TELECOM_SERVICE) as TelecomManager
+                if (checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED) {
+                    telecomManager.acceptRingingCall()
+                }
+            } else {
+                val telephonyService = getSystemService(TELEPHONY_SERVICE) as TelephonyManager
+                val telephonyClass = Class.forName(telephonyService.javaClass.name)
+                val method = telephonyClass.getDeclaredMethod("getITelephony")
+                method.isAccessible = true
+                val telephonyInterface = method.invoke(telephonyService)
+                val answerCallMethod = telephonyInterface.javaClass.getDeclaredMethod("answerRingingCall")
+                answerCallMethod.invoke(telephonyInterface)
+            }
+
+            sendToast("Call answered via head gesture")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            sendToast("Failed to answer call: ${e.message}")
+        } finally {
+            islandWindow?.close()
+        }
+    }
+    private fun rejectCall() {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                val telecomManager = getSystemService(Context.TELECOM_SERVICE) as TelecomManager
+                if (checkSelfPermission(Manifest.permission.ANSWER_PHONE_CALLS) == PackageManager.PERMISSION_GRANTED) {
+                    telecomManager.endCall()
+                }
+            } else {
+                val telephonyService = getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
+                val telephonyClass = Class.forName(telephonyService.javaClass.name)
+                val method = telephonyClass.getDeclaredMethod("getITelephony")
+                method.isAccessible = true
+                val telephonyInterface = method.invoke(telephonyService)
+                val endCallMethod = telephonyInterface.javaClass.getDeclaredMethod("endCall")
+                endCallMethod.invoke(telephonyInterface)
+            }
+
+            sendToast("Call rejected via head gesture")
+        } catch (e: Exception) {
+            e.printStackTrace()
+            sendToast("Failed to reject call: ${e.message}")
+        } finally {
+            islandWindow?.close()
+        }
+    }
+
+    fun sendToast(message: String) {
+        Handler(Looper.getMainLooper()).post {
+            Toast.makeText(applicationContext, message, Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    @RequiresApi(Build.VERSION_CODES.R)
+    fun processHeadTrackingData(data: ByteArray) {
+        val horizontal = ByteBuffer.wrap(data, 51, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+        val vertical = ByteBuffer.wrap(data, 53, 2).order(ByteOrder.LITTLE_ENDIAN).short.toInt()
+        gestureDetector?.processHeadOrientation(horizontal, vertical)
+    }
+
     private lateinit var connectionReceiver: BroadcastReceiver
     private lateinit var disconnectionReceiver: BroadcastReceiver
 
@@ -533,6 +647,7 @@ class AirPodsService : Service() {
         Log.d("AirPodsService", "Service started")
         ServiceManager.setService(this)
         startForegroundNotification()
+        initGestureDetector()
         val audioManager =
             this@AirPodsService.getSystemService(AUDIO_SERVICE) as AudioManager
         MediaController.initialize(
@@ -559,9 +674,19 @@ class AirPodsService : Service() {
                 when (state) {
                     TelephonyManager.CALL_STATE_RINGING -> {
                         if (CrossDevice.isAvailable && !isConnectedLocally && earDetectionNotification.status.contains(0x00)) takeOver()
+                        if (sharedPreferences.getBoolean("head_gestures", false)) {
+                            callNumber = phoneNumber
+                            handleIncomingCall()
+                        }
                     }
                     TelephonyManager.CALL_STATE_OFFHOOK -> {
                         if (CrossDevice.isAvailable && !isConnectedLocally && earDetectionNotification.status.contains(0x00)) takeOver()
+                        isInCall = true
+                    }
+                    TelephonyManager.CALL_STATE_IDLE -> {
+                        isInCall = false
+                        callNumber = null
+                        gestureDetector?.stopDetection()
                     }
                 }
             }
@@ -711,7 +836,7 @@ class AirPodsService : Service() {
         }
 
         if (!isConnectedLocally && !CrossDevice.isAvailable) {
-            clearPacketLogs() // Clear logs when device is not available
+            clearPacketLogs()
         }
 
         return START_STICKY
@@ -729,6 +854,7 @@ class AirPodsService : Service() {
         }
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     @SuppressLint("MissingPermission")
     fun takeOver() {
         Log.d("AirPodsService", "Taking over audio")
@@ -750,6 +876,7 @@ class AirPodsService : Service() {
         CrossDevice.isAvailable = false
     }
 
+    @RequiresApi(Build.VERSION_CODES.R)
     @SuppressLint("MissingPermission", "UnspecifiedRegisterReceiverFlag")
     fun connectToSocket(device: BluetoothDevice) {
         HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
@@ -824,7 +951,6 @@ class AirPodsService : Service() {
                                 var data: ByteArray = byteArrayOf()
                                 if (bytesRead > 0) {
                                     data = buffer.copyOfRange(0, bytesRead)
-                                    logPacket(data, "AirPods")
                                     sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DATA).apply {
                                         putExtra("data", buffer.copyOfRange(0, bytesRead))
                                     })
@@ -836,7 +962,10 @@ class AirPodsService : Service() {
                                         sharedPreferences.getString("name", device.name),
                                         batteryNotification.getBattery()
                                     )
-                                    Log.d("AirPods Data", "Data received: $formattedHex")
+                                    if (!isHeadTrackingData(data)) {
+                                        Log.d("AirPods Data", "Data received: $formattedHex")
+                                        logPacket(data, "AirPods")
+                                    }
                                 } else if (bytesRead == -1) {
                                     Log.d("AirPods Service", "Socket closed (bytesRead = -1)")
                                     sendBroadcast(Intent(AirPodsNotifications.Companion.AIRPODS_DISCONNECTED))
@@ -844,6 +973,7 @@ class AirPodsService : Service() {
                                 }
                                 var inEar = false
                                 var inEarData = listOf<Boolean>()
+                                processData(data)
                                 if (earDetectionNotification.isEarDetectionData(data)) {
                                     earDetectionNotification.setStatus(data)
                                     sendBroadcast(Intent(AirPodsNotifications.Companion.EAR_DETECTION_DATA).apply {
@@ -1042,7 +1172,9 @@ class AirPodsService : Service() {
                                         "AirPods Parser",
                                         "Conversation Awareness: ${conversationAwarenessNotification.status}"
                                     )
-                                } else {
+                                }
+                                else if (isHeadTrackingData(data)) {
+                                    processHeadTrackingData(data)
                                 }
                             }
                         }
@@ -1391,27 +1523,136 @@ class AirPodsService : Service() {
     fun updateLongPress(
         oldLongPressArray: BooleanArray,
         newLongPressArray: BooleanArray,
+        offListeningMode: Boolean
     ) {
         if (oldLongPressArray.contentEquals(newLongPressArray)) {
             return
         }
-        val oldModes = mutableSetOf<LongPressMode>()
-        val newModes = mutableSetOf<LongPressMode>()
+        val oldOffEnabled = oldLongPressArray[0]
+        val oldAncEnabled = oldLongPressArray[1]
+        val oldTransparencyEnabled = oldLongPressArray[2]
+        val oldAdaptiveEnabled = oldLongPressArray[3]
 
-        if (oldLongPressArray[0]) oldModes.add(LongPressMode.OFF)
-        if (oldLongPressArray[1]) oldModes.add(LongPressMode.ANC)
-        if (oldLongPressArray[2]) oldModes.add(LongPressMode.TRANSPARENCY)
-        if (oldLongPressArray[3]) oldModes.add(LongPressMode.ADAPTIVE)
-
-        if (newLongPressArray[0]) newModes.add(LongPressMode.OFF)
-        if (newLongPressArray[1]) newModes.add(LongPressMode.ANC)
-        if (newLongPressArray[2]) newModes.add(LongPressMode.TRANSPARENCY)
-        if (newLongPressArray[3]) newModes.add(LongPressMode.ADAPTIVE)
+        val newOffEnabled = newLongPressArray[0]
+        val newAncEnabled = newLongPressArray[1]
+        val newTransparencyEnabled = newLongPressArray[2]
+        val newAdaptiveEnabled = newLongPressArray[3]
 
         val changedIndex = findChangedIndex(oldLongPressArray, newLongPressArray)
-        val newEnabled = newLongPressArray[changedIndex]
+        Log.d("AirPodsService", "changedIndex: $changedIndex")
+        var packet: ByteArray? = null
+        if (offListeningMode) {
+            packet = when (changedIndex) {
+                0 -> {
+                    if (newOffEnabled) {
+                        when {
+                            oldAncEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ANC.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_ADAPTIVE_AND_ANC.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldAncEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_EVERYTHING.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ANC.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_ADAPTIVE_AND_ANC.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    }
+                }
 
-        val packet = determinePacket(changedIndex, newEnabled, oldModes, newModes)
+                1 -> {
+                    if (newAncEnabled) {
+                        when {
+                            oldOffEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ANC_FROM_OFF_AND_TRANSPARENCY.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_ANC_FROM_OFF_AND_ADAPTIVE.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldOffEnabled && oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_ANC_FROM_EVERYTHING.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ANC_FROM_OFF_AND_TRANSPARENCY.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_ANC_FROM_OFF_AND_ADAPTIVE.value
+                            oldTransparencyEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_OFF_FROM_TRANSPARENCY_AND_ADAPTIVE.value
+                            else -> null
+                        }
+                    }
+                }
+
+                2 -> {
+                    if (newTransparencyEnabled) {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_OFF_AND_ADAPTIVE.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.ENABLE_TRANSPARENCY_FROM_ADAPTIVE_AND_ANC.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_OFF_AND_ADAPTIVE.value
+                            oldAncEnabled && oldAdaptiveEnabled -> LongPressPackets.DISABLE_TRANSPARENCY_FROM_ADAPTIVE_AND_ANC.value
+                            else -> null
+                        }
+                    }
+                }
+
+                3 -> {
+                    if (newAdaptiveEnabled) {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_OFF_AND_TRANSPARENCY.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.ENABLE_ADAPTIVE_FROM_TRANSPARENCY_AND_ANC.value
+                            else -> null
+                        }
+                    } else {
+                        when {
+                            oldOffEnabled && oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_EVERYTHING.value
+                            oldOffEnabled && oldAncEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_OFF_AND_ANC.value
+                            oldOffEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_OFF_AND_TRANSPARENCY.value
+                            oldAncEnabled && oldTransparencyEnabled -> LongPressPackets.DISABLE_ADAPTIVE_FROM_TRANSPARENCY_AND_ANC.value
+                            else -> null
+                        }
+                    }
+                }
+
+                else -> null
+            }
+        } else {
+            when (changedIndex) {
+                1 -> {
+                    packet = if (newLongPressArray[1]) {
+                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
+                    } else {
+                        LongPressPackets.DISABLE_ANC_OFF_DISABLED.value
+                    }
+                }
+
+                2 -> {
+                    packet = if (newLongPressArray[2]) {
+                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
+                    } else {
+                        LongPressPackets.DISABLE_TRANSPARENCY_OFF_DISABLED.value
+                    }
+                }
+
+                3 -> {
+                    packet = if (newLongPressArray[3]) {
+                        LongPressPackets.ENABLE_EVERYTHING_OFF_DISABLED.value
+                    } else {
+                        LongPressPackets.DISABLE_ADAPTIVE_OFF_DISABLED.value
+                    }
+                }
+            }
+
+        }
         packet?.let {
             Log.d("AirPodsService", "Sending packet: ${it.joinToString(" ") { "%02X".format(it) }}")
             sendPacket(it)
@@ -1442,10 +1683,28 @@ class AirPodsService : Service() {
             e.printStackTrace()
         }
         telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE)
-        // Reset state variables
         isConnectedLocally = false
         CrossDevice.isAvailable = true
         super.onDestroy()
+    }
+
+    var isHeadTrackingActive = false
+
+    fun startHeadTracking() {
+        isHeadTrackingActive = true
+        socket.outputStream.write(Enums.START_HEAD_TRACKING.value)
+        HeadTracking.reset()
+    }
+
+    fun stopHeadTracking() {
+        socket.outputStream.write(Enums.STOP_HEAD_TRACKING.value)
+        isHeadTrackingActive = false
+    }
+
+    fun processData(data: ByteArray) {
+        if (isHeadTrackingActive && isHeadTrackingData(data)) {
+            HeadTracking.processPacket(data)
+        }
     }
 }
 

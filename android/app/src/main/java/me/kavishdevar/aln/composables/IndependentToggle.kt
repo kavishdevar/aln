@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.sp
 import me.kavishdevar.aln.services.AirPodsService
 
 @Composable
-fun IndependentToggle(name: String, service: AirPodsService, functionName: String, sharedPreferences: SharedPreferences, default: Boolean = false) {
+fun IndependentToggle(name: String, service: AirPodsService? = null, functionName: String? = null, sharedPreferences: SharedPreferences, default: Boolean = false) {
     val isDarkTheme = isSystemInDarkTheme()
     val textColor = if (isDarkTheme) Color.White else Color.Black
 
@@ -77,9 +77,10 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
                             .edit()
                             .putBoolean(snakeCasedName, checked)
                             .apply()
-
-                        val method = service::class.java.getMethod(functionName, Boolean::class.java)
-                        method.invoke(service, checked)
+                        if (functionName != null && service != null) {
+                            val method = service::class.java.getMethod(functionName, Boolean::class.java)
+                            method.invoke(service, checked)
+                        }
                     }
                 )
             },
@@ -98,8 +99,11 @@ fun IndependentToggle(name: String, service: AirPodsService, functionName: Strin
                 onCheckedChange = {
                     checked = it
                     sharedPreferences.edit().putBoolean(snakeCasedName, it).apply()
-                    val method = service::class.java.getMethod(functionName, Boolean::class.java)
-                    method.invoke(service, it)
+                    if (functionName != null && service != null) {
+                        val method =
+                            service::class.java.getMethod(functionName, Boolean::class.java)
+                        method.invoke(service, it)
+                    }
                 },
             )
         }

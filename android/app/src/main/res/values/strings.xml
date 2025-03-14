@@ -17,6 +17,7 @@
     <string name="adaptive">Adaptive</string>
     <string name="noise_cancellation">Noise Cancellation</string>
     <string name="press_and_hold_airpods">Press and Hold AirPods</string>
+    <string name="head_gestures">Head Gestures</string>
     <string name="left">Left</string>
     <string name="right">Right</string>
     <string name="adjusts_volume">Adjusts the volume of media in response to your environment</string>
@@ -46,4 +47,6 @@
     <string name="island_connected_remote_text">Connected to Linux</string>
     <string name="island_taking_over_text">Moved to phone</string>
     <string name="island_moved_to_remote_text">Moved to Linux</string>
+    <string name="head_tracking">Head Tracking</string>
+    <string name="head_gestures_details">Nod to answer calls, and shake your head to decline.</string>
 </resources>

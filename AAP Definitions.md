@@ -348,27 +348,34 @@ The packets sent (based on the previous states) are as follows:
 
 > *i do hate apple for not hardcoding these, like there are literally only 4^2 - ${\binom{4}{1}}$ - $\binom{4}{2}$*
 
-# Miscellaneous/Unknown
+# Head Tracking
 
-## Request something (Probably Head Positions)
+## Start Tracking
+
+This packet initiates head tracking. When sent, the AirPods begin streaming head tracking data (e.g. orientation and acceleration) for live plotting and analysis.
 
 ```plaintext
-<!-- 04 00 04 00 17 00 00 00 10 00 11 00 08 7C 10 02 42 0B 08 4E 10 02 1A 05 01 40 9C 00 00 -->
-OR
 04 00 04 00 17 00 00 00 10 00 10 00 08 A1 02 42 0B 08 0E 10 02 1A 05 01 40 9C 00 00
 ```
 
-Example packet
+## Stop Tracking
 
-```plaintext
-04 00 04 00 17 00 00 00 10 00 43 00 08 ec 07 10 01 1a 3c 0e 00 01 90 95 5d af 86 19 00 00 03 04 43 94 04 9e 6b 01 00 00 00 d5 a2 06 13 eb 13 03 00 f0 ff 01 00 67 83 67 83 67 83 fe ff fd ff 07 00 b3 01 9c 03 65 00 48 74 2c 37 fd 1e 00 00
-```
-
-## Stop whatever was requested
+This packet stops the head tracking data stream.
 
 ```plaintext
 04 00 04 00 17 00 00 00 10 00 11 00 08 7E 10 02 42 0B 08 4E 10 02 1A 05 01 00 00 00 00
 ```
+## Received Head Tracking Sensor Data
+
+Once tracking is active, the AirPods stream sensor packets with the following common structure:
+  
+| Field                    | Offset | Length (bytes) |
+|--------------------------|--------|----------------|
+| orientation 1            | 43     | 2              |
+| orientation 2            | 45     | 2              |
+| orientation 3            | 47     | 2              |
+| Horizontal Acceleration  | 51     | 2              |
+| Vertical Acceleration    | 53     | 2              |
 
 # LICENSE
 

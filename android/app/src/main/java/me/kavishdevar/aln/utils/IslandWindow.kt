@@ -45,7 +45,8 @@ import me.kavishdevar.aln.services.ServiceManager
 enum class IslandType {
     CONNECTED,
     TAKING_OVER,
-    MOVED_TO_REMOTE
+    MOVED_TO_REMOTE,
+//    CALL_GESTURE
 }
 
 class IslandWindow(context: Context) {
@@ -84,14 +85,20 @@ class IslandWindow(context: Context) {
             close()
         }
 
-        if (type == IslandType.TAKING_OVER) {
-            islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_taking_over_text)
-        } else if (type == IslandType.MOVED_TO_REMOTE) {
-            islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_moved_to_remote_text)
-        } else if (CrossDevice.isAvailable) {
-            islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_connected_remote_text)
-        } else if (type == IslandType.CONNECTED) {
-            islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_connected_text)
+        when (type) {
+            IslandType.CONNECTED -> {
+                islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_connected_text)
+            }
+            IslandType.TAKING_OVER -> {
+                islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_taking_over_text)
+            }
+            IslandType.MOVED_TO_REMOTE -> {
+                islandView.findViewById<TextView>(R.id.island_connected_text).text = getString(context, R.string.island_moved_to_remote_text)
+            }
+//            IslandType.CALL_GESTURE -> {
+//                islandView.findViewById<TextView>(R.id.island_connected_text).text = "Incoming Call from $name"
+//                islandView.findViewById<TextView>(R.id.island_device_name).text = "Use Head Gestures to answer."
+//            }
         }
 
         val batteryProgressBar = islandView.findViewById<ProgressBar>(R.id.island_battery_progress)

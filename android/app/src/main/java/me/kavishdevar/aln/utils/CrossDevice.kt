@@ -143,9 +143,7 @@ object CrossDevice {
     }
 
     fun sendReceivedPacket(packet: ByteArray) {
-        Log.d("CrossDevice", "Sending packet to remote device")
         if (clientSocket == null || clientSocket!!.outputStream != null) {
-            Log.d("CrossDevice", "Client socket is null")
             return
         }
         clientSocket?.outputStream?.write(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + packet)
@@ -257,7 +255,6 @@ object CrossDevice {
 
     fun sendRemotePacket(byteArray: ByteArray) {
         if (clientSocket == null || clientSocket!!.outputStream == null) {
-            Log.d("CrossDevice", "Client socket is null")
             return
         }
         clientSocket?.outputStream?.write(byteArray)

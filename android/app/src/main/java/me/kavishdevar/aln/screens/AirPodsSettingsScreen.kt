@@ -306,6 +306,21 @@ fun AirPodsSettingsScreen(dev: BluetoothDevice?, service: AirPodsService,
                 NoiseControlSettings(service = service)
 
                 Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = stringResource(R.string.head_gestures).uppercase(),
+                    style = TextStyle(
+                        fontSize = 14.sp,
+                        fontWeight = FontWeight.Light,
+                        color = (if (isSystemInDarkTheme()) Color.White else Color.Black).copy(alpha = 0.6f),
+                        fontFamily = FontFamily(Font(R.font.sf_pro))
+                    ),
+                    modifier = Modifier.padding(8.dp, bottom = 2.dp)
+                )
+
+                Spacer(modifier = Modifier.height(2.dp))
+                NavigationButton(to = "head_tracking", "Head Tracking", navController)
+
+                Spacer(modifier = Modifier.height(16.dp))
                 PressAndHoldSettings(navController = navController)
 
                 Spacer(modifier = Modifier.height(16.dp))

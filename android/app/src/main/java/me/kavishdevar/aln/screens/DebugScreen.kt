@@ -1,17 +1,17 @@
 /*
  * AirPods like Normal (ALN) - Bringing Apple-only features to Linux and Android for seamless AirPods functionality!
- * 
+ *
  * Copyright (C) 2024 Kavish Devar
- * 
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Affero General Public License as published
  * by the Free Software Foundation, either version 3 of the License.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU Affero General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU Affero General Public License
  * along with this program. If not, see <https://www.gnu.org/licenses/>.
  */
@@ -22,6 +22,8 @@ package me.kavishdevar.aln.screens
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.os.Build
+import androidx.annotation.RequiresApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -32,7 +34,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -86,6 +87,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.ServiceManager
 
+@RequiresApi(Build.VERSION_CODES.Q)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnspecifiedRegisterReceiverFlag")
 @Composable
@@ -154,7 +156,7 @@ fun DebugScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .imePadding()
+//                .imePadding()
                 .haze(hazeState)
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
@@ -198,7 +200,7 @@ fun DebugScreen(navController: NavController) {
                                     Column {
                                         Text(
                                             text =
-                                                if (isSent) message.substring(5).take(60) + (if (message.substring(5).length > 60) "..." else "") 
+                                                if (isSent) message.substring(5).take(60) + (if (message.substring(5).length > 60) "..." else "")
                                                 else message.substring(9).take(60) + (if (message.substring(9).length > 60) "..." else ""),
                                             style = MaterialTheme.typography.bodySmall,
                                         )

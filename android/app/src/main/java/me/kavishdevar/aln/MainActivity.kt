@@ -64,9 +64,11 @@ import com.google.accompanist.permissions.rememberMultiplePermissionsState
 import me.kavishdevar.aln.screens.AirPodsSettingsScreen
 import me.kavishdevar.aln.screens.AppSettingsScreen
 import me.kavishdevar.aln.screens.DebugScreen
+import me.kavishdevar.aln.screens.HeadTrackingScreen
 import me.kavishdevar.aln.screens.LongPress
 import me.kavishdevar.aln.screens.RenameScreen
 import me.kavishdevar.aln.services.AirPodsService
+import me.kavishdevar.aln.services.ServiceManager
 import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.CrossDevice
@@ -135,7 +137,9 @@ fun Main() {
             "android.permission.BLUETOOTH_SCAN",
             "android.permission.BLUETOOTH_ADVERTISE",
             "android.permission.POST_NOTIFICATIONS",
-            "android.permission.READ_PHONE_STATE"
+            "android.permission.READ_PHONE_STATE",
+            "android.permission.ANSWER_PHONE_CALLS",
+            "android.permission.MODIFY_AUDIO_SETTINGS"
         )
     )
     val airPodsService = remember { mutableStateOf<AirPodsService?>(null) }
@@ -249,6 +253,9 @@ fun Main() {
                 }
                 composable("app_settings") {
                     AppSettingsScreen(navController)
+                }
+                composable("head_tracking") {
+                    HeadTrackingScreen(navController)
                 }
             }
         }

@@ -216,7 +216,7 @@ fun LongPressElement(name: String, checked: MutableState<Boolean>, id: String, e
             sharedPreferences.getBoolean("long_press_adaptive", false)
         )
         ServiceManager.getService()
-            ?.updateLongPress(originalLongPressArray, newLongPressArray)
+            ?.updateLongPress(originalLongPressArray, newLongPressArray, offListeningMode)
     }
     val shape = when {
         isFirst -> RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)
