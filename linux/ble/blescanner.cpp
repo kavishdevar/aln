@@ -131,15 +131,6 @@ BleScanner::BleScanner(QWidget *parent) : QMainWindow(parent)
     mainLayout->addWidget(detailsGroup);
     detailsGroup->setVisible(false);
 
-    trayIcon = new QSystemTrayIcon(QIcon::fromTheme("bluetooth"), this);
-    QMenu *trayMenu = new QMenu(this);
-    QAction *showAction = trayMenu->addAction("Show");
-    trayMenu->addSeparator();
-    QAction *exitAction = trayMenu->addAction("Exit");
-    trayIcon->setContextMenu(trayMenu);
-    trayIcon->setToolTip("AirPods Battery Monitor");
-    trayIcon->show();
-
     bleManager = new BleManager(this);
     refreshTimer = new QTimer(this);
 
@@ -147,8 +138,6 @@ BleScanner::BleScanner(QWidget *parent) : QMainWindow(parent)
     connect(stopButton, &QPushButton::clicked, this, &BleScanner::stopScan);
     connect(deviceTable, &QTableWidget::itemSelectionChanged, this, &BleScanner::onDeviceSelected);
     connect(refreshTimer, &QTimer::timeout, this, &BleScanner::updateDeviceList);
-    connect(showAction, &QAction::triggered, this, &BleScanner::show);
-    connect(exitAction, &QAction::triggered, qApp, &QApplication::quit);
 }
 
 void BleScanner::startScan()
@@ -158,7 +147,7 @@ void BleScanner::startScan()
     deviceTable->setRowCount(0);
     detailsGroup->setVisible(false);
     bleManager->startScan();
-    refreshTimer->start(2000);
+    refreshTimer->start(500);
 }
 
 void BleScanner::stopScan()
@@ -202,18 +191,8 @@ void BleScanner::updateDeviceList()
         }
     }
 
-    if (!devices.isEmpty())
-    {
-        auto it = devices.begin();
-        QString leftBat = (it.value().leftPodBattery >= 0 ? QString::number(it.value().leftPodBattery) + "%" : "N/A");
-        QString rightBat = (it.value().rightPodBattery >= 0 ? QString::number(it.value().rightPodBattery) + "%" : "N/A");
-        QString caseBat = (it.value().caseBattery >= 0 ? QString::number(it.value().caseBattery) + "%" : "N/A");
-        QString tooltip = QString("%1\nLeft: %2 | Right: %3 | Case: %4")
-                              .arg(it.value().name)
-                              .arg(leftBat)
-                              .arg(rightBat)
-                              .arg(caseBat);
-        trayIcon->setToolTip(tooltip);
+    if (deviceTable->selectedItems().isEmpty()) {
+        deviceTable->selectRow(0);
     }
 }
 

@@ -1,5 +1,6 @@
 #include "blemanager.h"
 #include <QDebug>
+#include <QTimer>
 
 BleManager::BleManager(QObject *parent) : QObject(parent)
 {
@@ -12,11 +13,17 @@ BleManager::BleManager(QObject *parent) : QObject(parent)
             this, &BleManager::onScanFinished);
     connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::errorOccurred,
             this, &BleManager::onErrorOccurred);
+
+    // Set up pruning timer
+    pruneTimer = new QTimer(this);
+    connect(pruneTimer, &QTimer::timeout, this, &BleManager::pruneOldDevices);
+    pruneTimer->start(PRUNE_INTERVAL_MS); // Start timer (runs every 5 seconds)
 }
 
 BleManager::~BleManager()
 {
     delete discoveryAgent;
+    delete pruneTimer;
 }
 
 void BleManager::startScan()
@@ -24,6 +31,7 @@ void BleManager::startScan()
     qDebug() << "Starting BLE scan...";
     devices.clear();
     discoveryAgent->start(QBluetoothDeviceDiscoveryAgent::LowEnergyMethod);
+    pruneTimer->start(PRUNE_INTERVAL_MS); // Ensure timer is running
 }
 
 void BleManager::stopScan()
@@ -111,6 +119,9 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             else
                 deviceInfo.lidState = DeviceInfo::LidState::UNKNOWN;
 
+            // Update timestamp
+            deviceInfo.lastSeen = QDateTime::currentDateTime();
+
             // Store device info in the map
             devices[address] = deviceInfo;
 
@@ -136,4 +147,22 @@ void BleManager::onErrorOccurred(QBluetoothDeviceDiscoveryAgent::Error error)
 {
     qDebug() << "Error occurred:" << error;
     stopScan();
+}
+
+void BleManager::pruneOldDevices()
+{
+    QDateTime now = QDateTime::currentDateTime();
+    auto it = devices.begin();
+    while (it != devices.end())
+    {
+        if (it.value().lastSeen.msecsTo(now) > DEVICE_TIMEOUT_MS)
+        {
+            qDebug() << "Removing old device:" << it.value().name << "at" << it.key();
+            it = devices.erase(it); // Remove device if not seen recently
+        }
+        else
+        {
+            ++it;
+        }
+    }
 }

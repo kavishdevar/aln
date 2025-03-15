@@ -45,7 +45,6 @@ private:
     QLabel *lidStateLabel; // Renamed from lidOpenLabel
     QLabel *colorLabel;
     QLabel *rawDataLabel;
-    QSystemTrayIcon *trayIcon;
 
     // New labels for additional DeviceInfo fields
     QLabel *leftInEarLabel;
