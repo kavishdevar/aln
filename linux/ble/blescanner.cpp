@@ -285,21 +285,25 @@ void BleScanner::onDeviceSelected()
                              .arg(statusBinary));
 
     // Lid State enum handling
+    QString lidStateStr;
+
     switch (device.lidState)
     {
     case DeviceInfo::LidState::OPEN:
-        lidStateLabel->setText("Open");
+        lidStateStr.append("Open");
         break;
     case DeviceInfo::LidState::CLOSED:
-        lidStateLabel->setText("Closed");
+        lidStateStr.append("Closed");
         break;
     case DeviceInfo::LidState::NOT_IN_CASE:
-        lidStateLabel->setText("Not in Case");
+        lidStateStr.append("Not in Case");
         break;
     case DeviceInfo::LidState::UNKNOWN:
-        lidStateLabel->setText("Unknown");
+        lidStateStr.append("Unknown");
         break;
     }
+    lidStateStr.append(" (0x" + QString::number(device.lidOpenCounter, 16).toUpper() + " = " + QString::number(device.lidOpenCounter) + ")");
+    lidStateLabel->setText(lidStateStr);
 
     QString colorName = getColorName(device.deviceColor);
     colorLabel->setText(colorName + " (" + QString::number(device.deviceColor) + ")");
