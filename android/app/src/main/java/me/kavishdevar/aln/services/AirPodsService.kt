@@ -932,12 +932,16 @@ class AirPodsService : Service() {
                         it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
                         it.outputStream.flush()
                         delay(200)
+                        it.outputStream.write(Enums.START_HEAD_TRACKING.value)
+                        it.outputStream.flush()
                         Handler(Looper.getMainLooper()).postDelayed({
                             it.outputStream.write(Enums.HANDSHAKE.value)
                             it.outputStream.flush()
                             it.outputStream.write(Enums.SET_SPECIFIC_FEATURES.value)
                             it.outputStream.flush()
                             it.outputStream.write(Enums.REQUEST_NOTIFICATIONS.value)
+                            it.outputStream.flush()
+                            it.outputStream.write(Enums.STOP_HEAD_TRACKING.value)
                             it.outputStream.flush()
                         }, 5000)
                         sendBroadcast(
