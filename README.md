@@ -26,7 +26,9 @@ Check the [pinned issue](https://github.com/kavishdevar/aln/issues/20) for a lis
 
 Check out the demo below!
 
-https://raw.githubusercontent.com/kavishdevar/aln/main/android/imgs/cd-demo-2.mp4
+
+https://github.com/user-attachments/assets/d08f8a51-cd52-458b-8e55-9b44f4d5f3ab
+
 
 ## Linux — Deprecated, rewrite WIP!
 
