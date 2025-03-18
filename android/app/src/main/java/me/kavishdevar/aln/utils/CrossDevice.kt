@@ -114,8 +114,11 @@ object CrossDevice {
                 .addManufacturerData(MANUFACTURER_ID, MANUFACTURER_DATA.toByteArray())
                 .addServiceUuid(ParcelUuid(uuid))
                 .build()
-
-            bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
+            try {
+                bluetoothLeAdvertiser.startAdvertising(settings, data, advertiseCallback)
+            } catch (e: Exception) {
+                Log.e("CrossDevice", "Failed to start BLE Advertising: ${e.message}")
+            }
             Log.d("CrossDevice", "BLE Advertising started")
         }
     }
