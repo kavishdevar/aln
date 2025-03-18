@@ -26,7 +26,6 @@ Check the [pinned issue](https://github.com/kavishdevar/aln/issues/20) for a lis
 
 Check out the demo below!
 
-
 https://github.com/user-attachments/assets/d08f8a51-cd52-458b-8e55-9b44f4d5f3ab
 
 
@@ -49,16 +48,12 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 
 ### Screenshots
 
-Check out the new animations and transitions in the app!
-
-https://github.com/user-attachments/assets/470ffc9c-3e52-4dcf-818d-0d1f60986c2e
-
 | | | |
 |-------------------|-------------------|-------------------|
 | ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
 | ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
 | ![Long Press Configuration](/android/imgs/long-press.png) | ![Widget](/android/imgs/widget.png) | ![Customizations](/android/imgs/customizations.png) |
-| ![audio-popup](/android/imgs/audio-connected-island.png) | | |
+| ![audio-popup](/android/imgs/audio-connected-island.png) | ![Head Tracking and Gestures](/android/imgs/head-tracking-and-gestures.png) | |
 
 ### Installation
 
