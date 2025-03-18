@@ -34,6 +34,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.core.Spring
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
@@ -72,6 +74,9 @@ import me.kavishdevar.aln.services.ServiceManager
 import me.kavishdevar.aln.ui.theme.ALNTheme
 import me.kavishdevar.aln.utils.AirPodsNotifications
 import me.kavishdevar.aln.utils.CrossDevice
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 
 lateinit var serviceConnection: ServiceConnection
 lateinit var connectionStatusReceiver: BroadcastReceiver
@@ -170,62 +175,26 @@ fun Main() {
                 enterTransition = {
                     slideInHorizontally(
                         initialOffsetX = { it },
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    ) + scaleIn(
-                        initialScale = 0.85f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    )
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
                 },
                 exitTransition = {
                     slideOutHorizontally(
-                        targetOffsetX = { -it },
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    ) + scaleOut(
-                        targetScale = 0.85f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    )
+                        targetOffsetX = { -it/4 },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 150))
                 },
                 popEnterTransition = {
                     slideInHorizontally(
-                        initialOffsetX = { -it },
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    ) + scaleIn(
-                        initialScale = 0.85f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    )
+                        initialOffsetX = { -it/4 },
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeIn(animationSpec = tween(durationMillis = 300))
                 },
                 popExitTransition = {
                     slideOutHorizontally(
                         targetOffsetX = { it },
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    ) + scaleOut(
-                        targetScale = 0.85f,
-                        animationSpec = spring(
-                            dampingRatio = Spring.DampingRatioLowBouncy,
-                            stiffness = Spring.StiffnessLow
-                        )
-                    )
+                        animationSpec = tween(durationMillis = 300)
+                    ) + fadeOut(animationSpec = tween(durationMillis = 150))
                 }
             ) {
                 composable("settings") {
