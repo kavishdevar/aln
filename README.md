@@ -51,9 +51,9 @@ This tray app communicates with a daemon with the help of a UNIX socket. The dae
 | | | |
 |-------------------|-------------------|-------------------|
 | ![Settings 1](/android/imgs/settings-1.png) | ![Settings 2](/android/imgs/settings-2.png) | ![Debug Screen](/android/imgs/debug.png) |
-| ![Battery Notification](/android/imgs/notification.png) | ![Popup](/android/imgs/popup.png) | ![QuickSetting Tile](/android/imgs/qstile.png) |
+| ![Battery Notification and QS Tile for NC Mode](/android/imgs/notification-and-qs.png) | ![Popup](/android/imgs/popup.png) | ![Head Tracking and Gestures](/android/imgs/head-tracking-and-gestures.png) |
 | ![Long Press Configuration](/android/imgs/long-press.png) | ![Widget](/android/imgs/widget.png) | ![Customizations](/android/imgs/customizations.png) |
-| ![audio-popup](/android/imgs/audio-connected-island.png) | ![Head Tracking and Gestures](/android/imgs/head-tracking-and-gestures.png) | |
+| ![audio-popup](/android/imgs/audio-connected-island.png) | | |
 
 ### Installation
 
