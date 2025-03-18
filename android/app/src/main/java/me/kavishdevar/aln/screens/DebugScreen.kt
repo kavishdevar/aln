@@ -51,7 +51,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -86,6 +85,206 @@ import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.flow.MutableStateFlow
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.ServiceManager
+import me.kavishdevar.aln.utils.BatteryStatus
+import me.kavishdevar.aln.utils.isHeadTrackingData
+
+data class PacketInfo(
+    val type: String,
+    val description: String,
+    val rawData: String,
+    val parsedData: Map<String, String> = emptyMap(),
+    val isUnknown: Boolean = false
+)
+
+fun parsePacket(message: String): PacketInfo {
+    val rawData = if (message.startsWith("Sent")) message.substring(5) else message.substring(9)
+    val bytes = rawData.split(" ").mapNotNull {
+        it.takeIf { it.isNotEmpty() }?.toIntOrNull(16)?.toByte()
+    }.toByteArray()
+
+    val airPodsService = ServiceManager.getService()
+    if (airPodsService != null) {
+        return when {
+            message.startsWith("Sent") -> parseOutgoingPacket(bytes, rawData)
+            airPodsService.batteryNotification.isBatteryData(bytes) -> {
+                val batteryInfo = mutableMapOf<String, String>()
+                airPodsService.batteryNotification.setBattery(bytes)
+                val batteries = airPodsService.batteryNotification.getBattery()
+                val batteryInfoString = batteries.joinToString(", ") { battery ->
+                    "${battery.getComponentName() ?: "Unknown"}: ${battery.level}% ${if (battery.status == BatteryStatus.CHARGING) "(Charging)" else ""}"
+                }
+                batteries.forEach { battery ->
+                    if (battery.status != BatteryStatus.DISCONNECTED) {
+                        batteryInfo[battery.getComponentName() ?: "Unknown"] =
+                            "${battery.level}% ${if (battery.status == BatteryStatus.CHARGING) "(Charging)" else ""}"
+                    }
+                }
+
+                PacketInfo(
+                    "Battery",
+                    batteryInfoString,
+                    rawData,
+                    batteryInfo
+                )
+            }
+            airPodsService.ancNotification.isANCData(bytes) -> {
+                airPodsService.ancNotification.setStatus(bytes)
+                val mode = when (airPodsService.ancNotification.status) {
+                    1 -> "Off"
+                    2 -> "Noise Cancellation"
+                    3 -> "Transparency"
+                    4 -> "Adaptive"
+                    else -> "Unknown"
+                }
+
+                PacketInfo(
+                    "Noise Control",
+                    "Mode: $mode",
+                    rawData,
+                    mapOf("Mode" to mode)
+                )
+            }
+            airPodsService.earDetectionNotification.isEarDetectionData(bytes) -> {
+                airPodsService.earDetectionNotification.setStatus(bytes)
+                val status = airPodsService.earDetectionNotification.status
+                val primaryStatus = if (status[0] == 0.toByte()) "In ear" else "Out of ear"
+                val secondaryStatus = if (status[1] == 0.toByte()) "In ear" else "Out of ear"
+
+                PacketInfo(
+                    "Ear Detection",
+                    "Primary: $primaryStatus, Secondary: $secondaryStatus",
+                    rawData,
+                    mapOf("Primary" to primaryStatus, "Secondary" to secondaryStatus)
+                )
+            }
+            airPodsService.conversationAwarenessNotification.isConversationalAwarenessData(bytes) -> {
+                airPodsService.conversationAwarenessNotification.setData(bytes)
+                val statusMap = mapOf(
+                    1.toByte() to "Started speaking",
+                    2.toByte() to "Speaking",
+                    8.toByte() to "Stopped speaking",
+                    9.toByte() to "Not speaking"
+                )
+                val status = statusMap[airPodsService.conversationAwarenessNotification.status] ?:
+                    "Unknown (${airPodsService.conversationAwarenessNotification.status})"
+
+                PacketInfo(
+                    "Conversation Awareness",
+                    "Status: $status",
+                    rawData,
+                    mapOf("Status" to status)
+                )
+            }
+            isHeadTrackingData(bytes) -> {
+                val horizontal = if (bytes.size >= 53)
+                    "${bytes[51].toInt() and 0xFF or (bytes[52].toInt() shl 8)}" else "Unknown"
+                val vertical = if (bytes.size >= 55)
+                    "${bytes[53].toInt() and 0xFF or (bytes[54].toInt() shl 8)}" else "Unknown"
+
+                PacketInfo(
+                    "Head Tracking",
+                    "Position data",
+                    rawData,
+                    mapOf("Horizontal" to horizontal, "Vertical" to vertical)
+                )
+            }
+            else -> PacketInfo("Unknown", "Unknown packet format", rawData, emptyMap(), true)
+        }
+    } else {
+        return if (message.startsWith("Sent")) {
+            parseOutgoingPacket(bytes, rawData)
+        } else {
+            PacketInfo("Unknown", "Unknown packet format", rawData, emptyMap(), true)
+        }
+    }
+}
+
+fun parseOutgoingPacket(bytes: ByteArray, rawData: String): PacketInfo {
+    if (bytes.size < 7) {
+        return PacketInfo("Unknown", "Unknown outgoing packet", rawData, emptyMap(), true)
+    }
+
+    return when {
+        bytes.size >= 16 &&
+        bytes[0] == 0x00.toByte() &&
+        bytes[1] == 0x00.toByte() &&
+        bytes[2] == 0x04.toByte() &&
+        bytes[3] == 0x00.toByte() -> {
+            PacketInfo("Handshake", "Initial handshake with AirPods", rawData)
+        }
+
+        bytes.size >= 11 &&
+        bytes[0] == 0x04.toByte() &&
+        bytes[1] == 0x00.toByte() &&
+        bytes[2] == 0x04.toByte() &&
+        bytes[3] == 0x00.toByte() &&
+        bytes[4] == 0x09.toByte() &&
+        bytes[5] == 0x00.toByte() &&
+        bytes[6] == 0x0d.toByte() -> {
+            val mode = when (bytes[7].toInt()) {
+                1 -> "Off"
+                2 -> "Noise Cancellation"
+                3 -> "Transparency"
+                4 -> "Adaptive"
+                else -> "Unknown"
+            }
+            PacketInfo("Noise Control", "Set mode to $mode", rawData, mapOf("Mode" to mode))
+        }
+
+        bytes.size >= 11 &&
+        bytes[0] == 0x04.toByte() &&
+        bytes[1] == 0x00.toByte() &&
+        bytes[2] == 0x04.toByte() &&
+        bytes[3] == 0x00.toByte() &&
+        bytes[4] == 0x09.toByte() &&
+        bytes[5] == 0x00.toByte() &&
+        bytes[6] == 0x28.toByte() -> {
+            val mode = if (bytes[7].toInt() == 1) "On" else "Off"
+            PacketInfo("Conversation Awareness", "Set mode to $mode", rawData, mapOf("Mode" to mode))
+        }
+
+        bytes.size > 10 &&
+        bytes[0] == 0x04.toByte() &&
+        bytes[1] == 0x00.toByte() &&
+        bytes[2] == 0x04.toByte() &&
+        bytes[3] == 0x00.toByte() &&
+        bytes[4] == 0x17.toByte() -> {
+            val action = if (bytes.joinToString(" ") { "%02X".format(it) }.contains("A1 02")) "Start" else "Stop"
+            PacketInfo("Head Tracking", "$action head tracking", rawData)
+        }
+
+        bytes.size >= 11 &&
+        bytes[0] == 0x04.toByte() &&
+        bytes[1] == 0x00.toByte() &&
+        bytes[2] == 0x04.toByte() &&
+        bytes[3] == 0x00.toByte() &&
+        bytes[4] == 0x09.toByte() &&
+        bytes[5] == 0x00.toByte() &&
+        bytes[6] == 0x1A.toByte() -> {
+            PacketInfo("Long Press Config", "Change long press modes", rawData)
+        }
+
+        bytes.size >= 9 &&
+        bytes[0] == 0x04.toByte() &&
+        bytes[1] == 0x00.toByte() &&
+        bytes[2] == 0x04.toByte() &&
+        bytes[3] == 0x00.toByte() &&
+        bytes[4] == 0x4d.toByte() -> {
+            PacketInfo("Feature Request", "Set specific features", rawData)
+        }
+
+        bytes.size >= 9 &&
+        bytes[0] == 0x04.toByte() &&
+        bytes[1] == 0x00.toByte() &&
+        bytes[2] == 0x04.toByte() &&
+        bytes[3] == 0x00.toByte() &&
+        bytes[4] == 0x0f.toByte() -> {
+            PacketInfo("Notifications", "Request notifications", rawData)
+        }
+
+        else -> PacketInfo("Unknown", "Unknown outgoing packet", rawData, emptyMap(), true)
+    }
+}
 
 @RequiresApi(Build.VERSION_CODES.Q)
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -156,7 +355,6 @@ fun DebugScreen(navController: NavController) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-//                .imePadding()
                 .haze(hazeState)
                 .padding(top = paddingValues.calculateTopPadding())
         ) {
@@ -170,6 +368,7 @@ fun DebugScreen(navController: NavController) {
                         val message = packetLogs.elementAt(index)
                         val isSent = message.startsWith("Sent")
                         val isExpanded = expandedItems.value.contains(index)
+                        val packetInfo = parsePacket(message)
 
                         Card(
                             modifier = Modifier
@@ -185,7 +384,7 @@ fun DebugScreen(navController: NavController) {
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             shape = RoundedCornerShape(4.dp),
                             colors = CardDefaults.cardColors(
-                                containerColor = Color.Transparent
+                                containerColor = if (isSystemInDarkTheme()) Color(0xFF1C1B20) else Color(0xFFF2F2F7),
                             )
                         ) {
                             Column(modifier = Modifier.padding(8.dp)) {
@@ -199,16 +398,53 @@ fun DebugScreen(navController: NavController) {
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Column {
                                         Text(
-                                            text =
-                                                if (isSent) message.substring(5).take(60) + (if (message.substring(5).length > 60) "..." else "")
-                                                else message.substring(9).take(60) + (if (message.substring(9).length > 60) "..." else ""),
-                                            style = MaterialTheme.typography.bodySmall,
+                                            text = if (packetInfo.isUnknown) {
+                                                val shortenedData = packetInfo.rawData.take(60) +
+                                                    (if (packetInfo.rawData.length > 60) "..." else "")
+                                                shortenedData
+                                            } else {
+                                                "${packetInfo.type}: ${packetInfo.description}"
+                                            },
+                                            style = TextStyle(
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Medium,
+                                                fontFamily = FontFamily(Font(R.font.hack))
+                                            )
                                         )
                                         if (isExpanded) {
                                             Spacer(modifier = Modifier.height(4.dp))
+
+                                            if (packetInfo.parsedData.isNotEmpty()) {
+                                                packetInfo.parsedData.forEach { (key, value) ->
+                                                    Row {
+                                                        Text(
+                                                            text = "$key: ",
+                                                            style = TextStyle(
+                                                                fontSize = 12.sp,
+                                                                fontWeight = FontWeight.Bold,
+                                                                fontFamily = FontFamily(Font(R.font.hack))
+                                                            ),
+                                                            color = Color.Gray
+                                                        )
+                                                        Text(
+                                                            text = value,
+                                                            style = TextStyle(
+                                                                fontSize = 12.sp,
+                                                                fontFamily = FontFamily(Font(R.font.hack))
+                                                            ),
+                                                            color = Color.Gray
+                                                        )
+                                                    }
+                                                }
+                                                Spacer(modifier = Modifier.height(4.dp))
+                                            }
+
                                             Text(
-                                                text = message.substring(if (isSent) 5 else 9),
-                                                style = MaterialTheme.typography.bodySmall,
+                                                text = "Raw: ${packetInfo.rawData}",
+                                                style = TextStyle(
+                                                    fontSize = 12.sp,
+                                                    fontFamily = FontFamily(Font(R.font.hack))
+                                                ),
                                                 color = Color.Gray
                                             )
                                         }
