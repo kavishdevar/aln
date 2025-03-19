@@ -12,12 +12,6 @@ sudo apt install python3 python3-pip
 pip3 install pybluez
 ```
 
-If you want to run it as a daemon (Refer to the [Daemon Version](#as-a-daemon-using-a-unix-socket) section), you will need to install the `python-daemon` package.
-
-```bash
-pip3 install python-daemon
-```
-
 ### 2. Clone the repository
 
 ```bash
