@@ -91,10 +91,10 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             int caseNibble = flagsAndCaseBattery & 0x0F; // Extracts lower nibble
             deviceInfo.caseBattery = (caseNibble == 15) ? -1 : caseNibble * 10;
 
-            // Parse charging statuses from flags (lower 4 bits of data[7])
-            quint8 flags = flagsAndCaseBattery & 0x0F;                                               // Extracts lower nibble
-            deviceInfo.leftCharging = areValuesFlipped ? (flags & 0x01) != 0 : (flags & 0x02) != 0;  // 
-            deviceInfo.rightCharging = areValuesFlipped ? (flags & 0x02) != 0 : (flags & 0x01) != 0; // 
+            // Parse charging statuses from flags (uper 4 bits of data[7])
+            quint8 flags = (flagsAndCaseBattery >> 4) & 0x0F;                                        // Extracts lower nibble
+            deviceInfo.rightCharging = areValuesFlipped ? (flags & 0x01) != 0 : (flags & 0x02) != 0;  // 
+            deviceInfo.leftCharging = areValuesFlipped ? (flags & 0x02) != 0 : (flags & 0x01) != 0; // 
             deviceInfo.caseCharging = (flags & 0x04) != 0;                                           // Keeping original bit 1 for consistency
 
             // Additional status flags from status byte (data[5])
