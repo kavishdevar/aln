@@ -876,6 +876,40 @@ class AirPodsService : Service() {
         CrossDevice.isAvailable = false
     }
 
+    private fun createBluetoothSocket(device: BluetoothDevice, uuid: ParcelUuid): BluetoothSocket {
+        val type = 3 // L2CAP
+        val constructorSpecs = listOf(
+            arrayOf(device, type, true, true, 0x1001, uuid),
+            arrayOf(device, type, 1, true, true, 0x1001, uuid),
+            arrayOf(type, 1, true, true, device, 0x1001, uuid),
+            arrayOf(type, true, true, device, 0x1001, uuid)
+        )
+
+        val constructors = BluetoothSocket::class.java.declaredConstructors
+        Log.d("AirPodsService", "BluetoothSocket has ${constructors.size} constructors:")
+
+        constructors.forEachIndexed { index, constructor ->
+            val params = constructor.parameterTypes.joinToString(", ") { it.simpleName }
+            Log.d("AirPodsService", "Constructor $index: ($params)")
+        }
+
+        var lastException: Exception? = null
+
+        for ((index, params) in constructorSpecs.withIndex()) {
+            try {
+                Log.d("AirPodsService", "Trying constructor signature #${index + 1}")
+                return HiddenApiBypass.newInstance(BluetoothSocket::class.java, *params) as BluetoothSocket
+            } catch (e: Exception) {
+                Log.e("AirPodsService", "Constructor signature #${index + 1} failed: ${e.message}")
+                lastException = e
+            }
+        }
+
+        sendToast("Failed to create BluetoothSocket!")
+
+        throw lastException ?: IllegalStateException("Failed to create BluetoothSocket")
+    }
+
     @RequiresApi(Build.VERSION_CODES.R)
     @SuppressLint("MissingPermission", "UnspecifiedRegisterReceiverFlag")
     fun connectToSocket(device: BluetoothDevice) {
@@ -883,32 +917,11 @@ class AirPodsService : Service() {
         val uuid: ParcelUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
 
         if (isConnectedLocally != true && !CrossDevice.isAvailable) {
-            try {
-                socket = HiddenApiBypass.newInstance(
-                    BluetoothSocket::class.java,
-                    3,
-                    true,
-                    true,
-                    device,
-                    0x1001,
-                    uuid
-                ) as BluetoothSocket
+            socket = try {
+                createBluetoothSocket(device, uuid)
             } catch (e: Exception) {
-                e.printStackTrace()
-                try {
-                    socket = HiddenApiBypass.newInstance(
-                        BluetoothSocket::class.java,
-                        3,
-                        1,
-                        true,
-                        true,
-                        device,
-                        0x1001,
-                        uuid
-                    ) as BluetoothSocket
-                } catch (e: Exception) {
-                    e.printStackTrace()
-                }
+                Log.e("AirPodsService", "Failed to create BluetoothSocket: ${e.message}")
+                return
             }
 
             try {
