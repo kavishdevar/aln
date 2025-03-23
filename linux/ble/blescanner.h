@@ -27,6 +27,7 @@ private slots:
 private:
     QString getModelName(quint16 modelId);
     QString getColorName(quint8 colorId);
+    QString getConnectionStateName(DeviceInfo::ConnectionState state);
 
     BleManager *bleManager;
     QTimer *refreshTimer;
@@ -54,6 +55,7 @@ private:
     QLabel *thisPodInCaseLabel;
     QLabel *onePodInCaseLabel;
     QLabel *bothPodsInCaseLabel;
+    QLabel *connectionStateLabel;
 };
 
 #endif // BLESCANNER_H

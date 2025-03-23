@@ -45,6 +45,19 @@ public:
     };
     LidState lidState = LidState::UNKNOWN;
 
+    // Connection state enumeration
+    enum class ConnectionState : uint8_t
+    {
+        DISCONNECTED = 0x00,
+        IDLE = 0x04,
+        MUSIC = 0x05,
+        CALL = 0x06,
+        RINGING = 0x07,
+        HANGING_UP = 0x09,
+        UNKNOWN = 0xFF // Using 0xFF for representing null in the original
+    };
+    ConnectionState connectionState = ConnectionState::UNKNOWN;
+
     QDateTime lastSeen; // Timestamp of last detection
 };
 

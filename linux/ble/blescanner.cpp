@@ -128,6 +128,11 @@ BleScanner::BleScanner(QWidget *parent) : QMainWindow(parent)
     bothPodsInCaseLabel = new QLabel(this);
     detailsLayout->addWidget(bothPodsInCaseLabel, 14, 1);
 
+    // Row 15: Connection State
+    detailsLayout->addWidget(new QLabel("Connection State:"), 15, 0);
+    connectionStateLabel = new QLabel(this);
+    detailsLayout->addWidget(connectionStateLabel, 15, 1);
+
     mainLayout->addWidget(detailsGroup);
     detailsGroup->setVisible(false);
 
@@ -302,6 +307,7 @@ void BleScanner::onDeviceSelected()
     thisPodInCaseLabel->setText(device.isThisPodInTheCase ? "Yes" : "No");
     onePodInCaseLabel->setText(device.isOnePodInCase ? "Yes" : "No");
     bothPodsInCaseLabel->setText(device.areBothPodsInCase ? "Yes" : "No");
+    connectionStateLabel->setText(getConnectionStateName(device.connectionState));
 
     detailsGroup->setVisible(true);
 }
@@ -367,5 +373,28 @@ QString BleScanner::getColorName(quint8 colorId)
         return "Yellow";
     default:
         return "Unknown";
+    }
+}
+
+QString BleScanner::getConnectionStateName(DeviceInfo::ConnectionState state)
+{
+    using ConnectionState = DeviceInfo::ConnectionState;
+    switch (state)
+    {
+    case ConnectionState::DISCONNECTED:
+        return QString("Disconnected");
+    case ConnectionState::IDLE:
+        return QString("Idle");
+    case ConnectionState::MUSIC:
+        return QString("Playing Music");
+    case ConnectionState::CALL:
+        return QString("On Call");
+    case ConnectionState::RINGING:
+        return QString("Ringing");
+    case ConnectionState::HANGING_UP:
+        return QString("Hanging Up");
+    case ConnectionState::UNKNOWN:
+    default:
+        return QString("Unknown");
     }
 }

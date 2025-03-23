@@ -77,6 +77,8 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             deviceInfo.lidOpenCounter = static_cast<quint8>(data[8]);
             deviceInfo.deviceColor = static_cast<quint8>(data[9]);
 
+            deviceInfo.connectionState = static_cast<DeviceInfo::ConnectionState>(data[10]);
+
             // Determine primary pod (bit 5 of status) and value flipping
             bool primaryLeft = (status & 0x20) != 0; // Bit 5: 1 = left primary, 0 = right primary
             bool areValuesFlipped = !primaryLeft;    // Flipped when right pod is primary
@@ -118,6 +120,9 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
                 deviceInfo.lidState = DeviceInfo::LidState::NOT_IN_CASE;
             else
                 deviceInfo.lidState = DeviceInfo::LidState::UNKNOWN;
+
+
+            
 
             // Update timestamp
             deviceInfo.lastSeen = QDateTime::currentDateTime();
