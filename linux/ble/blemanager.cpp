@@ -88,7 +88,7 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             int rightNibble = areValuesFlipped ? podsBatteryByte & 0x0F : (podsBatteryByte >> 4) & 0x0F;
             deviceInfo.leftPodBattery = (leftNibble == 15) ? -1 : leftNibble * 10;
             deviceInfo.rightPodBattery = (rightNibble == 15) ? -1 : rightNibble * 10;
-            int caseNibble = (flagsAndCaseBattery >> 4) & 0x0F; // Extracts upper nibble
+            int caseNibble = flagsAndCaseBattery & 0x0F; // Extracts lower nibble
             deviceInfo.caseBattery = (caseNibble == 15) ? -1 : caseNibble * 10;
 
             // Parse charging statuses from flags (lower 4 bits of data[7])
