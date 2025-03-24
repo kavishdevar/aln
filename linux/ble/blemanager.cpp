@@ -60,6 +60,12 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             deviceInfo.address = address;
             deviceInfo.rawData = data;
 
+            // Check if pairing mode is paired (0x01) or pairing (0x00)
+            if (data[2] == 0x00)
+            {
+                return; // Skip pairing mode devices (the values are differently structured)
+            }
+
             // Parse device model (big-endian: high byte at data[3], low byte at data[4])
             deviceInfo.deviceModel = static_cast<quint16>(data[4]) | (static_cast<quint8>(data[3]) << 8);
 
@@ -74,7 +80,7 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             quint8 flagsAndCaseBattery = static_cast<quint8>(data[7]);
 
             // Lid open counter and device color
-            deviceInfo.lidOpenCounter = static_cast<quint8>(data[8]);
+            quint8 lidIndicator = static_cast<quint8>(data[8]);
             deviceInfo.deviceColor = static_cast<quint8>(data[9]);
 
             deviceInfo.connectionState = static_cast<DeviceInfo::ConnectionState>(data[10]);
@@ -93,9 +99,9 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
 
             // Parse charging statuses from flags (uper 4 bits of data[7])
             quint8 flags = (flagsAndCaseBattery >> 4) & 0x0F;                                        // Extracts lower nibble
-            deviceInfo.rightCharging = areValuesFlipped ? (flags & 0x01) != 0 : (flags & 0x02) != 0;  // 
-            deviceInfo.leftCharging = areValuesFlipped ? (flags & 0x02) != 0 : (flags & 0x01) != 0; // 
-            deviceInfo.caseCharging = (flags & 0x04) != 0;                                           // Keeping original bit 1 for consistency
+            deviceInfo.rightCharging = areValuesFlipped ? (flags & 0x01) != 0 : (flags & 0x02) != 0; // Depending on primary, bit 0 or 1
+            deviceInfo.leftCharging = areValuesFlipped ? (flags & 0x02) != 0 : (flags & 0x01) != 0;  // Depending on primary, bit 1 or 0
+            deviceInfo.caseCharging = (flags & 0x04) != 0;                                           // bit 2
 
             // Additional status flags from status byte (data[5])
             deviceInfo.isThisPodInTheCase = (status & 0x40) != 0; // Bit 6
@@ -111,18 +117,11 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             deviceInfo.isLeftPodMicrophone = primaryLeft ^ deviceInfo.isThisPodInTheCase;
             deviceInfo.isRightPodMicrophone = !primaryLeft ^ deviceInfo.isThisPodInTheCase;
 
-            // Determine lid state based on lid open counter
-            if (deviceInfo.lidOpenCounter >= 0x30 && deviceInfo.lidOpenCounter <= 0x37)
-                deviceInfo.lidState = DeviceInfo::LidState::OPEN;
-            else if (deviceInfo.lidOpenCounter >= 0x38 && deviceInfo.lidOpenCounter <= 0x3F)
-                deviceInfo.lidState = DeviceInfo::LidState::CLOSED;
-            else if (deviceInfo.lidOpenCounter <= 0x03)
-                deviceInfo.lidState = DeviceInfo::LidState::NOT_IN_CASE;
-            else
-                deviceInfo.lidState = DeviceInfo::LidState::UNKNOWN;
-
-
-            
+            deviceInfo.lidOpenCounter = lidIndicator & 0x07; // Extract bits 0-2 (count)
+            quint8 lidState = static_cast<quint8>((lidIndicator >> 3) & 0x01); // Extract bit 3 (lid state)
+            if (deviceInfo.isThisPodInTheCase) {
+                deviceInfo.lidState = static_cast<DeviceInfo::LidState>(lidState);
+            }
 
             // Update timestamp
             deviceInfo.lastSeen = QDateTime::currentDateTime();

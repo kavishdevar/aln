@@ -38,10 +38,9 @@ public:
     // Lid state enumeration
     enum class LidState
     {
-        OPEN,
-        CLOSED,
-        NOT_IN_CASE,
-        UNKNOWN
+        OPEN = 0x0,
+        CLOSED = 0x1,
+        UNKNOWN,
     };
     LidState lidState = LidState::UNKNOWN;
 

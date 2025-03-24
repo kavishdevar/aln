@@ -279,9 +279,6 @@ void BleScanner::onDeviceSelected()
     case DeviceInfo::LidState::CLOSED:
         lidStateStr.append("Closed");
         break;
-    case DeviceInfo::LidState::NOT_IN_CASE:
-        lidStateStr.append("Not in Case");
-        break;
     case DeviceInfo::LidState::UNKNOWN:
         lidStateStr.append("Unknown");
         break;
