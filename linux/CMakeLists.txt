@@ -18,6 +18,7 @@ qt_add_executable(applinux
     trayiconmanager.cpp
     trayiconmanager.h
     enums.h
+    battery.hpp
 )
 
 qt_add_qml_module(applinux

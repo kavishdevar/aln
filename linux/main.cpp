@@ -6,6 +6,7 @@
 #include "mediacontroller.h"
 #include "trayiconmanager.h"
 #include "enums.h"
+#include "battery.hpp"
 
 using namespace AirpodsTrayApp::Enums;
 
@@ -449,9 +450,12 @@ private slots:
         // Battery Status
         else if (data.size() == 22 && data.startsWith(AirPodsPackets::Parse::BATTERY_STATUS))
         {
-            int leftLevel = data[9];
-            int rightLevel = data[14];
-            int caseLevel = data[19];
+            Battery battery;
+            battery.parsePacket(data);
+
+            int leftLevel = battery.getState(Battery::Component::Left).level;
+            int rightLevel = battery.getState(Battery::Component::Right).level;
+            int caseLevel = battery.getState(Battery::Component::Case).level;
             m_batteryStatus = QString("Left: %1%, Right: %2%, Case: %3%")
                                   .arg(leftLevel)
                                   .arg(rightLevel)
