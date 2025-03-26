@@ -79,9 +79,6 @@ class GestureDetector(
         while (verticalAvgBuffer.size < 3) verticalAvgBuffer.add(0.0)
     }
 
-    /**
-     * Start head gesture detection
-     */
     fun startDetection(doNotStop: Boolean = false, onGestureDetected: (Boolean) -> Unit) {
         if (isRunning) return
 
@@ -123,9 +120,6 @@ class GestureDetector(
         }
     }
 
-    /**
-     * Stop head gesture detection
-     */
     fun stopDetection(doNotStop: Boolean = false) {
         if (!isRunning) return
 
@@ -139,9 +133,6 @@ class GestureDetector(
         gestureDetectedCallback = null
     }
 
-    /**
-     * Process head orientation data received from AirPods
-     */
     @RequiresApi(Build.VERSION_CODES.R)
     fun processHeadOrientation(horizontal: Int, vertical: Int) {
         if (!isRunning) return
@@ -192,9 +183,6 @@ class GestureDetector(
         detectPeaksAndTroughs()
     }
 
-    /**
-     * Apply moving average smoothing
-     */
     private fun applySmoothing(newValue: Double, buffer: MutableList<Double>): Double {
         synchronized(buffer) {
             buffer.add(newValue)
@@ -203,9 +191,7 @@ class GestureDetector(
         }
     }
 
-    /**
-     * Detect motion direction changes
-     */
+ 
     private fun detectPeaksAndTroughs() {
         if (horizontalBuffer.size < 4 || verticalBuffer.size < 4) return
 
@@ -231,9 +217,6 @@ class GestureDetector(
         )?.let { verticalIncreasing = it }
     }
 
-    /**
-     * Process direction changes and detect peaks/troughs
-     */
     private fun processDirectionChanges(
         buffer: List<Double>,
         isIncreasing: Boolean?,
@@ -297,9 +280,6 @@ class GestureDetector(
         return increasing
     }
 
-    /**
-     * Calculate variance of a list of values
-     */
     private fun calculateVariance(values: List<Double>): Double {
         if (values.size <= 1) return 0.0
 
@@ -308,9 +288,7 @@ class GestureDetector(
         return squaredDiffs.average()
     }
 
-    /**
-     * Calculate how consistent the timing between peaks is
-     */
+
     private fun calculateRhythmConsistency(): Double {
         if (peakIntervals.size < 2) return 0.0
 
@@ -322,9 +300,7 @@ class GestureDetector(
         return max(0.0, consistency)
     }
 
-    /**
-     * Calculate confidence score for gesture detection
-     */
+
     private fun calculateConfidenceScore(extremes: List<Triple<Int, Double, Long>>, isVertical: Boolean): Double {
         if (extremes.size < getRequiredExtremes()) return 0.0
 
@@ -361,11 +337,6 @@ class GestureDetector(
         )
     }
 
-    /**
-     * Calculate the required number of extremes based on movement speed
-     * - Fast movements (short intervals) require more evidence (5 extremes)
-     * - Slow, deliberate movements need fewer evidence points (3 extremes)
-     */
     private fun getRequiredExtremes(): Int {
         if (movementSpeedIntervals.isEmpty()) return MIN_REQUIRED_EXTREMES
 
@@ -379,9 +350,6 @@ class GestureDetector(
         }
     }
 
-    /**
-     * Detect gestures based on collected motion data
-     */
     private fun detectGestures(): Boolean? {
         val requiredExtremes = getRequiredExtremes()
         Log.d(TAG, "Current required extremes: $requiredExtremes")
@@ -415,9 +383,6 @@ class GestureDetector(
         return null
     }
 
-    /**
-     * Clear all buffers and tracking data
-     */
     private fun clearData() {
         horizontalBuffer.clear()
         verticalBuffer.clear()
@@ -434,8 +399,5 @@ class GestureDetector(
         lastSignificantMotionTime = 0L
     }
 
-    /**
-     * Extension function for power calculation
-     */
     private fun Double.pow(exponent: Int): Double = this.pow(exponent.toDouble())
 }

@@ -15,12 +15,6 @@ import androidx.annotation.RequiresApi
 import me.kavishdevar.aln.R
 import java.util.concurrent.atomic.AtomicBoolean
 
-/**
- * Audio feedback for head gestures using efficient SoundPool API
- * - Simple audio cues for direction
- * - Strict channel separation for clarity
- * - Optimized for low latency
- */
 @RequiresApi(Build.VERSION_CODES.Q)
 class GestureFeedback(private val context: Context) {
 
@@ -115,10 +109,6 @@ class GestureFeedback(private val context: Context) {
         }
     }
 
-    /**
-     * Play directional feedback sound with appropriate channel separation
-     * Optimized for minimal latency
-     */
     @RequiresApi(Build.VERSION_CODES.R)
     fun playDirectional(isVertical: Boolean, value: Double) {
         if (!soundsLoaded.get()) {
@@ -197,9 +187,6 @@ class GestureFeedback(private val context: Context) {
         }
     }
 
-    /**
-     * Play confirmation sound for completed gesture
-     */
     fun playConfirmation(isYes: Boolean) {
         if (currentHorizontalStreamId > 0) {
             soundPool.stop(currentHorizontalStreamId)
@@ -215,9 +202,6 @@ class GestureFeedback(private val context: Context) {
         }
     }
 
-    /**
-     * Clean up resources
-     */
     fun release() {
         try {
             soundPool.release()
