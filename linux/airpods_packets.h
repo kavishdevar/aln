@@ -3,6 +3,7 @@
 #define AIRPODS_PACKETS_H
 
 #include <QByteArray>
+#include "enums.h"
 
 namespace AirPodsPackets
 {
@@ -14,6 +15,24 @@ namespace AirPodsPackets
         static const QByteArray NOISE_CANCELLATION = HEADER + QByteArray::fromHex("02000000");
         static const QByteArray TRANSPARENCY = HEADER + QByteArray::fromHex("03000000");
         static const QByteArray ADAPTIVE = HEADER + QByteArray::fromHex("04000000");
+
+        static const QByteArray getPacketForMode(AirpodsTrayApp::Enums::NoiseControlMode mode)
+        {
+            using NoiseControlMode = AirpodsTrayApp::Enums::NoiseControlMode;
+            switch (mode)
+            {
+            case NoiseControlMode::Off:
+                return OFF;
+            case NoiseControlMode::NoiseCancellation:
+                return NOISE_CANCELLATION;
+            case NoiseControlMode::Transparency:
+                return TRANSPARENCY;
+            case NoiseControlMode::Adaptive:
+                return ADAPTIVE;
+            default:
+                return QByteArray();
+            }
+        }
     }
 
     // Conversational Awareness Packets

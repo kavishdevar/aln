@@ -6,6 +6,7 @@
 #include "mediacontroller.h"
 #include "trayiconmanager.h"
 #include "enums.h"
+#include "battery.hpp"
 
 using namespace AirpodsTrayApp::Enums;
 
@@ -61,7 +62,7 @@ public:
         const QList<QBluetoothAddress> connectedDevices = localDevice.connectedDevices();
         for (const QBluetoothAddress &address : connectedDevices) {
             QBluetoothDeviceInfo device(address, "", 0);
-            if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+            if (isAirPodsDevice(device)) {
                 connectToDevice(device);
                 return;
             }
@@ -144,6 +145,11 @@ private:
         QDBusConnection::systemBus().registerService("me.kavishdevar.aln");
     }
 
+    bool isAirPodsDevice(const QBluetoothDeviceInfo &device)
+    {
+        return device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
+    }
+
     void notifyAndroidDevice()
     {
         if (phoneSocket && phoneSocket->isOpen())
@@ -178,7 +184,7 @@ private:
             if (connected) {
                 const QBluetoothAddress address = QBluetoothAddress(devicePath.split("/").last().replace("_", ":"));
                 QBluetoothDeviceInfo device(address, "", 0);
-                if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                if (isAirPodsDevice(device)) {
                     connectToDevice(device);
                 }
             } else {
@@ -219,22 +225,7 @@ public slots:
     void setNoiseControlMode(NoiseControlMode mode)
     {
         LOG_INFO("Setting noise control mode to: " << mode);
-        QByteArray packet;
-        switch (mode)
-        {
-        case NoiseControlMode::Off:
-            packet = AirPodsPackets::NoiseControl::OFF;
-            break;
-        case NoiseControlMode::NoiseCancellation:
-            packet = AirPodsPackets::NoiseControl::NOISE_CANCELLATION;
-            break;
-        case NoiseControlMode::Transparency:
-            packet = AirPodsPackets::NoiseControl::TRANSPARENCY;
-            break;
-        case NoiseControlMode::Adaptive:
-            packet = AirPodsPackets::NoiseControl::ADAPTIVE;
-            break;
-        }
+        QByteArray packet = AirPodsPackets::NoiseControl::getPacketForMode(mode);
         writePacketToSocket(packet, "Noise control mode packet written: ");
     }
     void setNoiseControlMode(int mode)
@@ -308,7 +299,7 @@ private slots:
             connectToDevice(device.address().toString());
         }
         LOG_INFO("Device discovered: " << device.name() << " (" << device.address().toString() << ")");
-        if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+        if (isAirPodsDevice(device)) {
             LOG_DEBUG("Found AirPods device: " + device.name());
             connectToDevice(device);
         }
@@ -319,7 +310,7 @@ private slots:
         discoveryAgent->start();
         const QList<QBluetoothDeviceInfo> discoveredDevices = discoveryAgent->discoveredDevices();
         for (const QBluetoothDeviceInfo &device : discoveredDevices) {
-            if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+            if (isAirPodsDevice(device)) {
                 connectToDevice(device);
                 return;
             }
@@ -330,7 +321,7 @@ private slots:
     void onDeviceConnected(const QBluetoothAddress &address) {
         LOG_INFO("Device connected: " << address.toString());
         QBluetoothDeviceInfo device(address, "", 0);
-        if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+        if (isAirPodsDevice(device)) {
             connectToDevice(device);
         }
     }
@@ -459,9 +450,12 @@ private slots:
         // Battery Status
         else if (data.size() == 22 && data.startsWith(AirPodsPackets::Parse::BATTERY_STATUS))
         {
-            int leftLevel = data[9];
-            int rightLevel = data[14];
-            int caseLevel = data[19];
+            Battery battery;
+            battery.parsePacket(data);
+
+            int leftLevel = battery.getState(Battery::Component::Left).level;
+            int rightLevel = battery.getState(Battery::Component::Right).level;
+            int caseLevel = battery.getState(Battery::Component::Case).level;
             m_batteryStatus = QString("Left: %1%, Right: %2%, Case: %3%")
                                   .arg(leftLevel)
                                   .arg(rightLevel)
@@ -597,7 +591,7 @@ private slots:
                 QString addr = deviceProps["Address"].toString();
                 QBluetoothAddress btAddress(addr);
                 QBluetoothDeviceInfo device(btAddress, "", 0);
-                if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+                if (isAirPodsDevice(device)) {
                     connectToDevice(device);
                 }
             }
@@ -656,7 +650,7 @@ private slots:
         for (const QBluetoothAddress &address : connectedDevices) {
             QBluetoothDeviceInfo device(address, "", 0);
             LOG_DEBUG("Connected device: " << device.name() << " (" << device.address().toString() << ")");
-            if (device.serviceUuids().contains(QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"))) {
+            if (isAirPodsDevice(device)) {
                 connectToDevice(device);
                 return;
             }
