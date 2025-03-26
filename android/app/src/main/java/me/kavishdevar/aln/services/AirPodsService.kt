@@ -83,6 +83,7 @@ import me.kavishdevar.aln.utils.IslandWindow
 import me.kavishdevar.aln.utils.LongPressPackets
 import me.kavishdevar.aln.utils.MediaController
 import me.kavishdevar.aln.utils.PopupWindow
+import me.kavishdevar.aln.utils.RadareOffsetFinder
 import me.kavishdevar.aln.utils.isHeadTrackingData
 import me.kavishdevar.aln.widgets.BatteryWidget
 import me.kavishdevar.aln.widgets.NoiseControlWidget
@@ -915,7 +916,8 @@ class AirPodsService : Service() {
     fun connectToSocket(device: BluetoothDevice) {
         HiddenApiBypass.addHiddenApiExemptions("Landroid/bluetooth/BluetoothSocket;")
         val uuid: ParcelUuid = ParcelUuid.fromString("74ec2172-0bad-4d01-8f77-997b2be0722a")
-
+        val isHooked = RadareOffsetFinder(this).isHookOffsetAvailable()
+        assert(isHooked) { "Hook offset not available, stopping" }
         if (isConnectedLocally != true && !CrossDevice.isAvailable) {
             socket = try {
                 createBluetoothSocket(device, uuid)

@@ -19,6 +19,7 @@
 package me.kavishdevar.aln.screens
 
 import android.content.Context
+import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -33,13 +34,19 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SliderDefaults
@@ -64,7 +71,6 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
@@ -72,6 +78,7 @@ import me.kavishdevar.aln.R
 import me.kavishdevar.aln.composables.IndependentToggle
 import me.kavishdevar.aln.composables.StyledSwitch
 import me.kavishdevar.aln.services.ServiceManager
+import me.kavishdevar.aln.utils.RadareOffsetFinder
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -80,6 +87,10 @@ fun AppSettingsScreen(navController: NavController) {
     val sharedPreferences = LocalContext.current.getSharedPreferences("settings", Context.MODE_PRIVATE)
     val name = remember { mutableStateOf(sharedPreferences.getString("name", "") ?: "") }
     val isDarkTheme = isSystemInDarkTheme()
+    val context = LocalContext.current
+
+    var showResetDialog by remember { mutableStateOf(false) }
+
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -131,6 +142,7 @@ fun AppSettingsScreen(navController: NavController) {
 
             val backgroundColor = if (isDarkTheme) Color(0xFF1C1C1E) else Color(0xFFFFFFFF)
             val textColor = if (isDarkTheme) Color.White else Color.Black
+            val accentColor = if (isDarkTheme) Color(0xFF007AFF) else Color(0xFF3C6DF5)
 
             IndependentToggle("Show phone battery in widget", ServiceManager.getService()!!, "setPhoneBatteryInWidget", sharedPreferences)
 
@@ -352,12 +364,104 @@ fun AppSettingsScreen(navController: NavController) {
                     )
                 }
             }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Button(
+                onClick = { showResetDialog = true },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(50.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer
+                ),
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Refresh,
+                        contentDescription = "Reset",
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Reset Hook Offset",
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        style = TextStyle(
+                            fontSize = 16.sp,
+                            fontWeight = FontWeight.Medium,
+                            fontFamily = FontFamily(Font(R.font.sf_pro))
+                        )
+                    )
+                }
+            }
+
+            if (showResetDialog) {
+                AlertDialog(
+                    onDismissRequest = { showResetDialog = false },
+                    title = {
+                        Text(
+                            "Reset Hook Offset",
+                            fontFamily = FontFamily(Font(R.font.sf_pro)),
+                            fontWeight = FontWeight.Medium
+                        )
+                    },
+                    text = {
+                        Text(
+                            "This will clear the current hook offset and require you to go through the setup process again. Are you sure you want to continue?",
+                            fontFamily = FontFamily(Font(R.font.sf_pro))
+                        )
+                    },
+                    confirmButton = {
+                        TextButton(
+                            onClick = {
+                                if (RadareOffsetFinder.clearHookOffset()) {
+                                    Toast.makeText(
+                                        context,
+                                        "Hook offset has been reset. Redirecting to setup...",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+
+                                    navController.navigate("onboarding") {
+                                        popUpTo("settings") { inclusive = true }
+                                    }
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "Failed to reset hook offset",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                                showResetDialog = false
+                            },
+                            colors = ButtonDefaults.textButtonColors(
+                                contentColor = MaterialTheme.colorScheme.error
+                            )
+                        ) {
+                            Text(
+                                "Reset",
+                                fontFamily = FontFamily(Font(R.font.sf_pro)),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(
+                            onClick = { showResetDialog = false }
+                        ) {
+                            Text(
+                                "Cancel",
+                                fontFamily = FontFamily(Font(R.font.sf_pro)),
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                )
+            }
         }
     }
-}
-
-@Preview
-@Composable
-fun AppSettingsScreenPreview() {
-    AppSettingsScreen(navController = NavController(LocalContext.current))
 }

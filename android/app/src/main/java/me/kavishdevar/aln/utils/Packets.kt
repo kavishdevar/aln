@@ -323,24 +323,19 @@ enum class LongPressPackets(val value: ByteArray) {
 //}
 
 fun isHeadTrackingData(data: ByteArray): Boolean {
-    // Check minimum size requirement first for efficiency
     if (data.size <= 60) return false
 
-    // Check if the first 10 bytes match
     val prefixPattern = byteArrayOf(
         0x04, 0x00, 0x04, 0x00, 0x17, 0x00, 0x00, 0x00,
         0x10, 0x00
     )
 
-    // Check prefix (first 10 bytes)
     for (i in prefixPattern.indices) {
         if (data[i] != prefixPattern[i].toByte()) return false
     }
 
-    // Check if byte 11 is either 0x44 or 0x45
     if (data[10] != 0x44.toByte() && data[10] != 0x45.toByte()) return false
 
-    // Check byte 12
     if (data[11] != 0x00.toByte()) return false
 
     return true

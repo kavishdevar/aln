@@ -16,7 +16,11 @@ android {
         versionCode = 3
         versionName = "0.0.3"
 
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        externalNativeBuild {
+            cmake {
+                cppFlags += ""
+            }
+        }
     }
 
     buildTypes {
@@ -39,6 +43,12 @@ android {
         compose = true
         viewBinding = true
     }
+    externalNativeBuild {
+        cmake {
+            path = file("src/main/cpp/CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }
 }
 
 dependencies {
@@ -57,11 +67,5 @@ dependencies {
     implementation(libs.androidx.constraintlayout)
     implementation(libs.haze)
     implementation(libs.haze.materials)
-    testImplementation(libs.junit)
-    androidTestImplementation(libs.androidx.junit)
-    androidTestImplementation(libs.androidx.espresso.core)
-    androidTestImplementation(platform(libs.androidx.compose.bom))
-    androidTestImplementation(libs.androidx.ui.test.junit4)
-    debugImplementation(libs.androidx.ui.tooling)
-    debugImplementation(libs.androidx.ui.test.manifest)
+    compileOnly(fileTree(mapOf("dir" to "libs", "include" to listOf("*.aar"))))
 }

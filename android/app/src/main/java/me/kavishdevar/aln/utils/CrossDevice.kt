@@ -90,12 +90,21 @@ object CrossDevice {
             serverSocket = bluetoothAdapter.listenUsingRfcommWithServiceRecord("ALNCrossDevice", uuid)
             Log.d("CrossDevice", "Server started")
             while (serverSocket != null) {
+                if (!bluetoothAdapter.isEnabled) {
+                    serverSocket?.close()
+                    break
+                }
+                if (clientSocket != null) {
+                    try {
+                        clientSocket!!.close()
+                    } catch (e: IOException) {
+                        e.printStackTrace()
+                    }
+                }
                 try {
                     val socket = serverSocket!!.accept()
                     handleClientConnection(socket)
-                } catch (e: IOException) {
-                    e.printStackTrace()
-                }
+                } catch (e: IOException) { }
             }
         }
     }
