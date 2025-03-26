@@ -36,5 +36,41 @@ ApplicationWindow {
             checked: airPodsTrayApp.conversationalAwareness
             onCheckedChanged: airPodsTrayApp.conversationalAwareness = checked
         }
+
+        Slider {
+            visible: airPodsTrayApp.adaptiveModeActive
+            from: 0
+            to: 100
+            stepSize: 1
+            value: airPodsTrayApp.adaptiveNoiseLevel
+            
+            property Timer debounceTimer: Timer {
+                interval: 500 // 500ms delay after last change
+                onTriggered: {
+                    if (!parent.pressed) {
+                        airPodsTrayApp.setAdaptiveNoiseLevel(parent.value)
+                    }
+                }
+            }
+            
+            onPressedChanged: {
+                if (!pressed) {
+                    debounceTimer.stop()
+                    airPodsTrayApp.setAdaptiveNoiseLevel(value)
+                }
+            }
+            
+            onValueChanged: {
+                if (pressed) {
+                    debounceTimer.restart()
+                }
+            }
+
+            Label {
+                text: "Adaptive Noise Level: " + parent.value
+                color: "#ffffff"
+                anchors.top: parent.bottom
+            }
+        }
     }
 }

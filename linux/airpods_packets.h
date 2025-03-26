@@ -63,6 +63,17 @@ namespace AirPodsPackets
         static const QByteArray DISCONNECT_REQUEST = QByteArray::fromHex("00020000");
     }
 
+    // Adaptive Noise Packets
+    namespace AdaptiveNoise
+    {
+        const QByteArray HEADER = QByteArray::fromHex("0400040009002E");
+
+        inline QByteArray getPacket(int level)
+        {
+            return HEADER + static_cast<char>(level) + QByteArray::fromHex("000000");
+        }
+    }
+
     // Parsing Headers
     namespace Parse
     {
