@@ -225,6 +225,11 @@ public slots:
     void setNoiseControlMode(NoiseControlMode mode)
     {
         LOG_INFO("Setting noise control mode to: " << mode);
+        if (m_noiseControlMode == mode)
+        {
+            LOG_INFO("Noise control mode is already " << mode);
+            return;
+        }
         QByteArray packet = AirPodsPackets::NoiseControl::getPacketForMode(mode);
         writePacketToSocket(packet, "Noise control mode packet written: ");
     }
