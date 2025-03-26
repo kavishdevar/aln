@@ -56,7 +56,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -91,11 +90,12 @@ fun Onboarding(navController: NavController, activityContext: Context) {
     val radareOffsetFinder = remember { RadareOffsetFinder(activityContext) }
     val progressState by radareOffsetFinder.progressState.collectAsState()
     var isComplete by remember { mutableStateOf(false) }
-    var countdownValue by remember { mutableIntStateOf(5) }
     var hasStarted by remember { mutableStateOf(false) }
     var rootCheckPassed by remember { mutableStateOf(false) }
     var checkingRoot by remember { mutableStateOf(false) }
     var rootCheckFailed by remember { mutableStateOf(false) }
+    var moduleEnabled by remember { mutableStateOf(false) }
+    var bluetoothToggled by remember { mutableStateOf(false) }
 
     fun checkRootAccess() {
         checkingRoot = true
@@ -129,15 +129,8 @@ fun Onboarding(navController: NavController, activityContext: Context) {
             Log.d("Onboarding", "Hook offset ready: $isHookReady")
 
             if (isHookReady) {
-                Log.d("Onboarding", "Hook is ready, starting countdown...")
+                Log.d("Onboarding", "Hook is ready")
                 isComplete = true
-                for (i in 5 downTo 1) {
-                    countdownValue = i
-                    delay(1000)
-                }
-                navController.navigate("settings") {
-                    popUpTo("onboarding") { inclusive = true }
-                }
             } else {
                 Log.d("Onboarding", "Hook not ready, starting setup process...")
                 withContext(Dispatchers.IO) {
@@ -150,13 +143,6 @@ fun Onboarding(navController: NavController, activityContext: Context) {
     LaunchedEffect(progressState) {
         if (progressState is RadareOffsetFinder.ProgressState.Success) {
             isComplete = true
-            for (i in 5 downTo 1) {
-                countdownValue = i
-                delay(1000)
-            }
-            navController.navigate("settings") {
-                popUpTo("onboarding") { inclusive = true }
-            }
         }
     }
 
@@ -222,7 +208,7 @@ fun Onboarding(navController: NavController, activityContext: Context) {
                         Spacer(modifier = Modifier.height(8.dp))
 
                         Text(
-                            text = "This app needs root access to modify Bluetooth settings",
+                            text = "This app needs root access to hook onto the Bluetooth library",
                             style = TextStyle(
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.Normal,
@@ -282,7 +268,7 @@ fun Onboarding(navController: NavController, activityContext: Context) {
                         Spacer(modifier = Modifier.height(24.dp))
 
                         AnimatedContent(
-                            targetState = if (hasStarted) getStatusTitle(progressState) else "Setup Required",
+                            targetState = if (hasStarted) getStatusTitle(progressState, isComplete, moduleEnabled, bluetoothToggled) else "Setup Required",
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { text ->
                             Text(
@@ -301,9 +287,9 @@ fun Onboarding(navController: NavController, activityContext: Context) {
 
                         AnimatedContent(
                             targetState = if (hasStarted)
-                                getStatusDescription(progressState, isComplete, countdownValue)
+                                getStatusDescription(progressState, isComplete, moduleEnabled, bluetoothToggled)
                             else
-                                "AirPods functionality requires one-time setup",
+                                "AirPods functionality requires one-time setup for hooking into Bluetooth library",
                             transitionSpec = { fadeIn() togetherWith fadeOut() }
                         ) { text ->
                             Text(
@@ -374,9 +360,76 @@ fun Onboarding(navController: NavController, activityContext: Context) {
                                         )
                                     }
                                 }
+                                is RadareOffsetFinder.ProgressState.Success -> {
+                                    if (!moduleEnabled) {
+                                        Button(
+                                            onClick = { moduleEnabled = true },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(50.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = accentColor
+                                            ),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text(
+                                                "I've Enabled/Reactivated the Module",
+                                                style = TextStyle(
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontFamily = FontFamily(Font(R.font.sf_pro))
+                                                ),
+                                            )
+                                        }
+                                    } else if (!bluetoothToggled) {
+                                        Button(
+                                            onClick = { bluetoothToggled = true },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(50.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = accentColor
+                                            ),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text(
+                                                "I've Toggled Bluetooth",
+                                                style = TextStyle(
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontFamily = FontFamily(Font(R.font.sf_pro))
+                                                ),
+                                            )
+                                        }
+                                    } else {
+                                        Button(
+                                            onClick = {
+                                                navController.navigate("settings") {
+                                                    popUpTo("onboarding") { inclusive = true }
+                                                }
+                                            },
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .height(50.dp),
+                                            colors = ButtonDefaults.buttonColors(
+                                                containerColor = accentColor
+                                            ),
+                                            shape = RoundedCornerShape(8.dp)
+                                        ) {
+                                            Text(
+                                                "Continue to Settings",
+                                                style = TextStyle(
+                                                    fontSize = 16.sp,
+                                                    fontWeight = FontWeight.Medium,
+                                                    fontFamily = FontFamily(Font(R.font.sf_pro))
+                                                ),
+                                            )
+                                        }
+                                    }
+                                }
                                 is RadareOffsetFinder.ProgressState.Idle,
-                                is RadareOffsetFinder.ProgressState.Success,
                                 is RadareOffsetFinder.ProgressState.Error -> {
+                                    // No specific UI for these states
                                 }
                                 else -> {
                                     LinearProgressIndicator(
@@ -398,7 +451,7 @@ fun Onboarding(navController: NavController, activityContext: Context) {
             if (progressState is RadareOffsetFinder.ProgressState.Error && !isComplete && hasStarted) {
                 Button(
                     onClick = {
-                        Log.d("Onboarding", "Retrying offset finding")
+                        Log.d("Onboarding", "Trying to find offset again...")
                         kotlinx.coroutines.MainScope().launch {
                             withContext(Dispatchers.IO) {
                                 radareOffsetFinder.setupAndFindOffset()
@@ -476,45 +529,57 @@ private fun StatusIcon(
     }
 }
 
-private fun getStatusTitle(state: RadareOffsetFinder.ProgressState): String {
+private fun getStatusTitle(
+    state: RadareOffsetFinder.ProgressState,
+    isComplete: Boolean,
+    moduleEnabled: Boolean,
+    bluetoothToggled: Boolean
+): String {
     return when (state) {
+        is RadareOffsetFinder.ProgressState.Success -> {
+            when {
+                !moduleEnabled -> "Enable Xposed Module"
+                !bluetoothToggled -> "Toggle Bluetooth"
+                else -> "Setup Complete"
+            }
+        }
         is RadareOffsetFinder.ProgressState.Idle -> "Getting Ready"
-        is RadareOffsetFinder.ProgressState.CheckingExisting -> "Checking Configuration"
-        is RadareOffsetFinder.ProgressState.Downloading -> "Downloading Components"
-        is RadareOffsetFinder.ProgressState.DownloadProgress -> "Downloading Components"
-        is RadareOffsetFinder.ProgressState.Extracting -> "Extracting Files"
-        is RadareOffsetFinder.ProgressState.MakingExecutable -> "Configuring Components"
-        is RadareOffsetFinder.ProgressState.FindingOffset -> "Finding Bluetooth Hook"
-        is RadareOffsetFinder.ProgressState.SavingOffset -> "Saving Configuration"
+        is RadareOffsetFinder.ProgressState.CheckingExisting -> "Checking if radare2 already downloaded"
+        is RadareOffsetFinder.ProgressState.Downloading -> "Downloading radare2"
+        is RadareOffsetFinder.ProgressState.DownloadProgress -> "Downloading radare2"
+        is RadareOffsetFinder.ProgressState.Extracting -> "Extracting radare2"
+        is RadareOffsetFinder.ProgressState.MakingExecutable -> "Setting executable permissions"
+        is RadareOffsetFinder.ProgressState.FindingOffset -> "Finding function offset"
+        is RadareOffsetFinder.ProgressState.SavingOffset -> "Saving offset"
         is RadareOffsetFinder.ProgressState.Cleaning -> "Cleaning Up"
         is RadareOffsetFinder.ProgressState.Error -> "Setup Failed"
-        is RadareOffsetFinder.ProgressState.Success -> "Setup Complete"
     }
 }
 
 private fun getStatusDescription(
     state: RadareOffsetFinder.ProgressState,
     isComplete: Boolean,
-    countdownValue: Int
+    moduleEnabled: Boolean,
+    bluetoothToggled: Boolean
 ): String {
     return when (state) {
-        is RadareOffsetFinder.ProgressState.Idle -> "Preparing to configure Bluetooth functionality"
-        is RadareOffsetFinder.ProgressState.CheckingExisting -> "Checking if required components are already installed"
-        is RadareOffsetFinder.ProgressState.Downloading -> "Downloading necessary components for Bluetooth functionality"
-        is RadareOffsetFinder.ProgressState.DownloadProgress -> "Downloading necessary components for Bluetooth functionality"
-        is RadareOffsetFinder.ProgressState.Extracting -> "Extracting files needed for integration"
-        is RadareOffsetFinder.ProgressState.MakingExecutable -> "Setting up proper permissions for components"
-        is RadareOffsetFinder.ProgressState.FindingOffset -> "Looking for the required Bluetooth function in system libraries"
-        is RadareOffsetFinder.ProgressState.SavingOffset -> "Saving found configuration for future use"
-        is RadareOffsetFinder.ProgressState.Cleaning -> "Removing temporary files"
-        is RadareOffsetFinder.ProgressState.Error -> state.message
         is RadareOffsetFinder.ProgressState.Success -> {
-            if (isComplete) {
-                "Moving to AirPods settings in $countdownValue..."
-            } else {
-                "Successfully configured Bluetooth functionality"
+            when {
+                !moduleEnabled -> "Please enable the ALN Xposed module in your Xposed manager (e.g. LSPosed). If already enabled, disable and re-enable it."
+                !bluetoothToggled -> "Please turn off and then turn on Bluetooth to apply the changes."
+                else -> "All set! You can now use your AirPods with enhanced functionality."
             }
         }
+        is RadareOffsetFinder.ProgressState.Idle -> "Preparing"
+        is RadareOffsetFinder.ProgressState.CheckingExisting -> "Checking if radare2 are already installed"
+        is RadareOffsetFinder.ProgressState.Downloading -> "Starting radare2 download"
+        is RadareOffsetFinder.ProgressState.DownloadProgress -> "Downloading radare2"
+        is RadareOffsetFinder.ProgressState.Extracting -> "Extracting radare2"
+        is RadareOffsetFinder.ProgressState.MakingExecutable -> "Setting executable permissions on radare2 binaries"
+        is RadareOffsetFinder.ProgressState.FindingOffset -> "Looking for the required Bluetooth function in system libraries"
+        is RadareOffsetFinder.ProgressState.SavingOffset -> "Saving the function offset"
+        is RadareOffsetFinder.ProgressState.Cleaning -> "Removing temporary extracted files"
+        is RadareOffsetFinder.ProgressState.Error -> state.message
     }
 }
 
