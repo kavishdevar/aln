@@ -20,6 +20,7 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(bool conversationalAwareness READ conversationalAwareness WRITE setConversationalAwareness NOTIFY conversationalAwarenessChanged)
     Q_PROPERTY(int adaptiveNoiseLevel READ adaptiveNoiseLevel WRITE setAdaptiveNoiseLevel NOTIFY adaptiveNoiseLevelChanged)
     Q_PROPERTY(bool adaptiveModeActive READ adaptiveModeActive NOTIFY noiseControlModeChanged)
+    Q_PROPERTY(QString deviceName READ deviceName NOTIFY deviceNameChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) : debugMode(debugMode) {
@@ -100,6 +101,7 @@ public:
     bool conversationalAwareness() const { return m_conversationalAwareness; }
     bool adaptiveModeActive() const { return m_noiseControlMode == NoiseControlMode::Adaptive; }
     int adaptiveNoiseLevel() const { return m_adaptiveNoiseLevel; }
+    QString deviceName() const { return m_deviceName; }
 
 private:
     bool debugMode;
@@ -272,6 +274,37 @@ public slots:
         }
     }
 
+    void renameAirPods(const QString &newName)
+    {
+        if (newName.isEmpty())
+        {
+            LOG_WARN("Cannot set empty name");
+            return;
+        }
+        if (newName.size() > 32)
+        {
+            LOG_WARN("Name is too long, must be 32 characters or less");
+            return;
+        }
+        if (newName == m_deviceName)
+        {
+            LOG_INFO("Name is already set to: " << newName);
+            return;
+        }
+
+        QByteArray packet = AirPodsPackets::Rename::getPacket(newName);
+        if (writePacketToSocket(packet, "Rename packet written: "))
+        {
+            LOG_INFO("Sent rename command for new name: " << newName);
+            m_deviceName = newName;
+            emit deviceNameChanged(newName);
+        }
+        else
+        {
+            LOG_ERROR("Failed to send rename command: socket not open");
+        }
+    }
+
     bool writePacketToSocket(const QByteArray &packet, const QString &logMessage)
     {
         if (socket && socket->isOpen())
@@ -429,6 +462,8 @@ private slots:
         localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         socket = localSocket;
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
+        m_deviceName = device.name();
+        emit deviceNameChanged(m_deviceName);
         mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         notifyAndroidDevice();
     }
@@ -714,6 +749,7 @@ signals:
     void batteryStatusChanged(const QString &status);
     void conversationalAwarenessChanged(bool enabled);
     void adaptiveNoiseLevelChanged(int level);
+    void deviceNameChanged(const QString &name);
 
 private:
     QSystemTrayIcon *trayIcon;
@@ -733,6 +769,7 @@ private:
     NoiseControlMode m_noiseControlMode = NoiseControlMode::Off;
     bool m_conversationalAwareness = false;
     int m_adaptiveNoiseLevel = 50;
+    QString m_deviceName;
 };
 
 int main(int argc, char *argv[]) {
