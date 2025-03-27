@@ -11,6 +11,10 @@ on:
         required: true
         type: boolean
         default: false
+      custom_notes:
+        description: 'Custom updates to append to release notes'
+        required: false
+        type: string
   workflow_call:
 
 jobs:
@@ -63,6 +67,19 @@ jobs:
         run: |
           COMMITS=$(git log ${{ steps.fetch-tag.outputs.tag }}..HEAD --pretty=format:"- %s (%h)" --abbrev-commit)
           echo "::set-output name=commits::${COMMITS}"
+      - name: Prepare release notes
+        id: release-notes
+        run: |
+          NOTES="${{ steps.get-commits.outputs.commits }}"
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.custom_notes }}" != "" ]; then
+            NOTES="${NOTES}
+            
+            ## Custom Updates
+            ${{ github.event.inputs.custom_notes }}"
+          fi
+          echo "notes<<EOF" >> $GITHUB_OUTPUT
+          echo "$NOTES" >> $GITHUB_OUTPUT
+          echo "EOF" >> $GITHUB_OUTPUT
       - name: Zip root-module directory
         run: sh ./build-magisk-module.sh
       - name: Delete release if exist then create release
@@ -70,4 +87,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
-          gh release create "nightly" "./$APK_NAME" "./btl2capfix.zip" -p -t "Nightly Release" -n "${{ steps.get-commits.outputs.commits }}" --generate-notes
+          gh release create "nightly" "./$APK_NAME" "./btl2capfix.zip" -p -t "Nightly Release" -n "${{ steps.release-notes.outputs.notes }}" --generate-notes
