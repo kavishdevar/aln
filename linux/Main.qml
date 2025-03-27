@@ -73,21 +73,21 @@ ApplicationWindow {
             }
         }
 
-        Text {
-            text: "Current Name: " + airPodsTrayApp.deviceName
-            color: "#ffffff"
-        }
+        Row {
+            spacing: 10
 
-        TextField {
-            id: newNameField
-            placeholderText: "Enter new name"
-        }
+            TextField {
+                id: newNameField
+                placeholderText: airPodsTrayApp.deviceName
+                maximumLength: 32
+            }
 
-        Button {
-            text: "Rename"
-            onClicked: {
-                airPodsTrayApp.renameAirPods(newNameField.text)
-                // Optional: newNameField.text = "" // Clear field after rename
+            Button {
+                text: "Rename"
+                onClicked: {
+                    airPodsTrayApp.renameAirPods(newNameField.text)
+                    // Optional: newNameField.text = "" // Clear field after rename
+                }
             }
         }
     }
