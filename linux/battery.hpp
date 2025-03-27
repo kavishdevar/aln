@@ -26,7 +26,7 @@ public:
     // Struct to hold battery level and status
     struct BatteryState
     {
-        int level = 0;  // Battery level (0-100), -1 if unknown
+        quint8 level = 0; // Battery level (0-100), 0 if unknown
         BatteryStatus status = BatteryStatus::Unknown;
     };
 
@@ -38,7 +38,7 @@ public:
         states[Component::Case] = {};
     }
 
-    // Parse the battery status packet
+    // Parse the battery status packet and detect primary/secondary pods
     bool parsePacket(const QByteArray &packet)
     {
         if (!packet.startsWith(AirPodsPackets::Parse::BATTERY_STATUS))
@@ -53,10 +53,12 @@ public:
             return false; // Invalid count or size mismatch
         }
 
-        // Copy current states; only included components will be updated
         QMap<Component, BatteryState> newStates = states;
 
-        // Parse each component
+        // Track pods to determine primary and secondary based on order
+        QList<Component> podsInPacket;
+        podsInPacket.reserve(2);
+
         for (quint8 i = 0; i < batteryCount; ++i)
         {
             int offset = 7 + (5 * i);
@@ -69,19 +71,32 @@ public:
                 return false;
             }
 
-            // Map byte value to component
             Component comp = static_cast<Component>(type);
-
-            // Extract level and status
-            int level = static_cast<quint8>(packet[offset + 2]);
+            auto level = static_cast<quint8>(packet[offset + 2]);
             auto status = static_cast<BatteryStatus>(packet[offset + 3]);
 
-            // Update the state for this component
             newStates[comp] = {level, status};
+
+            // If this is a pod (Left or Right), add it to the list
+            if (comp == Component::Left || comp == Component::Right)
+            {
+                podsInPacket.append(comp);
+            }
         }
 
-        // Apply updates; unmentioned components retain old states
+        // Update states
         states = newStates;
+
+        // Set primary and secondary pods based on order
+        if (!podsInPacket.isEmpty())
+        {
+            primaryPod = podsInPacket[0]; // First pod is primary
+        }
+        if (podsInPacket.size() >= 2)
+        {
+            secondaryPod = podsInPacket[1]; // Second pod is secondary
+        }
+
         return true;
     }
 
@@ -95,7 +110,7 @@ public:
     QString getComponentStatus(Component comp) const
     {
         BatteryState state = getState(comp);
-        if (state.level == -1)
+        if (state.level == 0)
         {
             return "Unknown";
         }
@@ -122,6 +137,11 @@ public:
         return QString("%1% (%2)").arg(state.level).arg(statusStr);
     }
 
+    Component getPrimaryPod() const { return primaryPod; }
+    Component getSecondaryPod() const { return secondaryPod; }
+
 private:
     QMap<Component, BatteryState> states;
+    Component primaryPod;
+    Component secondaryPod;
 };
