@@ -12,7 +12,7 @@ on:
         type: boolean
         default: false
       custom_notes:
-        description: 'Custom updates to append to release notes'
+        description: 'Custom updates to add to What''s Changed section'
         required: false
         type: string
   workflow_call:
@@ -70,16 +70,24 @@ jobs:
       - name: Prepare release notes
         id: release-notes
         run: |
-          NOTES="${{ steps.get-commits.outputs.commits }}"
-          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ "${{ github.event.inputs.custom_notes }}" != "" ]; then
-            NOTES="${NOTES}
+          # Create a temporary file for release notes
+          NOTES_FILE=$(mktemp)
+          
+          # Process custom notes if they exist
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ] && [ -n "${{ github.event.inputs.custom_notes }}" ]; then
+            CUSTOM_NOTES="${{ github.event.inputs.custom_notes }}"
             
-            ## Custom Updates
-            ${{ github.event.inputs.custom_notes }}"
+            # Check if custom notes already have bullet points or GitHub-style formatting
+            if echo "$CUSTOM_NOTES" | grep -q "^\*\|^- \|http.*commit\|in #[0-9]\+"; then
+              # Already formatted, use as is
+              echo "$CUSTOM_NOTES" > "$NOTES_FILE"
+            else
+              # Add bullet point formatting
+              echo "- $CUSTOM_NOTES" > "$NOTES_FILE"
+            fi
           fi
-          echo "notes<<EOF" >> $GITHUB_OUTPUT
-          echo "$NOTES" >> $GITHUB_OUTPUT
-          echo "EOF" >> $GITHUB_OUTPUT
+          
+          echo "notes_file=$NOTES_FILE" >> $GITHUB_OUTPUT
       - name: Zip root-module directory
         run: sh ./build-magisk-module.sh
       - name: Delete release if exist then create release
@@ -87,4 +95,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release view "nightly" && gh release delete "nightly" -y --cleanup-tag
-          gh release create "nightly" "./$APK_NAME" "./btl2capfix.zip" -p -t "Nightly Release" -n "${{ steps.release-notes.outputs.notes }}" --generate-notes
+          gh release create "nightly" "./$APK_NAME" "./btl2capfix.zip" -p -t "Nightly Release" --notes-file "${{ steps.release-notes.outputs.notes_file }}" --generate-notes
