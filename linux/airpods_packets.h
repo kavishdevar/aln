@@ -93,6 +93,7 @@ namespace AirPodsPackets
     {
         static const QByteArray EAR_DETECTION = QByteArray::fromHex("040004000600");
         static const QByteArray BATTERY_STATUS = QByteArray::fromHex("040004000400");
+        static const QByteArray METADATA = QByteArray::fromHex("040004001d");
     }
 }
 

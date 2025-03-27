@@ -396,6 +396,77 @@ private slots:
         }
     }
 
+    void parseMetadata(const QByteArray &data)
+    {
+        // Verify the data starts with the METADATA header
+        if (!data.startsWith(AirPodsPackets::Parse::METADATA))
+        {
+            LOG_ERROR("Invalid metadata packet: Incorrect header");
+            return;
+        }
+
+        int pos = AirPodsPackets::Parse::METADATA.size(); // Start after the header
+
+        // Check if there is enough data to skip the initial bytes (based on example structure)
+        if (data.size() < pos + 6)
+        {
+            LOG_ERROR("Metadata packet too short to parse initial bytes");
+            return;
+        }
+        pos += 6; // Skip 6 bytes after the header as per example structure
+
+        auto extractString = [&data, &pos]() -> QString
+        {
+            if (pos >= data.size())
+            {
+                return QString();
+            }
+            int start = pos;
+            while (pos < data.size() && data.at(pos) != '\0')
+            {
+                ++pos;
+            }
+            QString str = QString::fromUtf8(data.mid(start, pos - start));
+            if (pos < data.size())
+            {
+                ++pos; // Move past the null terminator
+            }
+            return str;
+        };
+
+        m_deviceName = extractString();
+        QString modelNumber = extractString();
+        QString manufacturer = extractString();
+        QString hardwareVersion = extractString();
+        QString firmwareVersion = extractString();
+        QString firmwareVersion2 = extractString();
+        QString softwareVersion = extractString();
+        QString appIdentifier = extractString();
+        QString serialNumber1 = extractString();
+        QString serialNumber2 = extractString();
+        QString unknownNumeric = extractString();
+        QString unknownHash = extractString();
+        QString trailingByte = extractString();
+
+        emit deviceNameChanged(m_deviceName);
+
+        // Log extracted metadata
+        LOG_INFO("Parsed AirPods metadata:");
+        LOG_INFO("Device Name: " << m_deviceName);
+        LOG_INFO("Model Number: " << modelNumber);
+        LOG_INFO("Manufacturer: " << manufacturer);
+        LOG_INFO("Hardware Version: " << hardwareVersion);
+        LOG_INFO("Firmware Version: " << firmwareVersion);
+        LOG_INFO("Firmware Version2: " << firmwareVersion2);
+        LOG_INFO("Software Version: " << softwareVersion);
+        LOG_INFO("App Identifier: " << appIdentifier);
+        LOG_INFO("Serial Number 1: " << serialNumber1);
+        LOG_INFO("Serial Number 2: " << serialNumber2);
+        LOG_INFO("Unknown Numeric: " << unknownNumeric);
+        LOG_INFO("Unknown Hash: " << unknownHash);
+        LOG_INFO("Trailing Byte: " << trailingByte);
+    }
+
     void connectToDevice(const QBluetoothDeviceInfo &device) {
         if (socket && socket->isOpen() && socket->peerAddress() == device.address()) {
             LOG_INFO("Already connected to the device: " << device.name());
@@ -462,8 +533,6 @@ private slots:
         localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         socket = localSocket;
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
-        m_deviceName = device.name();
-        emit deviceNameChanged(m_deviceName);
         mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         notifyAndroidDevice();
     }
@@ -524,6 +593,10 @@ private slots:
         {
             LOG_INFO("Received conversational awareness data");
             mediaController->handleConversationalAwareness(data);
+        }
+        else if (data.startsWith(AirPodsPackets::Parse::METADATA))
+        {
+            parseMetadata(data);
         }
         else
         {
