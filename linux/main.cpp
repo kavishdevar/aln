@@ -18,6 +18,8 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(QString earDetectionStatus READ earDetectionStatus NOTIFY earDetectionStatusChanged)
     Q_PROPERTY(int noiseControlMode READ noiseControlMode WRITE setNoiseControlMode NOTIFY noiseControlModeChanged)
     Q_PROPERTY(bool conversationalAwareness READ conversationalAwareness WRITE setConversationalAwareness NOTIFY conversationalAwarenessChanged)
+    Q_PROPERTY(int adaptiveNoiseLevel READ adaptiveNoiseLevel WRITE setAdaptiveNoiseLevel NOTIFY adaptiveNoiseLevelChanged)
+    Q_PROPERTY(bool adaptiveModeActive READ adaptiveModeActive NOTIFY noiseControlModeChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) : debugMode(debugMode) {
@@ -96,6 +98,8 @@ public:
     QString earDetectionStatus() const { return m_earDetectionStatus; }
     int noiseControlMode() const { return static_cast<int>(m_noiseControlMode); }
     bool conversationalAwareness() const { return m_conversationalAwareness; }
+    bool adaptiveModeActive() const { return m_noiseControlMode == NoiseControlMode::Adaptive; }
+    int adaptiveNoiseLevel() const { return m_adaptiveNoiseLevel; }
 
 private:
     bool debugMode;
@@ -254,6 +258,18 @@ public slots:
         m_conversationalAwareness = enabled;
         emit conversationalAwarenessChanged(enabled);
         saveConversationalAwarenessState();
+    }
+
+    void setAdaptiveNoiseLevel(int level)
+    {
+        level = qBound(0, level, 100);
+        if (m_adaptiveNoiseLevel != level && adaptiveModeActive())
+        {
+            m_adaptiveNoiseLevel = level;
+            QByteArray packet = AirPodsPackets::AdaptiveNoise::getPacket(level);
+            writePacketToSocket(packet, "Adaptive noise level packet written: ");
+            emit adaptiveNoiseLevelChanged(level);
+        }
     }
 
     bool writePacketToSocket(const QByteArray &packet, const QString &logMessage)
@@ -697,6 +713,7 @@ signals:
     void earDetectionStatusChanged(const QString &status);
     void batteryStatusChanged(const QString &status);
     void conversationalAwarenessChanged(bool enabled);
+    void adaptiveNoiseLevelChanged(int level);
 
 private:
     QSystemTrayIcon *trayIcon;
@@ -715,6 +732,7 @@ private:
     QString m_earDetectionStatus;
     NoiseControlMode m_noiseControlMode = NoiseControlMode::Off;
     bool m_conversationalAwareness = false;
+    int m_adaptiveNoiseLevel = 50;
 };
 
 int main(int argc, char *argv[]) {
