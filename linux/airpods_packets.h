@@ -74,11 +74,26 @@ namespace AirPodsPackets
         }
     }
 
+    namespace Rename
+    {
+        static QByteArray getPacket(const QString &newName)
+        {
+            QByteArray nameBytes = newName.toUtf8();                   // Convert name to UTF-8
+            quint8 size = static_cast<char>(nameBytes.size());         // Name length (1 byte)
+            QByteArray packet = QByteArray::fromHex("040004001A0001"); // Header
+            packet.append(size);                                       // Append size byte
+            packet.append('\0');                                       // Append null byte
+            packet.append(nameBytes);                                  // Append name bytes
+            return packet;
+        }
+    }
+
     // Parsing Headers
     namespace Parse
     {
         static const QByteArray EAR_DETECTION = QByteArray::fromHex("040004000600");
         static const QByteArray BATTERY_STATUS = QByteArray::fromHex("040004000400");
+        static const QByteArray METADATA = QByteArray::fromHex("040004001d");
     }
 }
 

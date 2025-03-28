@@ -72,5 +72,23 @@ ApplicationWindow {
                 anchors.top: parent.bottom
             }
         }
+
+        Row {
+            spacing: 10
+
+            TextField {
+                id: newNameField
+                placeholderText: airPodsTrayApp.deviceName
+                maximumLength: 32
+            }
+
+            Button {
+                text: "Rename"
+                onClicked: {
+                    airPodsTrayApp.renameAirPods(newNameField.text)
+                    // Optional: newNameField.text = "" // Clear field after rename
+                }
+            }
+        }
     }
 }
