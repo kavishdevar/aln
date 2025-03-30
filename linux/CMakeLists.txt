@@ -26,6 +26,7 @@ qt_add_qml_module(applinux
     VERSION 1.0
     QML_FILES
         Main.qml
+        BatteryIndicator.qml
 )
 
 # Add the resource file

@@ -1,12 +1,30 @@
 #include <QByteArray>
 #include <QMap>
 #include <QString>
+#include <QObject>
 
 #include "airpods_packets.h"
 
-class Battery
+class Battery : public QObject
 {
+    Q_OBJECT
+
+    Q_PROPERTY(quint8 leftPodLevel READ getLeftPodLevel NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool leftPodCharging READ isLeftPodCharging NOTIFY batteryStatusChanged)
+    Q_PROPERTY(quint8 rightPodLevel READ getRightPodLevel NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool rightPodCharging READ isRightPodCharging NOTIFY batteryStatusChanged)
+    Q_PROPERTY(quint8 caseLevel READ getCaseLevel NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool caseCharging READ isCaseCharging NOTIFY batteryStatusChanged)
+
 public:
+    explicit Battery(QObject *parent = nullptr) : QObject(parent)
+    {
+        // Initialize all components to unknown state
+        states[Component::Left] = {};
+        states[Component::Right] = {};
+        states[Component::Case] = {};
+    }
+
     // Enum for AirPods components
     enum class Component
     {
@@ -14,6 +32,7 @@ public:
         Left = 0x04,
         Case = 0x08,
     };
+    Q_ENUM(Component)
 
     enum class BatteryStatus
     {
@@ -22,6 +41,7 @@ public:
         Discharging = 0x02,
         Disconnected = 0x04,
     };
+    Q_ENUM(BatteryStatus)
 
     // Struct to hold battery level and status
     struct BatteryState
@@ -29,14 +49,6 @@ public:
         quint8 level = 0; // Battery level (0-100), 0 if unknown
         BatteryStatus status = BatteryStatus::Unknown;
     };
-
-    // Constructor: Initialize all components to unknown state
-    Battery()
-    {
-        states[Component::Left] = {};
-        states[Component::Right] = {};
-        states[Component::Case] = {};
-    }
 
     // Parse the battery status packet and detect primary/secondary pods
     bool parsePacket(const QByteArray &packet)
@@ -97,6 +109,9 @@ public:
             secondaryPod = podsInPacket[1]; // Second pod is secondary
         }
 
+        // Emit signal to notify about battery status change
+        emit batteryStatusChanged();
+
         return true;
     }
 
@@ -139,6 +154,25 @@ public:
 
     Component getPrimaryPod() const { return primaryPod; }
     Component getSecondaryPod() const { return secondaryPod; }
+
+    quint8 getLeftPodLevel() const { return states.value(Component::Left).level; }
+    bool isLeftPodCharging() const
+    {
+        return states.value(Component::Left).status == BatteryStatus::Charging;
+    }
+    quint8 getRightPodLevel() const { return states.value(Component::Right).level; }
+    bool isRightPodCharging() const
+    {
+        return states.value(Component::Right).status == BatteryStatus::Charging;
+    }
+    quint8 getCaseLevel() const { return states.value(Component::Case).level; }
+    bool isCaseCharging() const
+    {
+        return states.value(Component::Case).status == BatteryStatus::Charging;
+    }
+
+signals:
+    void batteryStatusChanged();
 
 private:
     QMap<Component, BatteryState> states;

@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import me.kavishdevar.Battery 1.0
 
 ApplicationWindow {
     visible: true
@@ -11,10 +12,61 @@ ApplicationWindow {
         spacing: 20
         padding: 20
 
-        Text {
-            id: batteryStatus
-            text: "Battery Status: " + airPodsTrayApp.batteryStatus
-            color: "#ffffff"
+        // Battery Indicator
+        Row {
+            // center the content
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 15
+
+            Column {
+                spacing: 5
+
+                Text {
+                    text: "Left"
+                    color: "#ffffff"
+                    font.pixelSize: 12
+                }
+
+                BatteryIndicator {
+                    batteryLevel: airPodsTrayApp.battery.leftPodLevel
+                    isCharging: airPodsTrayApp.battery.leftPodCharging
+                    darkMode: true
+                }
+            }
+
+            Column {
+                spacing: 5
+
+                Text {
+                    text: "Right"
+                    color: "#ffffff"
+                    font.pixelSize: 12
+                }
+
+                BatteryIndicator {
+                    batteryLevel: airPodsTrayApp.battery.rightPodLevel
+                    isCharging: airPodsTrayApp.battery.rightPodCharging
+                    darkMode: true
+                }
+            }
+
+            Column {
+                spacing: 5
+                // hide the case status if battery level is 0 and no pod is in case
+                visible: airPodsTrayApp.battery.caseLevel > 0 || airPodsTrayApp.oneOrMorePodsInCase
+
+                Text {
+                    text: "Case"
+                    color: "#ffffff"
+                    font.pixelSize: 12
+                }
+
+                BatteryIndicator {
+                    batteryLevel: airPodsTrayApp.battery.caseLevel
+                    isCharging: airPodsTrayApp.battery.caseCharging
+                    darkMode: true
+                }
+            }
         }
 
         Text {

@@ -21,9 +21,13 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(int adaptiveNoiseLevel READ adaptiveNoiseLevel WRITE setAdaptiveNoiseLevel NOTIFY adaptiveNoiseLevelChanged)
     Q_PROPERTY(bool adaptiveModeActive READ adaptiveModeActive NOTIFY noiseControlModeChanged)
     Q_PROPERTY(QString deviceName READ deviceName NOTIFY deviceNameChanged)
+    Q_PROPERTY(Battery* battery READ getBattery NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool oneOrMorePodsInCase READ oneOrMorePodsInCase NOTIFY earDetectionStatusChanged)
 
 public:
-    AirPodsTrayApp(bool debugMode) : debugMode(debugMode) {
+    AirPodsTrayApp(bool debugMode) 
+      : debugMode(debugMode)
+      , m_battery(new Battery(this)) {
         if (debugMode) {
             QLoggingCategory::setFilterRules("airpodsApp.debug=true");
         } else {
@@ -102,6 +106,8 @@ public:
     bool adaptiveModeActive() const { return m_noiseControlMode == NoiseControlMode::Adaptive; }
     int adaptiveNoiseLevel() const { return m_adaptiveNoiseLevel; }
     QString deviceName() const { return m_deviceName; }
+    Battery *getBattery() const { return m_battery; }
+    bool oneOrMorePodsInCase() const { return m_earDetectionStatus.contains("In case"); }
 
 private:
     bool debugMode;
@@ -575,12 +581,11 @@ private slots:
         // Battery Status
         else if (data.size() == 22 && data.startsWith(AirPodsPackets::Parse::BATTERY_STATUS))
         {
-            Battery battery;
-            battery.parsePacket(data);
+            m_battery->parsePacket(data);
 
-            int leftLevel = battery.getState(Battery::Component::Left).level;
-            int rightLevel = battery.getState(Battery::Component::Right).level;
-            int caseLevel = battery.getState(Battery::Component::Case).level;
+            int leftLevel = m_battery->getState(Battery::Component::Left).level;
+            int rightLevel = m_battery->getState(Battery::Component::Right).level;
+            int caseLevel = m_battery->getState(Battery::Component::Case).level;
             m_batteryStatus = QString("Left: %1%, Right: %2%, Case: %3%")
                                   .arg(leftLevel)
                                   .arg(rightLevel)
@@ -843,6 +848,7 @@ private:
     bool m_conversationalAwareness = false;
     int m_adaptiveNoiseLevel = 50;
     QString m_deviceName;
+    Battery *m_battery;
 };
 
 int main(int argc, char *argv[]) {
@@ -857,6 +863,7 @@ int main(int argc, char *argv[]) {
     }
 
     QQmlApplicationEngine engine;
+    qmlRegisterType<Battery>("me.kavishdevar.Battery", 1, 0, "Battery");
     AirPodsTrayApp trayApp(debugMode);
     engine.rootContext()->setContextProperty("airPodsTrayApp", &trayApp);
     engine.loadFromModule("linux", "Main");
