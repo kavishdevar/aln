@@ -92,8 +92,8 @@ Rectangle {
                         running: root.isCharging
                         loops: Animation.Infinite
                         alwaysRunToEnd: true
-                        NumberAnimation { target: batteryFill; property: "opacity"; to: 0.7; duration: 1000 }
-                        NumberAnimation { target: batteryFill; property: "opacity"; to: 1.0; duration: 1000 }
+                        NumberAnimation { target: batteryFill; property: "opacity"; to: 0.7; duration: 3000 }
+                        NumberAnimation { target: batteryFill; property: "opacity"; to: 1.0; duration: 3000 }
                     }
                 }
             }
