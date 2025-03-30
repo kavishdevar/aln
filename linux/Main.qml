@@ -12,10 +12,10 @@ ApplicationWindow {
         spacing: 20
         padding: 20
 
+        // Battery Indicator
         Row {
             // center the content
             anchors.horizontalCenter: parent.horizontalCenter
-            // anchors.verticalCenter: parent.verticalCenter
             spacing: 15
 
             Column {
@@ -52,6 +52,8 @@ ApplicationWindow {
 
             Column {
                 spacing: 5
+                // hide the case status if battery level is 0 and no pod is in case
+                visible: airPodsTrayApp.battery.caseLevel > 0 || airPodsTrayApp.oneOrMorePodsInCase
 
                 Text {
                     text: "Case"

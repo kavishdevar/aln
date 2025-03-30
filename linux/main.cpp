@@ -22,6 +22,7 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(bool adaptiveModeActive READ adaptiveModeActive NOTIFY noiseControlModeChanged)
     Q_PROPERTY(QString deviceName READ deviceName NOTIFY deviceNameChanged)
     Q_PROPERTY(Battery* battery READ getBattery NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool oneOrMorePodsInCase READ oneOrMorePodsInCase NOTIFY earDetectionStatusChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) 
@@ -106,6 +107,7 @@ public:
     int adaptiveNoiseLevel() const { return m_adaptiveNoiseLevel; }
     QString deviceName() const { return m_deviceName; }
     Battery *getBattery() const { return m_battery; }
+    bool oneOrMorePodsInCase() const { return m_earDetectionStatus.contains("In case"); }
 
 private:
     bool debugMode;
