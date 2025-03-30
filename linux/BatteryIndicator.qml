@@ -112,7 +112,7 @@ Rectangle {
                     ctx.reset();
 
                     // Draw a lightning bolt
-                    ctx.fillStyle = root.darkMode ? "#000000" : "#FFFFFF";
+                    ctx.fillStyle = root.darkMode ? "#FFFFFF" : "#000000";
                     ctx.beginPath();
                     ctx.moveTo(7, 2); // Top point
                     ctx.lineTo(3, 8); // Middle left
