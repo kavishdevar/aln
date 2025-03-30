@@ -12,10 +12,59 @@ ApplicationWindow {
         spacing: 20
         padding: 20
 
-        Text {
-            id: batteryStatus
-            text: "Battery Status: " + airPodsTrayApp.battery.leftPodLevel + "% (Left), " + airPodsTrayApp.battery.rightPodLevel + "% (Right)"
-            color: "#ffffff"
+        Row {
+            // center the content
+            anchors.horizontalCenter: parent.horizontalCenter
+            // anchors.verticalCenter: parent.verticalCenter
+            spacing: 15
+
+            Column {
+                spacing: 5
+
+                Text {
+                    text: "Left"
+                    color: "#ffffff"
+                    font.pixelSize: 12
+                }
+
+                BatteryIndicator {
+                    batteryLevel: airPodsTrayApp.battery.leftPodLevel
+                    isCharging: airPodsTrayApp.battery.leftPodCharging
+                    darkMode: true
+                }
+            }
+
+            Column {
+                spacing: 5
+
+                Text {
+                    text: "Right"
+                    color: "#ffffff"
+                    font.pixelSize: 12
+                }
+
+                BatteryIndicator {
+                    batteryLevel: airPodsTrayApp.battery.rightPodLevel
+                    isCharging: airPodsTrayApp.battery.rightPodCharging
+                    darkMode: true
+                }
+            }
+
+            Column {
+                spacing: 5
+
+                Text {
+                    text: "Case"
+                    color: "#ffffff"
+                    font.pixelSize: 12
+                }
+
+                BatteryIndicator {
+                    batteryLevel: airPodsTrayApp.battery.caseLevel
+                    isCharging: airPodsTrayApp.battery.caseCharging
+                    darkMode: true
+                }
+            }
         }
 
         Text {

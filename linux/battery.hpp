@@ -10,11 +10,11 @@ class Battery : public QObject
     Q_OBJECT
 
     Q_PROPERTY(quint8 leftPodLevel READ getLeftPodLevel NOTIFY batteryStatusChanged)
-    Q_PROPERTY(BatteryStatus leftPodStatus READ getLeftPodStatus NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool leftPodCharging READ isLeftPodCharging NOTIFY batteryStatusChanged)
     Q_PROPERTY(quint8 rightPodLevel READ getRightPodLevel NOTIFY batteryStatusChanged)
-    Q_PROPERTY(BatteryStatus rightPodStatus READ getRightPodStatus NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool rightPodCharging READ isRightPodCharging NOTIFY batteryStatusChanged)
     Q_PROPERTY(quint8 caseLevel READ getCaseLevel NOTIFY batteryStatusChanged)
-    Q_PROPERTY(BatteryStatus caseStatus READ getCaseStatus NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool caseCharging READ isCaseCharging NOTIFY batteryStatusChanged)
 
 public:
     explicit Battery(QObject *parent = nullptr) : QObject(parent)
@@ -156,11 +156,20 @@ public:
     Component getSecondaryPod() const { return secondaryPod; }
 
     quint8 getLeftPodLevel() const { return states.value(Component::Left).level; }
-    BatteryStatus getLeftPodStatus() const { return states.value(Component::Left).status; }
+    bool isLeftPodCharging() const
+    {
+        return states.value(Component::Left).status == BatteryStatus::Charging;
+    }
     quint8 getRightPodLevel() const { return states.value(Component::Right).level; }
-    BatteryStatus getRightPodStatus() const { return states.value(Component::Right).status; }
+    bool isRightPodCharging() const
+    {
+        return states.value(Component::Right).status == BatteryStatus::Charging;
+    }
     quint8 getCaseLevel() const { return states.value(Component::Case).level; }
-    BatteryStatus getCaseStatus() const { return states.value(Component::Case).status; }
+    bool isCaseCharging() const
+    {
+        return states.value(Component::Case).status == BatteryStatus::Charging;
+    }
 
 signals:
     void batteryStatusChanged();
