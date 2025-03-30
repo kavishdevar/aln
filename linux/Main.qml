@@ -1,5 +1,6 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
+import me.kavishdevar.Battery 1.0
 
 ApplicationWindow {
     visible: true
@@ -13,7 +14,7 @@ ApplicationWindow {
 
         Text {
             id: batteryStatus
-            text: "Battery Status: " + airPodsTrayApp.batteryStatus
+            text: "Battery Status: " + airPodsTrayApp.battery.leftPodLevel + "% (Left), " + airPodsTrayApp.battery.rightPodLevel + "% (Right)"
             color: "#ffffff"
         }
 
