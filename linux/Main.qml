@@ -22,6 +22,7 @@ ApplicationWindow {
 
             Column {
                 spacing: 5
+                opacity: airPodsTrayApp.isLeftPodInEar ? 1 : 0.5
 
                 Image {
                     source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
@@ -45,6 +46,7 @@ ApplicationWindow {
 
             Column {
                 spacing: 5
+                opacity: airPodsTrayApp.isRightPodInEar ? 1 : 0.5
 
                 Image {
                     source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
