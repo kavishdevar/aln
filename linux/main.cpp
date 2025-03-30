@@ -23,6 +23,8 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(QString deviceName READ deviceName NOTIFY deviceNameChanged)
     Q_PROPERTY(Battery* battery READ getBattery NOTIFY batteryStatusChanged)
     Q_PROPERTY(bool oneOrMorePodsInCase READ oneOrMorePodsInCase NOTIFY earDetectionStatusChanged)
+    Q_PROPERTY(QString podIcon READ podIcon NOTIFY modelChanged)
+    Q_PROPERTY(QString caseIcon READ caseIcon NOTIFY modelChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) 
@@ -108,6 +110,8 @@ public:
     QString deviceName() const { return m_deviceName; }
     Battery *getBattery() const { return m_battery; }
     bool oneOrMorePodsInCase() const { return m_earDetectionStatus.contains("In case"); }
+    QString podIcon() const { return getModelIcon(m_model).first; }
+    QString caseIcon() const { return getModelIcon(m_model).second; }
 
 private:
     bool debugMode;
@@ -454,6 +458,9 @@ private slots:
         QString unknownHash = extractString();
         QString trailingByte = extractString();
 
+        m_model = parseModelNumber(modelNumber);
+
+        emit modelChanged();
         emit deviceNameChanged(m_deviceName);
 
         // Log extracted metadata
@@ -828,6 +835,7 @@ signals:
     void conversationalAwarenessChanged(bool enabled);
     void adaptiveNoiseLevelChanged(int level);
     void deviceNameChanged(const QString &name);
+    void modelChanged();
 
 private:
     QSystemTrayIcon *trayIcon;
@@ -849,6 +857,7 @@ private:
     int m_adaptiveNoiseLevel = 50;
     QString m_deviceName;
     Battery *m_battery;
+    AirPodsModel m_model = AirPodsModel::Unknown;
 };
 
 int main(int argc, char *argv[]) {

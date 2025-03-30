@@ -9,6 +9,8 @@ ApplicationWindow {
     title: "AirPods Settings"
 
     Column {
+        anchors.left: parent.left
+        anchors.right: parent.right
         spacing: 20
         padding: 20
 
@@ -16,37 +18,50 @@ ApplicationWindow {
         Row {
             // center the content
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 15
+            spacing: 8
 
             Column {
                 spacing: 5
 
-                Text {
-                    text: "Left"
-                    color: "#ffffff"
-                    font.pixelSize: 12
+                Image {
+                    source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
+                    width: 72
+                    height: 72
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    antialiasing: true
+                    mipmap: true
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 BatteryIndicator {
                     batteryLevel: airPodsTrayApp.battery.leftPodLevel
                     isCharging: airPodsTrayApp.battery.leftPodCharging
                     darkMode: true
+                    indicator: "L"
                 }
             }
 
             Column {
                 spacing: 5
 
-                Text {
-                    text: "Right"
-                    color: "#ffffff"
-                    font.pixelSize: 12
+                Image {
+                    source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
+                    mirror: true
+                    width: 72
+                    height: 72
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    antialiasing: true
+                    mipmap: true
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 BatteryIndicator {
                     batteryLevel: airPodsTrayApp.battery.rightPodLevel
                     isCharging: airPodsTrayApp.battery.rightPodCharging
                     darkMode: true
+                    indicator: "R"
                 }
             }
 
@@ -55,10 +70,15 @@ ApplicationWindow {
                 // hide the case status if battery level is 0 and no pod is in case
                 visible: airPodsTrayApp.battery.caseLevel > 0 || airPodsTrayApp.oneOrMorePodsInCase
 
-                Text {
-                    text: "Case"
-                    color: "#ffffff"
-                    font.pixelSize: 12
+                Image {
+                    source: "qrc:/icons/assets/" + airPodsTrayApp.caseIcon
+                    width: 92
+                    height: 72
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    antialiasing: true
+                    mipmap: true
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 BatteryIndicator {

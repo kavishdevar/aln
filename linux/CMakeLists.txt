@@ -34,6 +34,11 @@ qt_add_resources(applinux "resources"
     PREFIX "/icons"
     FILES
         assets/airpods.png
+        assets/pod.png
+        assets/pod_case.png
+        assets/podpro.png
+        assets/podpro_case.png
+        assets/podmax.png
 )
 
 target_link_libraries(applinux
