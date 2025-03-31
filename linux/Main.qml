@@ -1,6 +1,5 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import me.kavishdevar.Battery 1.0
 
 ApplicationWindow {
     visible: true
@@ -23,6 +22,7 @@ ApplicationWindow {
             Column {
                 spacing: 5
                 opacity: airPodsTrayApp.isLeftPodInEar ? 1 : 0.5
+                visible: airPodsTrayApp.battery.leftPodAvailable
 
                 Image {
                     source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
@@ -47,6 +47,7 @@ ApplicationWindow {
             Column {
                 spacing: 5
                 opacity: airPodsTrayApp.isRightPodInEar ? 1 : 0.5
+                visible: airPodsTrayApp.battery.rightPodAvailable
 
                 Image {
                     source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
@@ -72,7 +73,7 @@ ApplicationWindow {
             Column {
                 spacing: 5
                 // hide the case status if battery level is 0 and no pod is in case
-                visible: airPodsTrayApp.battery.caseLevel > 0 || airPodsTrayApp.oneOrMorePodsInCase
+                visible: airPodsTrayApp.battery.caseAvailable
 
                 Image {
                     source: "qrc:/icons/assets/" + airPodsTrayApp.caseIcon
@@ -163,7 +164,6 @@ ApplicationWindow {
                 text: "Rename"
                 onClicked: {
                     airPodsTrayApp.renameAirPods(newNameField.text)
-                    // Optional: newNameField.text = "" // Clear field after rename
                 }
             }
         }
