@@ -40,6 +40,7 @@ namespace AirpodsTrayApp
         // Get model enum from model number
         inline AirPodsModel parseModelNumber(const QString &modelNumber)
         {
+            // Model numbers taken from https://support.apple.com/en-us/109525
             QHash<QString, AirPodsModel> modelNumberMap = {
                 {"A1523", AirPodsModel::AirPods1},
                 {"A1722", AirPodsModel::AirPods1},
