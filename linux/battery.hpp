@@ -11,10 +11,13 @@ class Battery : public QObject
 
     Q_PROPERTY(quint8 leftPodLevel READ getLeftPodLevel NOTIFY batteryStatusChanged)
     Q_PROPERTY(bool leftPodCharging READ isLeftPodCharging NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool leftPodAvailable READ isLeftPodAvailable NOTIFY batteryStatusChanged)
     Q_PROPERTY(quint8 rightPodLevel READ getRightPodLevel NOTIFY batteryStatusChanged)
     Q_PROPERTY(bool rightPodCharging READ isRightPodCharging NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool rightPodAvailable READ isRightPodAvailable NOTIFY batteryStatusChanged)
     Q_PROPERTY(quint8 caseLevel READ getCaseLevel NOTIFY batteryStatusChanged)
     Q_PROPERTY(bool caseCharging READ isCaseCharging NOTIFY batteryStatusChanged)
+    Q_PROPERTY(bool caseAvailable READ isCaseAvailable NOTIFY batteryStatusChanged)
 
 public:
     explicit Battery(QObject *parent = nullptr) : QObject(parent)
@@ -36,7 +39,6 @@ public:
 
     enum class BatteryStatus
     {
-        Unknown = 0,
         Charging = 0x01,
         Discharging = 0x02,
         Disconnected = 0x04,
@@ -47,7 +49,7 @@ public:
     struct BatteryState
     {
         quint8 level = 0; // Battery level (0-100), 0 if unknown
-        BatteryStatus status = BatteryStatus::Unknown;
+        BatteryStatus status = BatteryStatus::Disconnected;
     };
 
     // Parse the battery status packet and detect primary/secondary pods
@@ -133,9 +135,6 @@ public:
         QString statusStr;
         switch (state.status)
         {
-        case BatteryStatus::Unknown:
-            statusStr = "Unknown";
-            break;
         case BatteryStatus::Charging:
             statusStr = "Charging";
             break;
@@ -156,25 +155,24 @@ public:
     Component getSecondaryPod() const { return secondaryPod; }
 
     quint8 getLeftPodLevel() const { return states.value(Component::Left).level; }
-    bool isLeftPodCharging() const
-    {
-        return states.value(Component::Left).status == BatteryStatus::Charging;
-    }
+    bool isLeftPodCharging() const { return isStatus(Component::Left, BatteryStatus::Charging); }
+    bool isLeftPodAvailable() const { return !isStatus(Component::Left, BatteryStatus::Disconnected); }
     quint8 getRightPodLevel() const { return states.value(Component::Right).level; }
-    bool isRightPodCharging() const
-    {
-        return states.value(Component::Right).status == BatteryStatus::Charging;
-    }
+    bool isRightPodCharging() const { return isStatus(Component::Right, BatteryStatus::Charging); }
+    bool isRightPodAvailable() const { return !isStatus(Component::Right, BatteryStatus::Disconnected); }
     quint8 getCaseLevel() const { return states.value(Component::Case).level; }
-    bool isCaseCharging() const
-    {
-        return states.value(Component::Case).status == BatteryStatus::Charging;
-    }
+    bool isCaseCharging() const { return isStatus(Component::Case, BatteryStatus::Charging); }
+    bool isCaseAvailable() const { return !isStatus(Component::Case, BatteryStatus::Disconnected); }
 
 signals:
     void batteryStatusChanged();
 
 private:
+    bool isStatus(Component component, BatteryStatus status) const
+    {
+        return states.value(component).status == status;
+    }
+
     QMap<Component, BatteryState> states;
     Component primaryPod;
     Component secondaryPod;

@@ -1,6 +1,5 @@
 import QtQuick 2.15
 import QtQuick.Controls 2.15
-import me.kavishdevar.Battery 1.0
 
 ApplicationWindow {
     visible: true
@@ -9,6 +8,8 @@ ApplicationWindow {
     title: "AirPods Settings"
 
     Column {
+        anchors.left: parent.left
+        anchors.right: parent.right
         spacing: 20
         padding: 20
 
@@ -16,52 +17,77 @@ ApplicationWindow {
         Row {
             // center the content
             anchors.horizontalCenter: parent.horizontalCenter
-            spacing: 15
+            spacing: 8
 
             Column {
                 spacing: 5
+                opacity: airPodsTrayApp.isLeftPodInEar ? 1 : 0.5
+                visible: airPodsTrayApp.battery.leftPodAvailable
 
-                Text {
-                    text: "Left"
-                    color: "#ffffff"
-                    font.pixelSize: 12
+                Image {
+                    source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
+                    width: 72
+                    height: 72
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    antialiasing: true
+                    mipmap: true
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 BatteryIndicator {
+                    visible: airPodsTrayApp.leftPodAvailable
                     batteryLevel: airPodsTrayApp.battery.leftPodLevel
                     isCharging: airPodsTrayApp.battery.leftPodCharging
                     darkMode: true
+                    indicator: "L"
                 }
             }
 
             Column {
                 spacing: 5
+                opacity: airPodsTrayApp.isRightPodInEar ? 1 : 0.5
+                visible: airPodsTrayApp.battery.rightPodAvailable
 
-                Text {
-                    text: "Right"
-                    color: "#ffffff"
-                    font.pixelSize: 12
+                Image {
+                    source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
+                    mirror: true
+                    width: 72
+                    height: 72
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    antialiasing: true
+                    mipmap: true
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 BatteryIndicator {
+                    visible: airPodsTrayApp.rightPodAvailable
                     batteryLevel: airPodsTrayApp.battery.rightPodLevel
                     isCharging: airPodsTrayApp.battery.rightPodCharging
                     darkMode: true
+                    indicator: "R"
                 }
             }
 
             Column {
                 spacing: 5
                 // hide the case status if battery level is 0 and no pod is in case
-                visible: airPodsTrayApp.battery.caseLevel > 0 || airPodsTrayApp.oneOrMorePodsInCase
+                visible: airPodsTrayApp.battery.caseAvailable
 
-                Text {
-                    text: "Case"
-                    color: "#ffffff"
-                    font.pixelSize: 12
+                Image {
+                    source: "qrc:/icons/assets/" + airPodsTrayApp.caseIcon
+                    width: 92
+                    height: 72
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    antialiasing: true
+                    mipmap: true
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 BatteryIndicator {
+                    visible: airPodsTrayApp.caseAvailable
                     batteryLevel: airPodsTrayApp.battery.caseLevel
                     isCharging: airPodsTrayApp.battery.caseCharging
                     darkMode: true
@@ -138,7 +164,6 @@ ApplicationWindow {
                 text: "Rename"
                 onClicked: {
                     airPodsTrayApp.renameAirPods(newNameField.text)
-                    // Optional: newNameField.text = "" // Clear field after rename
                 }
             }
         }

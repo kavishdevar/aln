@@ -23,6 +23,10 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(QString deviceName READ deviceName NOTIFY deviceNameChanged)
     Q_PROPERTY(Battery* battery READ getBattery NOTIFY batteryStatusChanged)
     Q_PROPERTY(bool oneOrMorePodsInCase READ oneOrMorePodsInCase NOTIFY earDetectionStatusChanged)
+    Q_PROPERTY(QString podIcon READ podIcon NOTIFY modelChanged)
+    Q_PROPERTY(QString caseIcon READ caseIcon NOTIFY modelChanged)
+    Q_PROPERTY(bool isLeftPodInEar READ isLeftPodInEar NOTIFY earDetectionStatusChanged)
+    Q_PROPERTY(bool isRightPodInEar READ isRightPodInEar NOTIFY earDetectionStatusChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) 
@@ -108,6 +112,22 @@ public:
     QString deviceName() const { return m_deviceName; }
     Battery *getBattery() const { return m_battery; }
     bool oneOrMorePodsInCase() const { return m_earDetectionStatus.contains("In case"); }
+    QString podIcon() const { return getModelIcon(m_model).first; }
+    QString caseIcon() const { return getModelIcon(m_model).second; }
+    bool isLeftPodInEar() const { 
+        if (m_battery->getPrimaryPod() == Battery::Component::Left) {
+            return m_primaryInEar;
+        } else {
+            return m_secoundaryInEar;
+        }
+    }
+    bool isRightPodInEar() const { 
+        if (m_battery->getPrimaryPod() == Battery::Component::Right) {
+            return m_primaryInEar;
+        } else {
+            return m_secoundaryInEar;
+        }
+    }
 
 private:
     bool debugMode;
@@ -454,6 +474,9 @@ private slots:
         QString unknownHash = extractString();
         QString trailingByte = extractString();
 
+        m_model = parseModelNumber(modelNumber);
+
+        emit modelChanged();
         emit deviceNameChanged(m_deviceName);
 
         // Log extracted metadata
@@ -573,6 +596,8 @@ private slots:
         {
             char primary = data[6];
             char secondary = data[7];
+            m_primaryInEar = primary == 0x00;
+            m_secoundaryInEar = secondary == 0x00;
             m_earDetectionStatus = QString("Primary: %1, Secondary: %2")
                                        .arg(getEarStatus(primary), getEarStatus(secondary));
             LOG_INFO("Ear detection status: " << m_earDetectionStatus);
@@ -828,6 +853,7 @@ signals:
     void conversationalAwarenessChanged(bool enabled);
     void adaptiveNoiseLevelChanged(int level);
     void deviceNameChanged(const QString &name);
+    void modelChanged();
 
 private:
     QSystemTrayIcon *trayIcon;
@@ -849,6 +875,9 @@ private:
     int m_adaptiveNoiseLevel = 50;
     QString m_deviceName;
     Battery *m_battery;
+    AirPodsModel m_model = AirPodsModel::Unknown;
+    bool m_primaryInEar = false;
+    bool m_secoundaryInEar = false;
 };
 
 int main(int argc, char *argv[]) {

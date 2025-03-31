@@ -10,6 +10,7 @@ Rectangle {
     property int batteryLevel: 50 // 0-100
     property bool isCharging: false
     property bool darkMode: false
+    property string indicator: "" // "L" or "R"
 
     // Private properties
     readonly property color darkModeBackground: "#1C1C1E"
@@ -40,26 +41,16 @@ Rectangle {
         return batteryHighColor;
     }
 
-    RowLayout {
+    ColumnLayout {
         anchors.fill: parent
-        spacing: 5
-
-        // Battery percentage text
-        Text {
-            id: percentageText
-            text: root.batteryLevel + "%"
-            color: root.textColor
-            font.pixelSize: 14
-            font.family: "SF Pro Text" // Apple system font
-            Layout.alignment: Qt.AlignVCenter
-        }
+        spacing: 7
 
         // Battery icon
         Item {
             id: batteryIcon
             Layout.preferredWidth: 32
             Layout.preferredHeight: 16
-            Layout.alignment: Qt.AlignVCenter
+            Layout.alignment: Qt.AlignHCenter
 
             // Main battery body
             Rectangle {
@@ -121,7 +112,7 @@ Rectangle {
                     ctx.reset();
 
                     // Draw a lightning bolt
-                    ctx.fillStyle = root.darkMode ? "#000000" : "#FFFFFF";
+                    ctx.fillStyle = root.darkMode ? "#FFFFFF" : "#000000";
                     ctx.beginPath();
                     ctx.moveTo(7, 2); // Top point
                     ctx.lineTo(3, 8); // Middle left
@@ -133,6 +124,40 @@ Rectangle {
                     ctx.closePath();
                     ctx.fill();
                 }
+            }
+        }
+
+        // Text container
+        RowLayout {
+            Layout.alignment: Qt.AlignHCenter
+            spacing: 4
+
+            // Left/Right indicator
+            Rectangle {
+                id: indicatorBackground
+                visible: root.indicator !== ""
+                Layout.preferredWidth: 16
+                Layout.preferredHeight: 16
+                radius: width / 2
+                color: root.darkMode ? "#FFFFFF" : "#1C1C1E"
+
+                Text {
+                    id: indicatorText
+                    anchors.centerIn: parent
+                    text: root.indicator
+                    color: root.darkMode ? "#1C1C1E" : "#FFFFFF"
+                    font.pixelSize: 10
+                    font.family: "SF Pro Text"
+                }
+            }
+
+            // Battery percentage
+            Text {
+                id: percentageText
+                text: root.batteryLevel + "%"
+                color: root.textColor
+                font.pixelSize: 12
+                font.family: "SF Pro Text"
             }
         }
     }
