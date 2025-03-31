@@ -35,8 +35,10 @@ qt_add_resources(applinux "resources"
     FILES
         assets/airpods.png
         assets/pod.png
-        assets/pod3.png
         assets/pod_case.png
+        assets/pod3.png
+        assets/pod3_case.png
+        assets/pod4_case.png
         assets/podpro.png
         assets/podpro_case.png
         assets/podmax.png

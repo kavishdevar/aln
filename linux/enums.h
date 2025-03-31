@@ -74,9 +74,10 @@ namespace AirpodsTrayApp
                 case AirPodsModel::AirPods2:
                     return {"pod.png", "pod_case.png"};
                 case AirPodsModel::AirPods3:
+                    return {"pod3.png", "pod3_case.png"};
                 case AirPodsModel::AirPods4:
                 case AirPodsModel::AirPods4ANC:
-                    return {"pod3.png", "podpro_case.png"};
+                    return {"pod3.png", "pod4_case.png"};
                 case AirPodsModel::AirPodsPro:
                 case AirPodsModel::AirPodsPro2Lightning:
                 case AirPodsModel::AirPodsPro2USBC:
