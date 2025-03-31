@@ -30,12 +30,16 @@ namespace AirpodsTrayApp
             AirPodsPro,
             AirPodsPro2Lightning,
             AirPodsPro2USBC,
-            AirPodsMax
+            AirPodsMaxLightning,
+            AirPodsMaxUSBC,
+            AirPods4,
+            AirPods4ANC
         };
         Q_ENUM_NS(AirPodsModel)
 
         // Get model enum from model number
-        inline AirPodsModel parseModelNumber(const QString &modelNumber) {
+        inline AirPodsModel parseModelNumber(const QString &modelNumber)
+        {
             QHash<QString, AirPodsModel> modelNumberMap = {
                 {"A1523", AirPodsModel::AirPods1},
                 {"A1722", AirPodsModel::AirPods1},
@@ -43,7 +47,8 @@ namespace AirpodsTrayApp
                 {"A2031", AirPodsModel::AirPods2},
                 {"A2084", AirPodsModel::AirPodsPro},
                 {"A2083", AirPodsModel::AirPodsPro},
-                {"A2096", AirPodsModel::AirPodsMax},
+                {"A2096", AirPodsModel::AirPodsMaxLightning},
+                {"A3184", AirPodsModel::AirPodsMaxUSBC},
                 {"A2565", AirPodsModel::AirPods3},
                 {"A2564", AirPodsModel::AirPods3},
                 {"A3047", AirPodsModel::AirPodsPro2USBC},
@@ -51,7 +56,13 @@ namespace AirpodsTrayApp
                 {"A3049", AirPodsModel::AirPodsPro2USBC},
                 {"A2931", AirPodsModel::AirPodsPro2Lightning},
                 {"A2699", AirPodsModel::AirPodsPro2Lightning},
-                {"A2698", AirPodsModel::AirPodsPro2Lightning}};
+                {"A2698", AirPodsModel::AirPodsPro2Lightning},
+                {"A3053", AirPodsModel::AirPods4},
+                {"A3050", AirPodsModel::AirPods4},
+                {"A3054", AirPodsModel::AirPods4},
+                {"A3056", AirPodsModel::AirPods4ANC},
+                {"A3055", AirPodsModel::AirPods4ANC},
+                {"A3057", AirPodsModel::AirPods4ANC}};
 
             return modelNumberMap.value(modelNumber, AirPodsModel::Unknown);
         }
@@ -63,12 +74,15 @@ namespace AirpodsTrayApp
                 case AirPodsModel::AirPods2:
                     return {"pod.png", "pod_case.png"};
                 case AirPodsModel::AirPods3:
+                case AirPodsModel::AirPods4:
+                case AirPodsModel::AirPods4ANC:
                     return {"pod3.png", "podpro_case.png"};
                 case AirPodsModel::AirPodsPro:
                 case AirPodsModel::AirPodsPro2Lightning:
                 case AirPodsModel::AirPodsPro2USBC:
                     return {"podpro.png", "podpro_case.png"};
-                case AirPodsModel::AirPodsMax:
+                case AirPodsModel::AirPodsMaxLightning:
+                case AirPodsModel::AirPodsMaxUSBC:
                     return {"max.png", "max_case.png"};
                 default:
                     return {"pod.png", "pod_case.png"}; // Default icon for unknown models
