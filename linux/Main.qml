@@ -101,8 +101,9 @@ ApplicationWindow {
             color: "#ffffff"
         }
 
-        ComboBox {
+        SegmentedControl {
             id: noiseControlMode
+            anchors.horizontalCenter: parent.horizontalCenter
             model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
             currentIndex: airPodsTrayApp.noiseControlMode
             onCurrentIndexChanged: airPodsTrayApp.noiseControlMode = currentIndex

@@ -27,6 +27,7 @@ qt_add_qml_module(applinux
     QML_FILES
         Main.qml
         BatteryIndicator.qml
+        SegmentedControl.qml
 )
 
 # Add the resource file
