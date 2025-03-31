@@ -61,8 +61,9 @@ namespace AirpodsTrayApp
             switch (model) {
                 case AirPodsModel::AirPods1:
                 case AirPodsModel::AirPods2:
-                case AirPodsModel::AirPods3:
                     return {"pod.png", "pod_case.png"};
+                case AirPodsModel::AirPods3:
+                    return {"pod3.png", "podpro_case.png"};
                 case AirPodsModel::AirPodsPro:
                 case AirPodsModel::AirPodsPro2Lightning:
                 case AirPodsModel::AirPodsPro2USBC:
