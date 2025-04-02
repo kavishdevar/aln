@@ -111,7 +111,7 @@ Control {
         } else if (event.key === Qt.Key_End) {
             root.currentIndex = root.model.length - 1;
             event.accepted = true;
-        } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_4) {
+        } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_9) {
             const index = event.key - Qt.Key_1;
             if (index <= root.model.length) {
                 root.currentIndex = index;
