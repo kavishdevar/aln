@@ -27,11 +27,16 @@ Control {
     implicitHeight: 32
     implicitWidth: Math.max(200, model.length * 100)
 
+    // Set focus policy to enable keyboard navigation
+    focusPolicy: Qt.StrongFocus
+    activeFocusOnTab: true
+
     // Styling
     background: Rectangle {
         radius: height / 2
         color: root.backgroundColor
-        border.width: 0
+        border.width: root.activeFocus ? 1 : 0
+        border.color: root.selectedColor
     }
 
     contentItem: Row {
@@ -41,18 +46,17 @@ Control {
             model: root.model
 
             delegate: Button {
+                id: segmentButton
                 required property int index
                 required property string modelData
-
-                id: segmentButton
                 text: modelData
                 width: (root.availableWidth - (root.model.length - 1) * root.padding) / root.model.length
                 height: root.availableHeight
+                focusPolicy: Qt.NoFocus // Let the root control handle focus
 
                 background: Rectangle {
                     radius: height / 2
-                    color: root.currentIndex === segmentButton.index ?
-                        root.selectedColor : "transparent"
+                    color: root.currentIndex === segmentButton.index ? root.selectedColor : "transparent"
                     border.width: 0
 
                     Behavior on color {
@@ -67,8 +71,7 @@ Control {
                     text: segmentButton.text
                     font: segmentButton.font
                     opacity: enabled ? 1.0 : 0.3
-                    color: root.currentIndex === segmentButton.index ?
-                        root.selectedTextColor : root.textColor
+                    color: root.currentIndex === segmentButton.index ? root.selectedTextColor : root.textColor
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
                     elide: Text.ElideRight
@@ -83,9 +86,36 @@ Control {
 
                 onClicked: {
                     if (root.currentIndex !== index) {
-                        root.currentIndex = index
+                        root.currentIndex = index;
                     }
                 }
+            }
+        }
+    }
+
+    // Handle key events for navigation
+    Keys.onPressed: event => {
+        if (event.key === Qt.Key_Left) {
+            if (root.currentIndex > 0) {
+                root.currentIndex--;
+                event.accepted = true;
+            }
+        } else if (event.key === Qt.Key_Right) {
+            if (root.currentIndex < root.model.length - 1) {
+                root.currentIndex++;
+                event.accepted = true;
+            }
+        } else if (event.key === Qt.Key_Home) {
+            root.currentIndex = 0;
+            event.accepted = true;
+        } else if (event.key === Qt.Key_End) {
+            root.currentIndex = root.model.length - 1;
+            event.accepted = true;
+        } else if (event.key >= Qt.Key_1 && event.key <= Qt.Key_4) {
+            const index = event.key - Qt.Key_1;
+            if (index <= root.model.length) {
+                root.currentIndex = index;
+                event.accepted = true;
             }
         }
     }
