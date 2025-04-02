@@ -25,8 +25,8 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(bool oneOrMorePodsInCase READ oneOrMorePodsInCase NOTIFY earDetectionStatusChanged)
     Q_PROPERTY(QString podIcon READ podIcon NOTIFY modelChanged)
     Q_PROPERTY(QString caseIcon READ caseIcon NOTIFY modelChanged)
-    Q_PROPERTY(bool isLeftPodInEar READ isLeftPodInEar NOTIFY earDetectionStatusChanged)
-    Q_PROPERTY(bool isRightPodInEar READ isRightPodInEar NOTIFY earDetectionStatusChanged)
+    Q_PROPERTY(bool leftPodInEar READ isLeftPodInEar NOTIFY primaryChanged)
+    Q_PROPERTY(bool rightPodInEar READ isRightPodInEar NOTIFY primaryChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) 
@@ -54,6 +54,8 @@ public:
         connect(mediaController, &MediaController::mediaStateChanged, this, &AirPodsTrayApp::handleMediaStateChange);
         mediaController->initializeMprisInterface();
         mediaController->followMediaChanges();
+
+        connect(m_battery, &Battery::primaryChanged, this, &AirPodsTrayApp::primaryChanged);
 
         // load conversational awareness state
         setConversationalAwareness(loadConversationalAwarenessState());
@@ -602,6 +604,7 @@ private slots:
                                        .arg(getEarStatus(primary), getEarStatus(secondary));
             LOG_INFO("Ear detection status: " << m_earDetectionStatus);
             emit earDetectionStatusChanged(m_earDetectionStatus);
+            emit primaryChanged();
         }
         // Battery Status
         else if (data.size() == 22 && data.startsWith(AirPodsPackets::Parse::BATTERY_STATUS))
@@ -854,6 +857,7 @@ signals:
     void adaptiveNoiseLevelChanged(int level);
     void deviceNameChanged(const QString &name);
     void modelChanged();
+    void primaryChanged();
 
 private:
     QSystemTrayIcon *trayIcon;

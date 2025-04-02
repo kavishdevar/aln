@@ -21,7 +21,7 @@ ApplicationWindow {
 
             Column {
                 spacing: 5
-                opacity: airPodsTrayApp.isLeftPodInEar ? 1 : 0.5
+                opacity: airPodsTrayApp.leftPodInEar ? 1 : 0.5
                 visible: airPodsTrayApp.battery.leftPodAvailable
 
                 Image {
@@ -46,7 +46,7 @@ ApplicationWindow {
 
             Column {
                 spacing: 5
-                opacity: airPodsTrayApp.isRightPodInEar ? 1 : 0.5
+                opacity: airPodsTrayApp.rightPodInEar ? 1 : 0.5
                 visible: airPodsTrayApp.battery.rightPodAvailable
 
                 Image {
@@ -103,6 +103,7 @@ ApplicationWindow {
 
         SegmentedControl {
             id: noiseControlMode
+            width: parent.width
             anchors.horizontalCenter: parent.horizontalCenter
             model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
             currentIndex: airPodsTrayApp.noiseControlMode
