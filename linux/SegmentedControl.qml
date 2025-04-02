@@ -9,7 +9,6 @@ Control {
     // Properties
     property var model: ["Option 1", "Option 2"] // Default model
     property int currentIndex: 0
-    property bool darkMode: false
 
     // Colors using system palette
     readonly property color backgroundColor: palette.light

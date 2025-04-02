@@ -95,19 +95,19 @@ ApplicationWindow {
             }
         }
 
-        Text {
-            id: earDetectionStatus
-            text: "Ear Detection Status: " + airPodsTrayApp.earDetectionStatus
-            color: "#ffffff"
-        }
-
         SegmentedControl {
             id: noiseControlMode
-            width: parent.width
+            // width: parent.width
             anchors.horizontalCenter: parent.horizontalCenter
             model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
             currentIndex: airPodsTrayApp.noiseControlMode
             onCurrentIndexChanged: airPodsTrayApp.noiseControlMode = currentIndex
+        }
+
+        Text {
+            id: earDetectionStatus
+            text: "Ear Detection Status: " + airPodsTrayApp.earDetectionStatus
+            color: "#ffffff"
         }
 
         Switch {
