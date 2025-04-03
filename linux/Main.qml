@@ -10,6 +10,8 @@ ApplicationWindow {
     Column {
         anchors.left: parent.left
         anchors.right: parent.right
+        anchors.left: parent.left
+        anchors.right: parent.right
         spacing: 20
         padding: 20
 
@@ -17,6 +19,7 @@ ApplicationWindow {
         Row {
             // center the content
             anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 8
             spacing: 8
 
             Column {
@@ -37,9 +40,11 @@ ApplicationWindow {
 
                 BatteryIndicator {
                     visible: airPodsTrayApp.leftPodAvailable
+                    visible: airPodsTrayApp.leftPodAvailable
                     batteryLevel: airPodsTrayApp.battery.leftPodLevel
                     isCharging: airPodsTrayApp.battery.leftPodCharging
                     darkMode: true
+                    indicator: "L"
                     indicator: "L"
                 }
             }
@@ -63,9 +68,11 @@ ApplicationWindow {
 
                 BatteryIndicator {
                     visible: airPodsTrayApp.rightPodAvailable
+                    visible: airPodsTrayApp.rightPodAvailable
                     batteryLevel: airPodsTrayApp.battery.rightPodLevel
                     isCharging: airPodsTrayApp.battery.rightPodCharging
                     darkMode: true
+                    indicator: "R"
                     indicator: "R"
                 }
             }
@@ -84,9 +91,21 @@ ApplicationWindow {
                     antialiasing: true
                     mipmap: true
                     anchors.horizontalCenter: parent.horizontalCenter
+                visible: airPodsTrayApp.battery.caseAvailable
+
+                Image {
+                    source: "qrc:/icons/assets/" + airPodsTrayApp.caseIcon
+                    width: 92
+                    height: 72
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    antialiasing: true
+                    mipmap: true
+                    anchors.horizontalCenter: parent.horizontalCenter
                 }
 
                 BatteryIndicator {
+                    visible: airPodsTrayApp.caseAvailable
                     visible: airPodsTrayApp.caseAvailable
                     batteryLevel: airPodsTrayApp.battery.caseLevel
                     isCharging: airPodsTrayApp.battery.caseCharging

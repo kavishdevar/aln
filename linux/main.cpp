@@ -130,6 +130,22 @@ public:
             return m_secoundaryInEar;
         }
     }
+    QString podIcon() const { return getModelIcon(m_model).first; }
+    QString caseIcon() const { return getModelIcon(m_model).second; }
+    bool isLeftPodInEar() const { 
+        if (m_battery->getPrimaryPod() == Battery::Component::Left) {
+            return m_primaryInEar;
+        } else {
+            return m_secoundaryInEar;
+        }
+    }
+    bool isRightPodInEar() const { 
+        if (m_battery->getPrimaryPod() == Battery::Component::Right) {
+            return m_primaryInEar;
+        } else {
+            return m_secoundaryInEar;
+        }
+    }
 
 private:
     bool debugMode;
@@ -479,6 +495,9 @@ private slots:
         m_model = parseModelNumber(modelNumber);
 
         emit modelChanged();
+        m_model = parseModelNumber(modelNumber);
+
+        emit modelChanged();
         emit deviceNameChanged(m_deviceName);
 
         // Log extracted metadata
@@ -598,6 +617,8 @@ private slots:
         {
             char primary = data[6];
             char secondary = data[7];
+            m_primaryInEar = primary == 0x00;
+            m_secoundaryInEar = secondary == 0x00;
             m_primaryInEar = primary == 0x00;
             m_secoundaryInEar = secondary == 0x00;
             m_earDetectionStatus = QString("Primary: %1, Secondary: %2")
@@ -879,6 +900,9 @@ private:
     int m_adaptiveNoiseLevel = 50;
     QString m_deviceName;
     Battery *m_battery;
+    AirPodsModel m_model = AirPodsModel::Unknown;
+    bool m_primaryInEar = false;
+    bool m_secoundaryInEar = false;
     AirPodsModel m_model = AirPodsModel::Unknown;
     bool m_primaryInEar = false;
     bool m_secoundaryInEar = false;
