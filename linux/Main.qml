@@ -118,6 +118,7 @@ ApplicationWindow {
         }
 
         Slider {
+            id: noiseLevelSlider
             visible: airPodsTrayApp.adaptiveModeActive
             from: 0
             to: 100
@@ -127,8 +128,8 @@ ApplicationWindow {
             property Timer debounceTimer: Timer {
                 interval: 500 // 500ms delay after last change
                 onTriggered: {
-                    if (!parent.pressed) {
-                        airPodsTrayApp.setAdaptiveNoiseLevel(parent.value)
+                    if (!noiseLevelSlider.pressed) {
+                        airPodsTrayApp.setAdaptiveNoiseLevel(noiseLevelSlider.value)
                     }
                 }
             }
