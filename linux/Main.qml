@@ -36,7 +36,6 @@ ApplicationWindow {
                 }
 
                 BatteryIndicator {
-                    visible: airPodsTrayApp.leftPodAvailable
                     batteryLevel: airPodsTrayApp.battery.leftPodLevel
                     isCharging: airPodsTrayApp.battery.leftPodCharging
                     darkMode: true
@@ -62,7 +61,6 @@ ApplicationWindow {
                 }
 
                 BatteryIndicator {
-                    visible: airPodsTrayApp.rightPodAvailable
                     batteryLevel: airPodsTrayApp.battery.rightPodLevel
                     isCharging: airPodsTrayApp.battery.rightPodCharging
                     darkMode: true
@@ -87,7 +85,6 @@ ApplicationWindow {
                 }
 
                 BatteryIndicator {
-                    visible: airPodsTrayApp.caseAvailable
                     batteryLevel: airPodsTrayApp.battery.caseLevel
                     isCharging: airPodsTrayApp.battery.caseCharging
                     darkMode: true
