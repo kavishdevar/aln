@@ -24,7 +24,7 @@ Control {
     // Internal properties
     padding: 6
     implicitHeight: 32
-    implicitWidth: Math.max(200, model.length * 100)
+    // Removed: implicitWidth: Math.max(200, model.length * 100)
 
     // Set focus policy to enable keyboard navigation
     focusPolicy: Qt.StrongFocus
@@ -49,7 +49,7 @@ Control {
                 required property int index
                 required property string modelData
                 text: modelData
-                width: (root.availableWidth - (root.model.length - 1) * root.padding) / root.model.length
+                // Removed: width: (root.availableWidth - (root.model.length - 1) * root.padding) / root.model.length
                 height: root.availableHeight
                 focusPolicy: Qt.NoFocus // Let the root control handle focus
 
