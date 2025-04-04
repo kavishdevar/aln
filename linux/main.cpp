@@ -891,6 +891,7 @@ private:
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+    app.setQuitOnLastWindowClosed(false);
 
     bool debugMode = false;
     for (int i = 1; i < argc; ++i) {
