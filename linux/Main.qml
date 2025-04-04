@@ -21,7 +21,7 @@ ApplicationWindow {
 
             Column {
                 spacing: 5
-                opacity: airPodsTrayApp.isLeftPodInEar ? 1 : 0.5
+                opacity: airPodsTrayApp.leftPodInEar ? 1 : 0.5
                 visible: airPodsTrayApp.battery.leftPodAvailable
 
                 Image {
@@ -36,7 +36,6 @@ ApplicationWindow {
                 }
 
                 BatteryIndicator {
-                    visible: airPodsTrayApp.leftPodAvailable
                     batteryLevel: airPodsTrayApp.battery.leftPodLevel
                     isCharging: airPodsTrayApp.battery.leftPodCharging
                     darkMode: true
@@ -46,7 +45,7 @@ ApplicationWindow {
 
             Column {
                 spacing: 5
-                opacity: airPodsTrayApp.isRightPodInEar ? 1 : 0.5
+                opacity: airPodsTrayApp.rightPodInEar ? 1 : 0.5
                 visible: airPodsTrayApp.battery.rightPodAvailable
 
                 Image {
@@ -62,7 +61,6 @@ ApplicationWindow {
                 }
 
                 BatteryIndicator {
-                    visible: airPodsTrayApp.rightPodAvailable
                     batteryLevel: airPodsTrayApp.battery.rightPodLevel
                     isCharging: airPodsTrayApp.battery.rightPodCharging
                     darkMode: true
@@ -87,7 +85,6 @@ ApplicationWindow {
                 }
 
                 BatteryIndicator {
-                    visible: airPodsTrayApp.caseAvailable
                     batteryLevel: airPodsTrayApp.battery.caseLevel
                     isCharging: airPodsTrayApp.battery.caseCharging
                     darkMode: true
@@ -95,17 +92,19 @@ ApplicationWindow {
             }
         }
 
+        SegmentedControl {
+            id: noiseControlMode
+            // width: parent.width
+            anchors.horizontalCenter: parent.horizontalCenter
+            model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
+            currentIndex: airPodsTrayApp.noiseControlMode
+            onCurrentIndexChanged: airPodsTrayApp.noiseControlMode = currentIndex
+        }
+
         Text {
             id: earDetectionStatus
             text: "Ear Detection Status: " + airPodsTrayApp.earDetectionStatus
             color: "#ffffff"
-        }
-
-        ComboBox {
-            id: noiseControlMode
-            model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
-            currentIndex: airPodsTrayApp.noiseControlMode
-            onCurrentIndexChanged: airPodsTrayApp.noiseControlMode = currentIndex
         }
 
         Switch {
@@ -116,6 +115,7 @@ ApplicationWindow {
         }
 
         Slider {
+            id: noiseLevelSlider
             visible: airPodsTrayApp.adaptiveModeActive
             from: 0
             to: 100
@@ -125,8 +125,8 @@ ApplicationWindow {
             property Timer debounceTimer: Timer {
                 interval: 500 // 500ms delay after last change
                 onTriggered: {
-                    if (!parent.pressed) {
-                        airPodsTrayApp.setAdaptiveNoiseLevel(parent.value)
+                    if (!noiseLevelSlider.pressed) {
+                        airPodsTrayApp.setAdaptiveNoiseLevel(noiseLevelSlider.value)
                     }
                 }
             }

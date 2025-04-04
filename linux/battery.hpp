@@ -104,7 +104,12 @@ public:
         // Set primary and secondary pods based on order
         if (!podsInPacket.isEmpty())
         {
-            primaryPod = podsInPacket[0]; // First pod is primary
+            Component newPrimaryPod = podsInPacket[0]; // First pod is primary
+            if (newPrimaryPod != primaryPod)
+            {
+                primaryPod = newPrimaryPod;
+                emit primaryChanged();
+            }
         }
         if (podsInPacket.size() >= 2)
         {
@@ -166,6 +171,7 @@ public:
 
 signals:
     void batteryStatusChanged();
+    void primaryChanged();
 
 private:
     bool isStatus(Component component, BatteryStatus status) const
