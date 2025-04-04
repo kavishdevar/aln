@@ -66,23 +66,6 @@ Control {
                     }
                 }
 
-                contentItem: Text {
-                    text: segmentButton.text
-                    font: segmentButton.font
-                    opacity: enabled ? 1.0 : 0.3
-                    color: root.currentIndex === segmentButton.index ? root.selectedTextColor : root.textColor
-                    horizontalAlignment: Text.AlignHCenter
-                    verticalAlignment: Text.AlignVCenter
-                    elide: Text.ElideRight
-
-                    Behavior on color {
-                        ColorAnimation {
-                            duration: 150
-                            easing.type: Easing.OutQuad
-                        }
-                    }
-                }
-
                 onClicked: {
                     if (root.currentIndex !== index) {
                         root.currentIndex = index;
