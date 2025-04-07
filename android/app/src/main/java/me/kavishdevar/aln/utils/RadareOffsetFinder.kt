@@ -36,7 +36,8 @@ import java.net.URL
 class RadareOffsetFinder(context: Context) {
     companion object {
         private const val TAG = "RadareOffsetFinder"
-        private const val RADARE2_URL = "https://hc-cdn.hel1.your-objectstorage.com/s/v3/c9898243c42c0d3d1387de9a37d57ce9df77f9c9_radare2-5.9.9-android-aarch64.tar.gz"
+        // Custom static build of radare2 for Android that doesn't need Termux. See: https://github.com/devnoname120/radare2/releases/tag/5.9.8-android-aln
+        private const val RADARE2_URL = "https://github.com/devnoname120/radare2/releases/download/5.9.8-android-aln/radare2-5.9.9-android-aarch64-aln.tar.gz"
         private const val HOOK_OFFSET_PROP = "persist.aln.hook_offset"
         private const val EXTRACT_DIR = "/"
 
