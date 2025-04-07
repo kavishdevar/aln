@@ -35,10 +35,10 @@ unzip -d "$UNZIP_DIR" -oq "$ZIPFILE" || {
 set_perm "$BUSYBOX" 0 0 755
 set_perm "$XZ" 0 0 755
 
-# The bundled radare2 is a custom build that works without Termux: https://github.com/devnoname120/radare2
+# The bundled radare2 is a custom build that works without Termux: https://github.com/devnoname120/radare2/releases/tag/5.9.8-android-aln
 ui_print "Extracting radare2 to /data/local/tmp/aln_unzip..."
-$BUSYBOX tar xzf "$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz" -C / || {
-    abort "Failed to extract "$UNZIP_DIR/radare2-5.9.9-android-aarch64.tar.gz"."
+$BUSYBOX tar xf "$UNZIP_DIR/radare2-5.9.9-android-aarch64-aln.tar.gz" -C / || {
+    abort "Failed to extract "$UNZIP_DIR/radare2-5.9.9-android-aarch64-aln.tar.gz"."
 }
 
 
