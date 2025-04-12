@@ -136,30 +136,57 @@ class AirPodsService : Service() {
 
     private lateinit var telephonyManager: TelephonyManager
     private lateinit var phoneStateListener: PhoneStateListener
+    private val maxLogEntries = 1000
+    private val inMemoryLogs = mutableSetOf<String>()
 
     override fun onCreate() {
         super.onCreate()
         sharedPreferencesLogs = getSharedPreferences("packet_logs", MODE_PRIVATE)
+        
+        inMemoryLogs.addAll(sharedPreferencesLogs.getStringSet(packetLogKey, emptySet()) ?: emptySet())
+        _packetLogsFlow.value = inMemoryLogs.toSet()
     }
 
     private fun logPacket(packet: ByteArray, source: String) {
         val packetHex = packet.joinToString(" ") { "%02X".format(it) }
         val logEntry = "$source: $packetHex"
-        val logs =
-            sharedPreferencesLogs.getStringSet(packetLogKey, mutableSetOf())?.toMutableSet()
+        
+        synchronized(inMemoryLogs) {
+            inMemoryLogs.add(logEntry)
+            if (inMemoryLogs.size > maxLogEntries) {
+                inMemoryLogs.iterator().next()?.let {
+                    inMemoryLogs.remove(it)
+                }
+            }
+            
+            _packetLogsFlow.value = inMemoryLogs.toSet()
+        }
+        
+        // Save to SharedPreferences less frequently - only needed for persistence between sessions
+        CoroutineScope(Dispatchers.IO).launch {
+            val logs = sharedPreferencesLogs.getStringSet(packetLogKey, mutableSetOf())?.toMutableSet()
                 ?: mutableSetOf()
-        logs.add(logEntry)
-        _packetLogsFlow.value = logs
-        sharedPreferencesLogs.edit { putStringSet(packetLogKey, logs) }
+            logs.add(logEntry)
+            // Limit SharedPreferences size
+            if (logs.size > maxLogEntries) {
+                val toKeep = logs.toList().takeLast(maxLogEntries).toSet()
+                sharedPreferencesLogs.edit { putStringSet(packetLogKey, toKeep) }
+            } else {
+                sharedPreferencesLogs.edit { putStringSet(packetLogKey, logs) }
+            }
+        }
     }
 
     fun getPacketLogs(): Set<String> {
-        return sharedPreferencesLogs.getStringSet(packetLogKey, emptySet()) ?: emptySet()
+        return inMemoryLogs.toSet()
     }
 
     private fun clearPacketLogs() {
-        sharedPreferencesLogs.edit { remove(packetLogKey).apply() }
-
+        synchronized(inMemoryLogs) {
+            inMemoryLogs.clear()
+            _packetLogsFlow.value = emptySet()
+        }
+        sharedPreferencesLogs.edit { remove(packetLogKey) }
     }
 
     fun clearLogs() {
@@ -1237,27 +1264,42 @@ class AirPodsService : Service() {
 
     fun sendPacket(packet: String) {
         val fromHex = packet.split(" ").map { it.toInt(16).toByte() }
-        if (!isConnectedLocally && CrossDevice.isAvailable) {
-            CrossDevice.sendRemotePacket(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + fromHex.toByteArray())
-            return
-        }
-        if (this::socket.isInitialized && socket.isConnected && socket.outputStream != null) {
-            val byteArray = fromHex.toByteArray()
-            socket.outputStream?.write(byteArray)
-            socket.outputStream?.flush()
-            logPacket(byteArray, "Sent")
+        try {
+            logPacket(fromHex.toByteArray(), "Sent")
+            
+            if (!isConnectedLocally && CrossDevice.isAvailable) {
+                CrossDevice.sendRemotePacket(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + fromHex.toByteArray())
+                return
+            }
+            if (this::socket.isInitialized && socket.isConnected && socket.outputStream != null) {
+                val byteArray = fromHex.toByteArray()
+                socket.outputStream?.write(byteArray)
+                socket.outputStream?.flush()
+            } else {
+                Log.d("AirPodsService", "Cannot send packet: Socket not initialized or connected")
+            }
+        } catch (e: Exception) {
+            Log.e("AirPodsService", "Error sending packet: ${e.message}")
         }
     }
 
     fun sendPacket(packet: ByteArray) {
-        if (!isConnectedLocally && CrossDevice.isAvailable) {
-            CrossDevice.sendRemotePacket(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + packet)
-            return
-        }
-        if (this::socket.isInitialized && socket.isConnected && socket.outputStream != null) {
-            socket.outputStream?.write(packet)
-            socket.outputStream?.flush()
+        try {
+            // Always log the packet
             logPacket(packet, "Sent")
+            
+            if (!isConnectedLocally && CrossDevice.isAvailable) {
+                CrossDevice.sendRemotePacket(CrossDevicePackets.AIRPODS_DATA_HEADER.packet + packet)
+                return
+            }
+            if (this::socket.isInitialized && socket.isConnected && socket.outputStream != null) {
+                socket.outputStream?.write(packet)
+                socket.outputStream?.flush()
+            } else {
+                Log.d("AirPodsService", "Cannot send packet: Socket not initialized or connected")
+            }
+        } catch (e: Exception) {
+            Log.e("AirPodsService", "Error sending packet: ${e.message}")
         }
     }
 

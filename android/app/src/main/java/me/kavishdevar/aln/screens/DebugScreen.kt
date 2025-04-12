@@ -21,12 +21,18 @@
 package me.kavishdevar.aln.screens
 
 import android.annotation.SuppressLint
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.os.Build
+import android.widget.Toast
 import androidx.annotation.RequiresApi
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
@@ -43,10 +49,14 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Send
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CenterAlignedTopAppBar
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -64,11 +74,13 @@ import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
@@ -83,10 +95,27 @@ import dev.chrisbanes.haze.hazeChild
 import dev.chrisbanes.haze.materials.CupertinoMaterials
 import dev.chrisbanes.haze.materials.ExperimentalHazeMaterialsApi
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import me.kavishdevar.aln.R
 import me.kavishdevar.aln.services.ServiceManager
 import me.kavishdevar.aln.utils.BatteryStatus
 import me.kavishdevar.aln.utils.isHeadTrackingData
+import me.kavishdevar.aln.composables.StyledSwitch
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.imePadding
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.layout.positionInRoot
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectDragGestures
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.ui.input.pointer.PointerInputChange
 
 data class PacketInfo(
     val type: String,
@@ -286,8 +315,31 @@ fun parseOutgoingPacket(bytes: ByteArray, rawData: String): PacketInfo {
     }
 }
 
+@Composable
+fun IOSCheckbox(
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clickable { onCheckedChange(!checked) },
+        contentAlignment = Alignment.Center
+    ) {
+        if (checked) {
+            Icon(
+                imageVector = Icons.Default.Check,
+                contentDescription = "Checked",
+                tint = if (isSystemInDarkTheme()) Color(0xFF007AFF) else Color(0xFF3C6DF5),
+                modifier = Modifier.size(20.dp)
+            )
+        }
+    }
+}
+
 @RequiresApi(Build.VERSION_CODES.Q)
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @SuppressLint("UnusedMaterial3ScaffoldPaddingParameter", "UnspecifiedRegisterReceiverFlag")
 @Composable
 fun DebugScreen(navController: NavController) {
@@ -295,13 +347,37 @@ fun DebugScreen(navController: NavController) {
     val context = LocalContext.current
     val listState = rememberLazyListState()
     val scrollOffset by remember { derivedStateOf { listState.firstVisibleItemScrollOffset } }
-    val packetLogsFlow = remember { MutableStateFlow(emptySet<String>()) }
-    val expandedItems = remember { mutableStateOf(setOf<Int>()) }
-
-    LaunchedEffect(Unit) {
-        ServiceManager.getService()?.packetLogsFlow?.collect { packetLogsFlow.value = it }
+    val focusManager = LocalFocusManager.current
+    val coroutineScope = rememberCoroutineScope()
+    
+    val showMenu = remember { mutableStateOf(false) }
+    
+    val airPodsService = remember { ServiceManager.getService() }
+    val packetLogs = airPodsService?.packetLogsFlow?.collectAsState(emptySet())?.value ?: emptySet()
+    val shouldScrollToBottom = remember { mutableStateOf(true) }
+    
+    val refreshTrigger = remember { mutableStateOf(0) }
+    LaunchedEffect(refreshTrigger.value) {
+        while(true) {
+            delay(1000)
+            refreshTrigger.value = refreshTrigger.value + 1
+        }
     }
-    val packetLogs = packetLogsFlow.collectAsState(setOf()).value
+    
+    val expandedItems = remember { mutableStateOf(setOf<Int>()) }
+    
+    fun copyToClipboard(text: String) {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        val clip = ClipData.newPlainText("Packet Data", text)
+        clipboard.setPrimaryClip(clip)
+        Toast.makeText(context, "Packet copied to clipboard", Toast.LENGTH_SHORT).show()
+    }
+    
+    LaunchedEffect(packetLogs.size, refreshTrigger.value) {
+        if (shouldScrollToBottom.value && packetLogs.isNotEmpty()) {
+            listState.animateScrollToItem(packetLogs.size - 1)
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -309,16 +385,14 @@ fun DebugScreen(navController: NavController) {
                 title = { Text("Debug") },
                 navigationIcon = {
                     TextButton(
-                        onClick = {
-                            navController.popBackStack()
-                        },
+                        onClick = { navController.popBackStack() },
                         shape = RoundedCornerShape(8.dp),
                     ) {
                         val sharedPreferences = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
                         Icon(
                             Icons.AutoMirrored.Filled.KeyboardArrowLeft,
                             contentDescription = "Back",
-                            tint = if (isSystemInDarkTheme())  Color(0xFF007AFF) else Color(0xFF3C6DF5),
+                            tint = if (isSystemInDarkTheme()) Color(0xFF007AFF) else Color(0xFF3C6DF5),
                             modifier = Modifier.scale(1.5f)
                         )
                         Text(
@@ -332,31 +406,105 @@ fun DebugScreen(navController: NavController) {
                         )
                     }
                 },
-                modifier = Modifier
-                    .hazeChild(
-                        state = hazeState,
-                        style = CupertinoMaterials.thick(),
-                        block = {
-                            alpha = if (scrollOffset > 0) {
-                                1f
-                            } else {
-                                0f
-                            }
+                actions = {
+                    Box {
+                        IconButton(onClick = { showMenu.value = true }) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More Options",
+                                tint = if (isSystemInDarkTheme()) Color.White else Color.Black
+                            )
                         }
-                    ),
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = Color.Transparent
+                        
+                        DropdownMenu(
+                            expanded = showMenu.value,
+                            onDismissRequest = { showMenu.value = false },
+                            modifier = Modifier
+                                .width(250.dp)
+                                .background(
+                                    if (isSystemInDarkTheme()) Color(0xFF1C1B20) else Color(0xFFF2F2F7)
+                                )
+                                .padding(vertical = 4.dp)
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            "Auto-scroll",
+                                            style = TextStyle(
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Normal
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        IOSCheckbox(
+                                            checked = shouldScrollToBottom.value,
+                                            onCheckedChange = { shouldScrollToBottom.value = it }
+                                        )
+                                    }
+                                },
+                                onClick = { 
+                                    shouldScrollToBottom.value = !shouldScrollToBottom.value
+                                    showMenu.value = false
+                                }
+                            )
+                            
+                            HorizontalDivider(
+                                color = if (isSystemInDarkTheme()) Color(0xFF3A3A3C) else Color(0xFFE5E5EA),
+                                thickness = 0.5.dp
+                            )
+                            
+                            DropdownMenuItem(
+                                text = {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.fillMaxWidth()
+                                    ) {
+                                        Text(
+                                            "Clear logs",
+                                            style = TextStyle(
+                                                fontSize = 16.sp,
+                                                fontWeight = FontWeight.Normal
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.weight(1f))
+                                        Icon(
+                                            imageVector = Icons.Default.Delete,
+                                            contentDescription = "Clear logs",
+                                            tint = if (isSystemInDarkTheme()) Color(0xFF007AFF) else Color(0xFF3C6DF5)
+                                        )
+                                    }
+                                },
+                                onClick = { 
+                                    ServiceManager.getService()?.clearLogs()
+                                    expandedItems.value = emptySet()
+                                    showMenu.value = false
+                                }
+                            )
+                        }
+                    }
+                },
+                modifier = Modifier.hazeChild(
+                    state = hazeState,
+                    style = CupertinoMaterials.thick(),
+                    block = {
+                        alpha = if (scrollOffset > 0) 1f else 0f
+                    }
                 ),
+                colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
             )
         },
-        containerColor = if (isSystemInDarkTheme()) Color(0xFF000000)
-        else Color(0xFFF2F2F7),
+        containerColor = if (isSystemInDarkTheme()) Color(0xFF000000) else Color(0xFFF2F2F7),
     ) { paddingValues ->
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .haze(hazeState)
                 .padding(top = paddingValues.calculateTopPadding())
+                .navigationBarsPadding()
         ) {
             LazyColumn(
                 state = listState,
@@ -374,13 +522,18 @@ fun DebugScreen(navController: NavController) {
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .padding(vertical = 2.dp, horizontal = 4.dp)
-                                .clickable {
-                                    expandedItems.value = if (isExpanded) {
-                                        expandedItems.value - index
-                                    } else {
-                                        expandedItems.value + index
+                                .combinedClickable(
+                                    onClick = {
+                                        expandedItems.value = if (isExpanded) {
+                                            expandedItems.value - index
+                                        } else {
+                                            expandedItems.value + index
+                                        }
+                                    },
+                                    onLongClick = {
+                                        copyToClipboard(packetInfo.rawData)
                                     }
-                                },
+                                ),
                             elevation = CardDefaults.cardElevation(defaultElevation = 2.dp),
                             shape = RoundedCornerShape(4.dp),
                             colors = CardDefaults.cardColors(
@@ -476,8 +629,27 @@ fun DebugScreen(navController: NavController) {
                     trailingIcon = {
                         IconButton(
                             onClick = {
-                                airPodsService?.value?.sendPacket(packet.value.text)
-                                packet.value = TextFieldValue("")
+                                if (packet.value.text.isNotBlank()) {
+                                    airPodsService?.value?.sendPacket(packet.value.text)
+                                    packet.value = TextFieldValue("")
+                                    focusManager.clearFocus()
+                                    
+                                    if (shouldScrollToBottom.value && packetLogs.isNotEmpty()) {
+                                        coroutineScope.launch {
+                                            try {
+                                                delay(100)
+                                                listState.animateScrollToItem(
+                                                    index = (packetLogs.size - 1).coerceAtLeast(0),
+                                                    scrollOffset = 0
+                                                )
+                                            } catch (e: Exception) {
+                                                listState.scrollToItem(
+                                                    index = (packetLogs.size - 1).coerceAtLeast(0)
+                                                )
+                                            }
+                                        }
+                                    }
+                                }
                             }
                         ) {
                             @Suppress("DEPRECATION")

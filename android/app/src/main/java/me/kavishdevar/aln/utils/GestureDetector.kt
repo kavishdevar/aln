@@ -34,6 +34,8 @@ class GestureDetector(
         private const val FAST_MOVEMENT_THRESHOLD = 300.0
         private const val MIN_REQUIRED_EXTREMES = 3
         private const val MAX_REQUIRED_EXTREMES = 4
+        
+        private const val MAX_VALID_ORIENTATION_VALUE = 6000
     }
 
     val audio = GestureFeedback(ServiceManager.getService()?.baseContext!!)
@@ -64,7 +66,6 @@ class GestureDetector(
     private var horizontalIncreasing: Boolean? = null
     private var verticalIncreasing: Boolean? = null
 
-    private var detectionTimeout = 15000L
     private val minConfidenceThreshold = 0.7
 
     private var isRunning = false
@@ -79,7 +80,7 @@ class GestureDetector(
         while (verticalAvgBuffer.size < 3) verticalAvgBuffer.add(0.0)
     }
 
-    fun startDetection(doNotStop: Boolean = false, onGestureDetected: (Boolean) -> Unit) {
+fun startDetection(doNotStop: Boolean = false, onGestureDetected: (Boolean) -> Unit) {
         if (isRunning) return
 
         Log.d(TAG, "Starting gesture detection...")
@@ -94,9 +95,7 @@ class GestureDetector(
         airPodsService.sendPacket(START_CMD)
 
         detectionJob = CoroutineScope(Dispatchers.Default).launch {
-            val startTime = System.currentTimeMillis()
-
-            while (isRunning && (System.currentTimeMillis() - startTime < detectionTimeout)) {
+            while (isRunning) {
                 delay(50)
 
                 val gesture = detectGestures()
@@ -110,16 +109,8 @@ class GestureDetector(
                     break
                 }
             }
-
-            if (isRunning) {
-                Log.d(TAG, "Gesture detection timed out")
-                withContext(Dispatchers.Main) {
-                    stopDetection(doNotStop)
-                }
-            }
         }
     }
-
     fun stopDetection(doNotStop: Boolean = false) {
         if (!isRunning) return
 
@@ -136,6 +127,11 @@ class GestureDetector(
     @RequiresApi(Build.VERSION_CODES.R)
     fun processHeadOrientation(horizontal: Int, vertical: Int) {
         if (!isRunning) return
+
+        if (abs(horizontal) > MAX_VALID_ORIENTATION_VALUE || abs(vertical) > MAX_VALID_ORIENTATION_VALUE) {
+            Log.d(TAG, "Ignoring likely calibration data: h=$horizontal, v=$vertical")
+            return
+        }
 
         val horizontalDelta = horizontal - prevHorizontal
         val verticalDelta = vertical - prevVertical
