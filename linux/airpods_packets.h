@@ -88,6 +88,83 @@ namespace AirPodsPackets
         }
     }
 
+    namespace MagicPairing {
+        static const QByteArray REQUEST_MAGIC_CLOUD_KEYS = QByteArray::fromHex("0400040030000500");
+        static const QByteArray MAGIC_CLOUD_KEYS_HEADER = QByteArray::fromHex("04000400310002");
+
+        struct MagicCloudKeys {
+            QByteArray magicAccIRK;      // 16 bytes
+            QByteArray magicAccEncKey;    // 16 bytes
+        };
+
+        inline MagicCloudKeys parseMagicCloudKeysPacket(const QByteArray &data)
+        {
+            MagicCloudKeys keys;
+
+            // Expected size: header (7 bytes) + (1 (tag) + 2 (length) + 1 (reserved) + 16 (value)) * 2 = 47 bytes.
+            if (data.size() < 47)
+            {
+                return keys; // or handle error as needed
+            }
+
+            // Check header
+            if (!data.startsWith(MAGIC_CLOUD_KEYS_HEADER))
+            {
+                return keys; // header mismatch
+            }
+
+            int index = MAGIC_CLOUD_KEYS_HEADER.size(); // Start after header (index 7)
+
+            // --- TLV Block 1 (MagicAccIRK) ---
+            // Tag should be 0x01
+            if (static_cast<quint8>(data.at(index)) != 0x01)
+            {
+                return keys; // unexpected tag
+            }
+            index += 1;
+
+            // Read length (2 bytes, big-endian)
+            quint16 len1 = (static_cast<quint8>(data.at(index)) << 8) | static_cast<quint8>(data.at(index + 1));
+            if (len1 != 16)
+            {
+                return keys; // invalid length
+            }
+            index += 2;
+
+            // Skip reserved byte
+            index += 1;
+
+            // Extract MagicAccIRK (16 bytes)
+            keys.magicAccIRK = data.mid(index, 16);
+            index += 16;
+
+            // --- TLV Block 2 (MagicAccEncKey) ---
+            // Tag should be 0x04
+            if (static_cast<quint8>(data.at(index)) != 0x04)
+            {
+                return keys; // unexpected tag
+            }
+            index += 1;
+
+            // Read length (2 bytes, big-endian)
+            quint16 len2 = (static_cast<quint8>(data.at(index)) << 8) | static_cast<quint8>(data.at(index + 1));
+            if (len2 != 16)
+            {
+                return keys; // invalid length
+            }
+            index += 2;
+
+            // Skip reserved byte
+            index += 1;
+
+            // Extract MagicAccEncKey (16 bytes)
+            keys.magicAccEncKey = data.mid(index, 16);
+            index += 16;
+
+            return keys;
+        }
+    }
+
     // Parsing Headers
     namespace Parse
     {

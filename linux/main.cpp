@@ -69,8 +69,6 @@ public:
         LOG_INFO("AirPodsTrayApp initialized and started device discovery");
 
         QBluetoothLocalDevice localDevice;
-        connect(&localDevice, &QBluetoothLocalDevice::deviceConnected, this, &AirPodsTrayApp::onDeviceConnected);
-        connect(&localDevice, &QBluetoothLocalDevice::deviceDisconnected, this, &AirPodsTrayApp::onDeviceDisconnected);
 
         const QList<QBluetoothAddress> connectedDevices = localDevice.connectedDevices();
         for (const QBluetoothAddress &address : connectedDevices) {
@@ -288,6 +286,17 @@ public slots:
         m_conversationalAwareness = enabled;
         emit conversationalAwarenessChanged(enabled);
         saveConversationalAwarenessState();
+    }
+
+    void initiateMagicPairing()
+    {
+        if (!socket || !socket->isOpen())
+        {
+            LOG_ERROR("Socket nicht offen, Magic Pairing kann nicht gestartet werden");
+            return;
+        }
+
+        writePacketToSocket(AirPodsPackets::MagicPairing::REQUEST_MAGIC_CLOUD_KEYS, "Magic Pairing packet written: ");
     }
 
     void setAdaptiveNoiseLevel(int level)
@@ -509,7 +518,11 @@ private slots:
 
         LOG_INFO("Connecting to device: " << device.name());
         QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
-        connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
+        connect(localSocket, &QBluetoothSocket::disconnected, this, [this, localSocket]() {
+            onDeviceDisconnected(localSocket->peerAddress());
+        });
+        connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]()
+                {
             LOG_INFO("Connected to device, sending initial packets");
             discoveryAgent->stop();
 
@@ -523,6 +536,19 @@ private slots:
             LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
             localSocket->write(requestNotificationsPacket);
             LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
+
+            // Start periodic magic pairing attempts
+            QTimer *magicPairingTimer = new QTimer(this);
+            connect(magicPairingTimer, &QTimer::timeout, this, [this, magicPairingTimer]() {
+                if (m_magicAccIRK.isEmpty() || m_magicAccEncKey.isEmpty()) {
+                    initiateMagicPairing();
+                } else {
+                    magicPairingTimer->stop();
+                    magicPairingTimer->deleteLater();
+                }
+            });
+            magicPairingTimer->start(500);
+
             connect(localSocket, &QBluetoothSocket::bytesWritten, this, [this, localSocket, setSpecificFeaturesPacket, requestNotificationsPacket](qint64 bytes) {
                 LOG_INFO("Bytes written: " << bytes);
                 if (bytes > 0) {
@@ -548,7 +574,7 @@ private slots:
                 QMetaObject::invokeMethod(this, "relayPacketToPhone", Qt::QueuedConnection, Q_ARG(QByteArray, data));
             });
 
-            QTimer::singleShot(500, this, [localSocket, setSpecificFeaturesPacket, requestNotificationsPacket]() {
+            QTimer::singleShot(500, this, [localSocket, this, setSpecificFeaturesPacket, requestNotificationsPacket]() {
                 if (localSocket->isOpen()) {
                     localSocket->write(setSpecificFeaturesPacket);
                     LOG_DEBUG("Resent set specific features packet: " << setSpecificFeaturesPacket.toHex());
@@ -581,8 +607,20 @@ private slots:
     {
         LOG_DEBUG("Received: " << data.toHex());
 
+        // Magic Cloud Keys Response
+        if (data.startsWith(AirPodsPackets::MagicPairing::MAGIC_CLOUD_KEYS_HEADER))
+        {
+            auto keys = AirPodsPackets::MagicPairing::parseMagicCloudKeysPacket(data);
+            LOG_INFO("Received Magic Cloud Keys:");
+            LOG_INFO("MagicAccIRK: " << keys.magicAccIRK.toHex());
+            LOG_INFO("MagicAccEncKey: " << keys.magicAccEncKey.toHex());
+
+            // Store the keys for later use if needed
+            m_magicAccIRK = keys.magicAccIRK;
+            m_magicAccEncKey = keys.magicAccEncKey;
+        }
         // Noise Control Mode
-        if (data.size() == 11 && data.startsWith(AirPodsPackets::NoiseControl::HEADER))
+        else if (data.size() == 11 && data.startsWith(AirPodsPackets::NoiseControl::HEADER))
         {
             quint8 rawMode = data[7] - 1; // Offset still needed due to protocol
             if (rawMode >= (int)NoiseControlMode::MinValue && rawMode <= (int)NoiseControlMode::MaxValue)
@@ -876,6 +914,7 @@ private:
     QByteArray lastEarDetectionStatus;
     MediaController* mediaController;
     TrayIconManager *trayManager;
+    QSettings *settings;
 
     QString m_batteryStatus;
     QString m_earDetectionStatus;
@@ -887,6 +926,8 @@ private:
     AirPodsModel m_model = AirPodsModel::Unknown;
     bool m_primaryInEar = false;
     bool m_secoundaryInEar = false;
+    QByteArray m_magicAccIRK;
+    QByteArray m_magicAccEncKey;
 };
 
 int main(int argc, char *argv[]) {
