@@ -57,8 +57,6 @@ public:
 
         connect(m_battery, &Battery::primaryChanged, this, &AirPodsTrayApp::primaryChanged);
 
-        // load conversational awareness state
-        setConversationalAwareness(loadConversationalAwarenessState());
 
         discoveryAgent = new QBluetoothDeviceDiscoveryAgent();
         discoveryAgent->setLowEnergyDiscoveryTimeout(15000);
@@ -285,7 +283,6 @@ public slots:
         writePacketToSocket(packet, "Conversational awareness packet written: ");
         m_conversationalAwareness = enabled;
         emit conversationalAwarenessChanged(enabled);
-        saveConversationalAwarenessState();
     }
 
     void initiateMagicPairing()
@@ -618,6 +615,17 @@ private slots:
             // Store the keys for later use if needed
             m_magicAccIRK = keys.magicAccIRK;
             m_magicAccEncKey = keys.magicAccEncKey;
+        }
+        // Get CA state
+        else if (data.startsWith(AirPodsPackets::ConversationalAwareness::HEADER)) {
+            auto result = AirPodsPackets::ConversationalAwareness::parseCAState(data);
+            if (result.has_value()) {
+                m_conversationalAwareness = result.value();
+                LOG_INFO("Conversational awareness state received: " << m_conversationalAwareness);
+                emit conversationalAwarenessChanged(m_conversationalAwareness);
+            } else {
+                LOG_ERROR("Failed to parse conversational awareness state");
+            }
         }
         // Noise Control Mode
         else if (data.size() == 11 && data.startsWith(AirPodsPackets::NoiseControl::HEADER))

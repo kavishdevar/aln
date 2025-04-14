@@ -38,10 +38,27 @@ namespace AirPodsPackets
     // Conversational Awareness Packets
     namespace ConversationalAwareness
     {
-        static const QByteArray HEADER = QByteArray::fromHex("04000400090028");          // Added for parsing
-        static const QByteArray ENABLED = HEADER + QByteArray::fromHex("01000000");
-        static const QByteArray DISABLED = HEADER + QByteArray::fromHex("02000000");
-        static const QByteArray DATA_HEADER = QByteArray::fromHex("040004004B00020001"); // For received data
+        static const QByteArray HEADER = QByteArray::fromHex("04000400090028");          // For command/status
+        static const QByteArray ENABLED = HEADER + QByteArray::fromHex("01000000");      // Command to enable
+        static const QByteArray DISABLED = HEADER + QByteArray::fromHex("02000000");     // Command to disable
+        static const QByteArray DATA_HEADER = QByteArray::fromHex("040004004B00020001"); // For received speech level data
+
+        static std::optional<bool> parseCAState(const QByteArray &data)
+        {
+            // Extract the status byte (index 7)
+            quint8 statusByte = static_cast<quint8>(data.at(HEADER.size())); // HEADER.size() is 7
+
+            // Interpret the status byte
+            switch (statusByte)
+            {
+            case 0x01: // Enabled
+                return true;
+            case 0x02: // Disabled
+                return false;
+            default:
+                return std::nullopt;
+            }
+        }
     }
 
     // Connection Packets
