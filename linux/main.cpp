@@ -57,6 +57,7 @@ public:
 
         connect(m_battery, &Battery::primaryChanged, this, &AirPodsTrayApp::primaryChanged);
 
+        CrossDevice.isEnabled = loadCrossDeviceEnabled();
 
         discoveryAgent = new QBluetoothDeviceDiscoveryAgent();
         discoveryAgent->setLowEnergyDiscoveryTimeout(15000);
@@ -76,7 +77,6 @@ public:
                 return;
             }
         }
-        connect(phoneSocket, &QBluetoothSocket::readyRead, this, &AirPodsTrayApp::onPhoneDataReceived);
 
         QDBusInterface iface("org.bluez", "/org/bluez", "org.bluez.Adapter1");
         QDBusReply<QVariant> reply = iface.call("GetServiceRecords", QString::fromUtf8("74ec2172-0bad-4d01-8f77-997b2be0722a"));
@@ -92,6 +92,8 @@ public:
     }
 
     ~AirPodsTrayApp() {
+        saveCrossDeviceEnabled();
+
         delete trayIcon;
         delete trayMenu;
         delete discoveryAgent;
@@ -132,6 +134,7 @@ private:
     bool isConnectedLocally = false;
     struct {
         bool isAvailable = true;
+        bool isEnabled = true; // Ability to disable the feature
     } CrossDevice;
 
     void initializeDBus() {
@@ -354,16 +357,16 @@ public slots:
         }
     }
 
-    bool loadConversationalAwarenessState()
+    bool loadCrossDeviceEnabled()
     {
         QSettings settings;
-        return settings.value("conversationalAwareness", false).toBool();
+        return settings.value("crossdevice/enabled", false).toBool();
     }
 
-    void saveConversationalAwarenessState()
+    void saveCrossDeviceEnabled()
     {
         QSettings settings;
-        settings.setValue("conversationalAwareness", m_conversationalAwareness);
+        settings.setValue("crossdevice/enabled", CrossDevice.isEnabled);
         settings.sync();
     }
 
@@ -689,6 +692,10 @@ private slots:
     }
 
     void connectToPhone() {
+        if (!CrossDevice.isEnabled) {
+            return;
+        }
+
         if (phoneSocket && phoneSocket->isOpen()) {
             LOG_INFO("Already connected to the phone");
             return;
@@ -717,6 +724,9 @@ private slots:
 
     void relayPacketToPhone(const QByteArray &packet)
     {
+        if (!CrossDevice.isEnabled) {
+            return;
+        }
         if (phoneSocket && phoneSocket->isOpen())
         {
             phoneSocket->write(AirPodsPackets::Phone::NOTIFICATION + packet);
