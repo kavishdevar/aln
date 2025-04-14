@@ -7,6 +7,7 @@
 #include "trayiconmanager.h"
 #include "enums.h"
 #include "battery.hpp"
+#include "BluetoothMonitor.h"
 
 using namespace AirpodsTrayApp::Enums;
 
@@ -31,7 +32,8 @@ class AirPodsTrayApp : public QObject {
 public:
     AirPodsTrayApp(bool debugMode) 
       : debugMode(debugMode)
-      , m_battery(new Battery(this)) {
+      , m_battery(new Battery(this)) 
+      , monitor(new BluetoothMonitor(this)) {
         if (debugMode) {
             QLoggingCategory::setFilterRules("airpodsApp.debug=true");
         } else {
@@ -54,6 +56,9 @@ public:
         connect(mediaController, &MediaController::mediaStateChanged, this, &AirPodsTrayApp::handleMediaStateChange);
         mediaController->initializeMprisInterface();
         mediaController->followMediaChanges();
+
+        connect(monitor, &BluetoothMonitor::deviceConnected, this, static_cast<void (AirPodsTrayApp::*)(const QString &)>(&AirPodsTrayApp::onDeviceConnected));
+        connect(monitor, &BluetoothMonitor::deviceDisconnected, this, static_cast<void (AirPodsTrayApp::*)(const QString &)>(&AirPodsTrayApp::onDeviceDisconnected));
 
         connect(m_battery, &Battery::primaryChanged, this, &AirPodsTrayApp::primaryChanged);
 
@@ -422,6 +427,7 @@ private slots:
             connectToDevice(device);
         }
     }
+    void onDeviceConnected(const QString &address) { onDeviceConnected(QBluetoothAddress(address)); }
 
     void onDeviceDisconnected(const QBluetoothAddress &address)
     {
@@ -431,6 +437,7 @@ private slots:
             LOG_WARN("Socket is still open, closing it");
             socket->close();
             socket = nullptr;
+            discoveryAgent->start();
         }
         if (phoneSocket && phoneSocket->isOpen())
         {
@@ -438,6 +445,7 @@ private slots:
             LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << AirPodsPackets::Connection::AIRPODS_DISCONNECTED.toHex());
         }
     }
+    void onDeviceDisconnected(const QString &address) { onDeviceDisconnected(QBluetoothAddress(address)); }
 
     void parseMetadata(const QByteArray &data)
     {
@@ -909,6 +917,7 @@ private:
     QByteArray lastEarDetectionStatus;
     MediaController* mediaController;
     TrayIconManager *trayManager;
+    BluetoothMonitor *monitor;
     QSettings *settings;
 
     QString m_batteryStatus;

@@ -19,6 +19,8 @@ qt_add_executable(applinux
     trayiconmanager.h
     enums.h
     battery.hpp
+    BluetoothMonitor.cpp
+    BluetoothMonitor.h
 )
 
 qt_add_qml_module(applinux
