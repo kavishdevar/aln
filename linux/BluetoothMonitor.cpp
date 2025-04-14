@@ -1,4 +1,6 @@
 #include "BluetoothMonitor.h"
+#include "logger.h"
+
 #include <QDebug>
 
 BluetoothMonitor::BluetoothMonitor(QObject *parent) 
@@ -6,7 +8,7 @@ BluetoothMonitor::BluetoothMonitor(QObject *parent)
 {
     if (!m_dbus.isConnected())
     {
-        qWarning() << "Failed to connect to system D-Bus";
+        LOG_WARN("Failed to connect to system D-Bus");
         return;
     }
 
@@ -36,7 +38,7 @@ void BluetoothMonitor::registerDBusService()
     if (!m_dbus.connect("", "", "org.freedesktop.DBus.Properties", "PropertiesChanged",
                         this, SLOT(onPropertiesChanged(QString, QVariantMap, QStringList))))
     {
-        qWarning() << "Failed to connect to D-Bus PropertiesChanged signal";
+        LOG_WARN("Failed to connect to D-Bus PropertiesChanged signal");
     }
 }
 
@@ -55,21 +57,37 @@ void BluetoothMonitor::onPropertiesChanged(const QString &interface, const QVari
         QString path = QDBusContext::message().path();
 
         QDBusInterface deviceInterface("org.bluez", path, "org.freedesktop.DBus.Properties", m_dbus);
-        QDBusReply<QVariant> reply = deviceInterface.call("Get", "org.bluez.Device1", "Address");
-
-        if (reply.isValid())
+        
+        // Get the device address
+        QDBusReply<QVariant> addrReply = deviceInterface.call("Get", "org.bluez.Device1", "Address");
+        if (!addrReply.isValid())
         {
-            QString macAddress = reply.value().toString();
-            if (connected)
-            {
-                emit deviceConnected(macAddress);
-                qDebug() << "Device connected:" << macAddress;
-            }
-            else
-            {
-                emit deviceDisconnected(macAddress);
-                qDebug() << "Device disconnected:" << macAddress;
-            }
+            return;
+        }
+        QString macAddress = addrReply.value().toString();
+
+        // Get UUIDs to check if it's an AirPods device
+        QDBusReply<QVariant> uuidsReply = deviceInterface.call("Get", "org.bluez.Device1", "UUIDs");
+        if (!uuidsReply.isValid())
+        {
+            return;
+        }
+
+        QStringList uuids = uuidsReply.value().toStringList();
+        if (!uuids.contains("74ec2172-0bad-4d01-8f77-997b2be0722a"))
+        {
+            return; // Not an AirPods device
+        }
+
+        if (connected)
+        {
+            emit deviceConnected(macAddress);
+            LOG_DEBUG("AirPods device connected:" << macAddress);
+        }
+        else
+        {
+            emit deviceDisconnected(macAddress);
+            LOG_DEBUG("AirPods device disconnected:" << macAddress);
         }
     }
 }
