@@ -2,10 +2,15 @@ import QtQuick 2.15
 import QtQuick.Controls 2.15
 
 ApplicationWindow {
+    id: mainWindow
     visible: true
     width: 400
     height: 300
     title: "AirPods Settings"
+
+    onClosing: function(event) {
+        mainWindow.visible = false
+    }
 
     Column {
         anchors.left: parent.left

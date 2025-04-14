@@ -57,8 +57,7 @@ public:
 
         connect(m_battery, &Battery::primaryChanged, this, &AirPodsTrayApp::primaryChanged);
 
-        // load conversational awareness state
-        setConversationalAwareness(loadConversationalAwarenessState());
+        CrossDevice.isEnabled = loadCrossDeviceEnabled();
 
         discoveryAgent = new QBluetoothDeviceDiscoveryAgent();
         discoveryAgent->setLowEnergyDiscoveryTimeout(15000);
@@ -69,8 +68,6 @@ public:
         LOG_INFO("AirPodsTrayApp initialized and started device discovery");
 
         QBluetoothLocalDevice localDevice;
-        connect(&localDevice, &QBluetoothLocalDevice::deviceConnected, this, &AirPodsTrayApp::onDeviceConnected);
-        connect(&localDevice, &QBluetoothLocalDevice::deviceDisconnected, this, &AirPodsTrayApp::onDeviceDisconnected);
 
         const QList<QBluetoothAddress> connectedDevices = localDevice.connectedDevices();
         for (const QBluetoothAddress &address : connectedDevices) {
@@ -80,7 +77,6 @@ public:
                 return;
             }
         }
-        connect(phoneSocket, &QBluetoothSocket::readyRead, this, &AirPodsTrayApp::onPhoneDataReceived);
 
         QDBusInterface iface("org.bluez", "/org/bluez", "org.bluez.Adapter1");
         QDBusReply<QVariant> reply = iface.call("GetServiceRecords", QString::fromUtf8("74ec2172-0bad-4d01-8f77-997b2be0722a"));
@@ -96,6 +92,8 @@ public:
     }
 
     ~AirPodsTrayApp() {
+        saveCrossDeviceEnabled();
+
         delete trayIcon;
         delete trayMenu;
         delete discoveryAgent;
@@ -136,6 +134,7 @@ private:
     bool isConnectedLocally = false;
     struct {
         bool isAvailable = true;
+        bool isEnabled = true; // Ability to disable the feature
     } CrossDevice;
 
     void initializeDBus() {
@@ -287,7 +286,17 @@ public slots:
         writePacketToSocket(packet, "Conversational awareness packet written: ");
         m_conversationalAwareness = enabled;
         emit conversationalAwarenessChanged(enabled);
-        saveConversationalAwarenessState();
+    }
+
+    void initiateMagicPairing()
+    {
+        if (!socket || !socket->isOpen())
+        {
+            LOG_ERROR("Socket nicht offen, Magic Pairing kann nicht gestartet werden");
+            return;
+        }
+
+        writePacketToSocket(AirPodsPackets::MagicPairing::REQUEST_MAGIC_CLOUD_KEYS, "Magic Pairing packet written: ");
     }
 
     void setAdaptiveNoiseLevel(int level)
@@ -348,16 +357,16 @@ public slots:
         }
     }
 
-    bool loadConversationalAwarenessState()
+    bool loadCrossDeviceEnabled()
     {
         QSettings settings;
-        return settings.value("conversationalAwareness", false).toBool();
+        return settings.value("crossdevice/enabled", false).toBool();
     }
 
-    void saveConversationalAwarenessState()
+    void saveCrossDeviceEnabled()
     {
         QSettings settings;
-        settings.setValue("conversationalAwareness", m_conversationalAwareness);
+        settings.setValue("crossdevice/enabled", CrossDevice.isEnabled);
         settings.sync();
     }
 
@@ -372,6 +381,12 @@ private slots:
             window->raise();
             window->requestActivate();
         }
+    }
+
+    void sendHandshake() {
+        LOG_INFO("Connected to device, sending initial packets");
+        discoveryAgent->stop();
+        writePacketToSocket(AirPodsPackets::Connection::HANDSHAKE, "Handshake packet written: ");
     }
 
     void onDeviceDiscovered(const QBluetoothDeviceInfo &device) {
@@ -509,38 +524,21 @@ private slots:
 
         LOG_INFO("Connecting to device: " << device.name());
         QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
+        connect(localSocket, &QBluetoothSocket::disconnected, this, [this, localSocket]() {
+            onDeviceDisconnected(localSocket->peerAddress());
+        });
         connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
-            LOG_INFO("Connected to device, sending initial packets");
-            discoveryAgent->stop();
-
-            QByteArray handshakePacket = AirPodsPackets::Connection::HANDSHAKE;
-            QByteArray setSpecificFeaturesPacket = AirPodsPackets::Connection::SET_SPECIFIC_FEATURES;
-            QByteArray requestNotificationsPacket = AirPodsPackets::Connection::REQUEST_NOTIFICATIONS;
-
-            qint64 bytesWritten = localSocket->write(handshakePacket);
-            LOG_DEBUG("Handshake packet written: " << handshakePacket.toHex() << ", bytes written: " << bytesWritten);
-            localSocket->write(setSpecificFeaturesPacket);
-            LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
-            localSocket->write(requestNotificationsPacket);
-            LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
-            connect(localSocket, &QBluetoothSocket::bytesWritten, this, [this, localSocket, setSpecificFeaturesPacket, requestNotificationsPacket](qint64 bytes) {
-                LOG_INFO("Bytes written: " << bytes);
-                if (bytes > 0) {
-                    static int step = 0;
-                    switch (step) {
-                        case 0:
-                            localSocket->write(setSpecificFeaturesPacket);
-                            LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
-                            step++;
-                            break;
-                        case 1:
-                            localSocket->write(requestNotificationsPacket);
-                            LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
-                            step++;
-                            break;
-                    }
+            // Start periodic magic pairing attempts
+            QTimer *magicPairingTimer = new QTimer(this);
+            connect(magicPairingTimer, &QTimer::timeout, this, [this, magicPairingTimer]() {
+                if (m_magicAccIRK.isEmpty() || m_magicAccEncKey.isEmpty()) {
+                    initiateMagicPairing();
+                } else {
+                    magicPairingTimer->stop();
+                    magicPairingTimer->deleteLater();
                 }
             });
+            magicPairingTimer->start(500);
 
             connect(localSocket, &QBluetoothSocket::readyRead, this, [this, localSocket]() {
                 QByteArray data = localSocket->readAll();
@@ -548,24 +546,15 @@ private slots:
                 QMetaObject::invokeMethod(this, "relayPacketToPhone", Qt::QueuedConnection, Q_ARG(QByteArray, data));
             });
 
-            QTimer::singleShot(500, this, [localSocket, setSpecificFeaturesPacket, requestNotificationsPacket]() {
-                if (localSocket->isOpen()) {
-                    localSocket->write(setSpecificFeaturesPacket);
-                    LOG_DEBUG("Resent set specific features packet: " << setSpecificFeaturesPacket.toHex());
-                    localSocket->write(requestNotificationsPacket);
-                    LOG_DEBUG("Resent request notifications packet: " << requestNotificationsPacket.toHex());
-                } else {
-                    LOG_WARN("Socket is not open, cannot resend packets");
-                }
-            });
+            sendHandshake();
         });
 
         connect(localSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred), this, [this, localSocket](QBluetoothSocket::SocketError error) {
             LOG_ERROR("Socket error: " << error << ", " << localSocket->errorString());
         });
 
-        localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         socket = localSocket;
+        localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
         mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         notifyAndroidDevice();
@@ -581,8 +570,45 @@ private slots:
     {
         LOG_DEBUG("Received: " << data.toHex());
 
+        if (data.startsWith(AirPodsPackets::Parse::HANDSHAKE_ACK))
+        {
+            writePacketToSocket(AirPodsPackets::Connection::SET_SPECIFIC_FEATURES, "Set specific features packet written: ");
+        }
+        if (data.startsWith(AirPodsPackets::Parse::FEATURES_ACK))
+        {
+            writePacketToSocket(AirPodsPackets::Connection::REQUEST_NOTIFICATIONS, "Request notifications packet written: ");
+            
+            QTimer::singleShot(2000, this, [this]() {
+                if (m_batteryStatus.isEmpty()) {
+                    writePacketToSocket(AirPodsPackets::Connection::REQUEST_NOTIFICATIONS, "Request notifications packet written: ");
+                }
+            });
+        }
+        // Magic Cloud Keys Response
+        else if (data.startsWith(AirPodsPackets::MagicPairing::MAGIC_CLOUD_KEYS_HEADER))
+        {
+            auto keys = AirPodsPackets::MagicPairing::parseMagicCloudKeysPacket(data);
+            LOG_INFO("Received Magic Cloud Keys:");
+            LOG_INFO("MagicAccIRK: " << keys.magicAccIRK.toHex());
+            LOG_INFO("MagicAccEncKey: " << keys.magicAccEncKey.toHex());
+
+            // Store the keys for later use if needed
+            m_magicAccIRK = keys.magicAccIRK;
+            m_magicAccEncKey = keys.magicAccEncKey;
+        }
+        // Get CA state
+        else if (data.startsWith(AirPodsPackets::ConversationalAwareness::HEADER)) {
+            auto result = AirPodsPackets::ConversationalAwareness::parseCAState(data);
+            if (result.has_value()) {
+                m_conversationalAwareness = result.value();
+                LOG_INFO("Conversational awareness state received: " << m_conversationalAwareness);
+                emit conversationalAwarenessChanged(m_conversationalAwareness);
+            } else {
+                LOG_ERROR("Failed to parse conversational awareness state");
+            }
+        }
         // Noise Control Mode
-        if (data.size() == 11 && data.startsWith(AirPodsPackets::NoiseControl::HEADER))
+        else if (data.size() == 11 && data.startsWith(AirPodsPackets::NoiseControl::HEADER))
         {
             quint8 rawMode = data[7] - 1; // Offset still needed due to protocol
             if (rawMode >= (int)NoiseControlMode::MinValue && rawMode <= (int)NoiseControlMode::MaxValue)
@@ -643,6 +669,10 @@ private slots:
     }
 
     void connectToPhone() {
+        if (!CrossDevice.isEnabled) {
+            return;
+        }
+
         if (phoneSocket && phoneSocket->isOpen()) {
             LOG_INFO("Already connected to the phone");
             return;
@@ -671,6 +701,9 @@ private slots:
 
     void relayPacketToPhone(const QByteArray &packet)
     {
+        if (!CrossDevice.isEnabled) {
+            return;
+        }
         if (phoneSocket && phoneSocket->isOpen())
         {
             phoneSocket->write(AirPodsPackets::Phone::NOTIFICATION + packet);
@@ -876,6 +909,7 @@ private:
     QByteArray lastEarDetectionStatus;
     MediaController* mediaController;
     TrayIconManager *trayManager;
+    QSettings *settings;
 
     QString m_batteryStatus;
     QString m_earDetectionStatus;
@@ -887,10 +921,13 @@ private:
     AirPodsModel m_model = AirPodsModel::Unknown;
     bool m_primaryInEar = false;
     bool m_secoundaryInEar = false;
+    QByteArray m_magicAccIRK;
+    QByteArray m_magicAccEncKey;
 };
 
 int main(int argc, char *argv[]) {
     QApplication app(argc, argv);
+    app.setQuitOnLastWindowClosed(false);
 
     bool debugMode = false;
     for (int i = 1; i < argc; ++i) {

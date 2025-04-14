@@ -90,6 +90,7 @@ BleScanner::BleScanner(QWidget *parent) : QMainWindow(parent)
     detailsLayout->addWidget(new QLabel("Raw Data:"), 7, 0);
     rawDataLabel = new QLabel(this);
     rawDataLabel->setWordWrap(true);
+    rawDataLabel->setTextInteractionFlags(Qt::TextSelectableByMouse);
     detailsLayout->addWidget(rawDataLabel, 7, 1, 1, 2);
 
     // New Rows for Additional Info
