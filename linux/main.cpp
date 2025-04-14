@@ -383,6 +383,12 @@ private slots:
         }
     }
 
+    void sendHandshake() {
+        LOG_INFO("Connected to device, sending initial packets");
+        discoveryAgent->stop();
+        writePacketToSocket(AirPodsPackets::Connection::HANDSHAKE, "Handshake packet written: ");
+    }
+
     void onDeviceDiscovered(const QBluetoothDeviceInfo &device) {
         QByteArray manufacturerData = device.manufacturerData(MANUFACTURER_ID);
         if (manufacturerData.startsWith(MANUFACTURER_DATA)) {
@@ -521,22 +527,7 @@ private slots:
         connect(localSocket, &QBluetoothSocket::disconnected, this, [this, localSocket]() {
             onDeviceDisconnected(localSocket->peerAddress());
         });
-        connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]()
-                {
-            LOG_INFO("Connected to device, sending initial packets");
-            discoveryAgent->stop();
-
-            QByteArray handshakePacket = AirPodsPackets::Connection::HANDSHAKE;
-            QByteArray setSpecificFeaturesPacket = AirPodsPackets::Connection::SET_SPECIFIC_FEATURES;
-            QByteArray requestNotificationsPacket = AirPodsPackets::Connection::REQUEST_NOTIFICATIONS;
-
-            qint64 bytesWritten = localSocket->write(handshakePacket);
-            LOG_DEBUG("Handshake packet written: " << handshakePacket.toHex() << ", bytes written: " << bytesWritten);
-            localSocket->write(setSpecificFeaturesPacket);
-            LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
-            localSocket->write(requestNotificationsPacket);
-            LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
-
+        connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
             // Start periodic magic pairing attempts
             QTimer *magicPairingTimer = new QTimer(this);
             connect(magicPairingTimer, &QTimer::timeout, this, [this, magicPairingTimer]() {
@@ -549,49 +540,21 @@ private slots:
             });
             magicPairingTimer->start(500);
 
-            connect(localSocket, &QBluetoothSocket::bytesWritten, this, [this, localSocket, setSpecificFeaturesPacket, requestNotificationsPacket](qint64 bytes) {
-                LOG_INFO("Bytes written: " << bytes);
-                if (bytes > 0) {
-                    static int step = 0;
-                    switch (step) {
-                        case 0:
-                            localSocket->write(setSpecificFeaturesPacket);
-                            LOG_DEBUG("Set specific features packet written: " << setSpecificFeaturesPacket.toHex());
-                            step++;
-                            break;
-                        case 1:
-                            localSocket->write(requestNotificationsPacket);
-                            LOG_DEBUG("Request notifications packet written: " << requestNotificationsPacket.toHex());
-                            step++;
-                            break;
-                    }
-                }
-            });
-
             connect(localSocket, &QBluetoothSocket::readyRead, this, [this, localSocket]() {
                 QByteArray data = localSocket->readAll();
                 QMetaObject::invokeMethod(this, "parseData", Qt::QueuedConnection, Q_ARG(QByteArray, data));
                 QMetaObject::invokeMethod(this, "relayPacketToPhone", Qt::QueuedConnection, Q_ARG(QByteArray, data));
             });
 
-            QTimer::singleShot(500, this, [localSocket, this, setSpecificFeaturesPacket, requestNotificationsPacket]() {
-                if (localSocket->isOpen()) {
-                    localSocket->write(setSpecificFeaturesPacket);
-                    LOG_DEBUG("Resent set specific features packet: " << setSpecificFeaturesPacket.toHex());
-                    localSocket->write(requestNotificationsPacket);
-                    LOG_DEBUG("Resent request notifications packet: " << requestNotificationsPacket.toHex());
-                } else {
-                    LOG_WARN("Socket is not open, cannot resend packets");
-                }
-            });
+            sendHandshake();
         });
 
         connect(localSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred), this, [this, localSocket](QBluetoothSocket::SocketError error) {
             LOG_ERROR("Socket error: " << error << ", " << localSocket->errorString());
         });
 
-        localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         socket = localSocket;
+        localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
         mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         notifyAndroidDevice();
@@ -607,8 +570,22 @@ private slots:
     {
         LOG_DEBUG("Received: " << data.toHex());
 
+        if (data.startsWith(AirPodsPackets::Parse::HANDSHAKE_ACK))
+        {
+            writePacketToSocket(AirPodsPackets::Connection::SET_SPECIFIC_FEATURES, "Set specific features packet written: ");
+        }
+        if (data.startsWith(AirPodsPackets::Parse::FEATURES_ACK))
+        {
+            writePacketToSocket(AirPodsPackets::Connection::REQUEST_NOTIFICATIONS, "Request notifications packet written: ");
+            
+            QTimer::singleShot(2000, this, [this]() {
+                if (m_batteryStatus.isEmpty()) {
+                    writePacketToSocket(AirPodsPackets::Connection::REQUEST_NOTIFICATIONS, "Request notifications packet written: ");
+                }
+            });
+        }
         // Magic Cloud Keys Response
-        if (data.startsWith(AirPodsPackets::MagicPairing::MAGIC_CLOUD_KEYS_HEADER))
+        else if (data.startsWith(AirPodsPackets::MagicPairing::MAGIC_CLOUD_KEYS_HEADER))
         {
             auto keys = AirPodsPackets::MagicPairing::parseMagicCloudKeysPacket(data);
             LOG_INFO("Received Magic Cloud Keys:");

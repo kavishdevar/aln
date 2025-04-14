@@ -188,6 +188,8 @@ namespace AirPodsPackets
         static const QByteArray EAR_DETECTION = QByteArray::fromHex("040004000600");
         static const QByteArray BATTERY_STATUS = QByteArray::fromHex("040004000400");
         static const QByteArray METADATA = QByteArray::fromHex("040004001d");
+        static const QByteArray HANDSHAKE_ACK = QByteArray::fromHex("01000400");
+        static const QByteArray FEATURES_ACK = QByteArray::fromHex("040004002b00"); // Note: Only tested with airpods pro 2
     }
 }
 
