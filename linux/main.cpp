@@ -7,6 +7,7 @@
 #include "trayiconmanager.h"
 #include "enums.h"
 #include "battery.hpp"
+#include "BluetoothMonitor.h"
 
 using namespace AirpodsTrayApp::Enums;
 
@@ -31,7 +32,8 @@ class AirPodsTrayApp : public QObject {
 public:
     AirPodsTrayApp(bool debugMode) 
       : debugMode(debugMode)
-      , m_battery(new Battery(this)) {
+      , m_battery(new Battery(this)) 
+      , monitor(new BluetoothMonitor(this)) {
         if (debugMode) {
             QLoggingCategory::setFilterRules("airpodsApp.debug=true");
         } else {
@@ -54,6 +56,9 @@ public:
         connect(mediaController, &MediaController::mediaStateChanged, this, &AirPodsTrayApp::handleMediaStateChange);
         mediaController->initializeMprisInterface();
         mediaController->followMediaChanges();
+
+        connect(monitor, &BluetoothMonitor::deviceConnected, this, &AirPodsTrayApp::bluezDeviceConnected);
+        connect(monitor, &BluetoothMonitor::deviceDisconnected, this, &AirPodsTrayApp::bluezDeviceDisconnected);
 
         connect(m_battery, &Battery::primaryChanged, this, &AirPodsTrayApp::primaryChanged);
 
@@ -78,15 +83,6 @@ public:
             }
         }
 
-        QDBusInterface iface("org.bluez", "/org/bluez", "org.bluez.Adapter1");
-        QDBusReply<QVariant> reply = iface.call("GetServiceRecords", QString::fromUtf8("74ec2172-0bad-4d01-8f77-997b2be0722a"));
-        if (reply.isValid()) {
-            LOG_INFO("Service record found, proceeding with connection");
-        } else {
-            LOG_WARN("Service record not found, waiting for BLE broadcast");
-        }
-
-        listenForDeviceConnections();
         initializeDBus();
         initializeBluetooth();
     }
@@ -97,8 +93,6 @@ public:
         delete trayIcon;
         delete trayMenu;
         delete discoveryAgent;
-        delete bluezInterface;
-        delete mprisInterface;
         delete socket;
         delete phoneSocket;
     }
@@ -137,46 +131,7 @@ private:
         bool isEnabled = true; // Ability to disable the feature
     } CrossDevice;
 
-    void initializeDBus() {
-        QDBusConnection systemBus = QDBusConnection::systemBus();
-        if (!systemBus.isConnected()) {
-        }
-
-        bluezInterface = new QDBusInterface("org.bluez",
-                                        "/",
-                                        "org.freedesktop.DBus.ObjectManager",
-                                        systemBus,
-                                        this);
-
-        if (!bluezInterface->isValid()) {
-            LOG_ERROR("Failed to connect to org.bluez DBus interface.");
-            return;
-        }
-
-        connect(systemBus.interface(), &QDBusConnectionInterface::NameOwnerChanged,
-                this, &AirPodsTrayApp::onNameOwnerChanged);
-
-        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.Properties", "PropertiesChanged",
-                        this, SLOT(onDevicePropertiesChanged(QString, QVariantMap, QStringList)));
-
-        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded",
-                        this, SLOT(onInterfacesAdded(QString, QVariantMap)));
-
-        QDBusMessage msg = bluezInterface->call("GetManagedObjects");
-        if (msg.type() == QDBusMessage::ErrorMessage) {
-            LOG_ERROR("Error getting managed objects: " << msg.errorMessage());
-            return;
-        }
-
-        QVariantMap objects = qdbus_cast<QVariantMap>(msg.arguments().at(0));
-        for (auto it = objects.begin(); it != objects.end(); ++it) {
-            if (it.key().startsWith("/org/bluez/hci0/dev_")) {
-                LOG_INFO("Existing device: " << it.key());
-            }
-        }
-        QDBusConnection::systemBus().registerObject("/me/kavishdevar/aln", this);
-        QDBusConnection::systemBus().registerService("me.kavishdevar.aln");
-    }
+    void initializeDBus() { }
 
     bool isAirPodsDevice(const QBluetoothDeviceInfo &device)
     {
@@ -195,42 +150,10 @@ private:
             LOG_WARN("Phone socket is not open, cannot send notification packet");
         }
     }
-    void onNameOwnerChanged(const QString &name, const QString &oldOwner, const QString &newOwner) {
-        if (name == "org.bluez") {
-            if (newOwner.isEmpty()) {
-                LOG_WARN("BlueZ has been stopped.");
-            } else {
-                LOG_INFO("BlueZ started.");
-            }
-        }
-    }
-
-    void onDevicePropertiesChanged(const QString &interface, const QVariantMap &changed, const QStringList &invalidated) {
-        if (interface != "org.bluez.Device1")
-            return;
-
-        if (changed.contains("Connected")) {
-            bool connected = changed.value("Connected").toBool();
-            QString devicePath = sender()->objectName();
-            LOG_INFO(QString("Device %1 connected: %2").arg(devicePath, connected ? "Yes" : "No"));
-
-            if (connected) {
-                const QBluetoothAddress address = QBluetoothAddress(devicePath.split("/").last().replace("_", ":"));
-                QBluetoothDeviceInfo device(address, "", 0);
-                if (isAirPodsDevice(device)) {
-                    connectToDevice(device);
-                }
-            } else {
-                disconnectDevice(devicePath);
-            }
-        }
-    }
 
     void disconnectDevice(const QString &devicePath) {
         LOG_INFO("Disconnecting device at " << devicePath);
     }
-
-    QDBusInterface *bluezInterface = nullptr;
 
 public slots:
     void connectToDevice(const QString &address) {
@@ -422,6 +345,11 @@ private slots:
             connectToDevice(device);
         }
     }
+    void bluezDeviceConnected(const QString &address) 
+    {
+        QBluetoothDeviceInfo device(QBluetoothAddress(address), "", 0);
+        connectToDevice(device);
+    }
 
     void onDeviceDisconnected(const QBluetoothAddress &address)
     {
@@ -431,11 +359,21 @@ private slots:
             LOG_WARN("Socket is still open, closing it");
             socket->close();
             socket = nullptr;
+            discoveryAgent->start();
         }
         if (phoneSocket && phoneSocket->isOpen())
         {
             phoneSocket->write(AirPodsPackets::Connection::AIRPODS_DISCONNECTED);
             LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << AirPodsPackets::Connection::AIRPODS_DISCONNECTED.toHex());
+        }
+    }
+    void bluezDeviceDisconnected(const QString &address) 
+    {
+        if (address == connectedDeviceMacAddress.replace("_", ":")) {
+            onDeviceDisconnected(QBluetoothAddress(address));
+        }
+        else {
+            LOG_WARN("Disconnected device does not match connected device: " << address << " != " << connectedDeviceMacAddress);
         }
     }
 
@@ -524,9 +462,6 @@ private slots:
 
         LOG_INFO("Connecting to device: " << device.name());
         QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
-        connect(localSocket, &QBluetoothSocket::disconnected, this, [this, localSocket]() {
-            onDeviceDisconnected(localSocket->peerAddress());
-        });
         connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
             // Start periodic magic pairing attempts
             QTimer *magicPairingTimer = new QTimer(this);
@@ -778,26 +713,6 @@ private slots:
         QMetaObject::invokeMethod(this, "handlePhonePacket", Qt::QueuedConnection, Q_ARG(QByteArray, data));
     }
 
-    void listenForDeviceConnections() {
-        QDBusConnection systemBus = QDBusConnection::systemBus();
-        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.Properties", "PropertiesChanged", this, SLOT(onDevicePropertiesChanged(QString, QVariantMap, QStringList)));
-        systemBus.connect(QString(), QString(), "org.freedesktop.DBus.ObjectManager", "InterfacesAdded", this, SLOT(onInterfacesAdded(QString, QVariantMap)));
-    }
-
-    void onInterfacesAdded(QString path, QVariantMap interfaces) {
-        if (interfaces.contains("org.bluez.Device1")) {
-            QVariantMap deviceProps = interfaces["org.bluez.Device1"].toMap();
-            if (deviceProps.contains("Connected") && deviceProps["Connected"].toBool()) {
-                QString addr = deviceProps["Address"].toString();
-                QBluetoothAddress btAddress(addr);
-                QBluetoothDeviceInfo device(btAddress, "", 0);
-                if (isAirPodsDevice(device)) {
-                    connectToDevice(device);
-                }
-            }
-        }
-    }
-
     public:
         void handleMediaStateChange(MediaController::MediaState state) {
             if (state == MediaController::MediaState::Playing) {
@@ -903,12 +818,12 @@ private:
     QBluetoothDeviceDiscoveryAgent *discoveryAgent;
     QBluetoothSocket *socket = nullptr;
     QBluetoothSocket *phoneSocket = nullptr;
-    QDBusInterface *mprisInterface;
     QString connectedDeviceMacAddress;
     QByteArray lastBatteryStatus;
     QByteArray lastEarDetectionStatus;
     MediaController* mediaController;
     TrayIconManager *trayManager;
+    BluetoothMonitor *monitor;
     QSettings *settings;
 
     QString m_batteryStatus;

@@ -53,6 +53,18 @@ Control {
                 height: root.availableHeight
                 focusPolicy: Qt.NoFocus // Let the root control handle focus
 
+                // Add explicit text color
+                contentItem: Text {
+                    text: segmentButton.text
+                    font: segmentButton.font
+                    color: root.currentIndex === segmentButton.index ? root.selectedTextColor : root.textColor
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    leftPadding: 2
+                    rightPadding: 2
+                    elide: Text.ElideRight
+                }
+
                 background: Rectangle {
                     radius: height / 2
                     color: root.currentIndex === segmentButton.index ? root.selectedColor : "transparent"
