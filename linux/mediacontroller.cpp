@@ -39,9 +39,14 @@ void MediaController::initializeMprisInterface() {
 }
 
 void MediaController::handleEarDetection(const QString &status) {
+  bool primaryInEar = false;
+  bool secondaryInEar = false;
+
   QStringList parts = status.split(", ");
-  bool primaryInEar = parts[0].contains("In Ear");
-  bool secondaryInEar = parts[1].contains("In Ear");
+  if (parts.size() == 2) {
+    primaryInEar = parts[0].contains("In Ear");
+    secondaryInEar = parts[1].contains("In Ear");
+  }
 
   LOG_DEBUG("Ear detection status: primaryInEar="
             << primaryInEar << ", secondaryInEar=" << secondaryInEar

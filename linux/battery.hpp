@@ -22,10 +22,16 @@ class Battery : public QObject
 public:
     explicit Battery(QObject *parent = nullptr) : QObject(parent)
     {
+        reset();
+    }
+
+    void reset()
+    {
         // Initialize all components to unknown state
         states[Component::Left] = {};
         states[Component::Right] = {};
         states[Component::Case] = {};
+        emit batteryStatusChanged();
     }
 
     // Enum for AirPods components

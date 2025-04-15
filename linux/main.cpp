@@ -366,13 +366,41 @@ private slots:
             LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << AirPodsPackets::Connection::AIRPODS_DISCONNECTED.toHex());
         }
 
-        mediaController->pause();
+        mediaController->pause(); // Since the device is deconnected, we don't know if it was the active output device. Pause to be safe
         discoveryAgent->start();
+
+        // Show system notification
+        trayManager->showNotification(
+            tr("AirPods Disconnected"),
+            tr("Your AirPods have been disconnected"));
     }
     void bluezDeviceDisconnected(const QString &address) 
     {
-        if (address == connectedDeviceMacAddress.replace("_", ":")) {
+        if (address == connectedDeviceMacAddress.replace("_", ":"))
+        {
             onDeviceDisconnected(QBluetoothAddress(address));
+
+            // Clear the device name and model
+            m_deviceName.clear();
+            m_model = AirPodsModel::Unknown;
+            emit deviceNameChanged(m_deviceName);
+            emit modelChanged();
+
+            // Reset battery status
+            m_battery->reset();
+            m_batteryStatus.clear();
+            emit batteryStatusChanged(m_batteryStatus);
+
+            // Reset ear detection
+            m_earDetectionStatus.clear();
+            m_primaryInEar = false;
+            m_secoundaryInEar = false;
+            emit earDetectionStatusChanged(m_earDetectionStatus);
+            emit primaryChanged();
+
+            // Reset noise control mode
+            m_noiseControlMode = NoiseControlMode::Off;
+            emit noiseControlModeChanged(m_noiseControlMode);
         }
         else {
             LOG_WARN("Disconnected device does not match connected device: " << address << " != " << connectedDeviceMacAddress);
