@@ -155,6 +155,37 @@ The packet format is:
 ```
 Here, `01` at the 8th byte (offset 7) means CA is enabled.
 
+## Metadata
+
+This packet contains device information like name, model number, etc. The packet format is:
+
+```plaintext
+04 00 04 00 1d [strings...]
+```
+
+The strings are null-terminated UTF-8 strings in the following order:
+
+1. Bluetooth advertising name (varies in length)
+2. Model number 
+3. Manufacturer
+4. Serial number
+5. Firmware version
+6. Firmware version 2 (the exact same as before??)
+7. Software version   (1.0.0 why would we need it?)
+8. App identifier     (com.apple.accessory.updater.app.71 what?)
+9. Serial number 1
+10. Serial number 2
+11. Unknown numeric value
+12. Encrypted data
+13. Additional encrypted data
+
+Example packet:
+```plaintext
+040004001d0002d5000400416972506f64732050726f004133303438004170706c6520496e632e0051584e524848595850360036312e313836383034303030323030303030302e323731330036312e313836383034303030323030303030302e3237313300312e302e3000636f6d2e6170706c652e6163636573736f72792e757064617465722e6170702e3731004859394c5432454632364a59004833504c5748444a32364b3000363335373533360089312a6567a5400f84a3ca234947efd40b90d78436ae5946748d70273e66066a2589300035333935303630363400```
+
+The packet contains device identification and version information followed by some encrypted data whose format is not known.
+
+
 # Writing to the AirPods
 
 ## Changing Noise Control
