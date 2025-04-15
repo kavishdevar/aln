@@ -359,13 +359,15 @@ private slots:
             LOG_WARN("Socket is still open, closing it");
             socket->close();
             socket = nullptr;
-            discoveryAgent->start();
         }
         if (phoneSocket && phoneSocket->isOpen())
         {
             phoneSocket->write(AirPodsPackets::Connection::AIRPODS_DISCONNECTED);
             LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << AirPodsPackets::Connection::AIRPODS_DISCONNECTED.toHex());
         }
+
+        mediaController->pause();
+        discoveryAgent->start();
     }
     void bluezDeviceDisconnected(const QString &address) 
     {
