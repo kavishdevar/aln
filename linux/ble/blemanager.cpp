@@ -51,7 +51,7 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
     if (info.manufacturerData().contains(0x004C))
     {
         QByteArray data = info.manufacturerData().value(0x004C);
-        // Ensure data is long enough and starts with prefix 0x07
+        // Ensure data is long enough and starts with prefix 0x07 (indicates Proximity Pairing Message)
         if (data.size() >= 10 && data[0] == 0x07)
         {
             QString address = info.address().toString();
@@ -59,6 +59,8 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             deviceInfo.name = info.name().isEmpty() ? "AirPods" : info.name();
             deviceInfo.address = address;
             deviceInfo.rawData = data;
+
+            // data[1] is the length of the data, so we can skip it
 
             // Check if pairing mode is paired (0x01) or pairing (0x00)
             if (data[2] == 0x00)
@@ -84,6 +86,8 @@ void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
             deviceInfo.deviceColor = static_cast<quint8>(data[9]);
 
             deviceInfo.connectionState = static_cast<DeviceInfo::ConnectionState>(data[10]);
+
+            // Next: Encrypted Payload: 16 bytes
 
             // Determine primary pod (bit 5 of status) and value flipping
             bool primaryLeft = (status & 0x20) != 0; // Bit 5: 1 = left primary, 0 = right primary
