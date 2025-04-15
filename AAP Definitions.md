@@ -134,7 +134,26 @@ AirPods send conversational awareness packets when the person wearing them start
 | 03                  | Person Stopped Speaking; increase volume back to normal |
 | Intermediate values | Intermediate volume levels                              |
 | 08/09               | Normal Volume                                           |
+### Reading Conversational Awareness State
 
+After requesting notifications, the AirPods send a packet indicating the current state of Conversational Awareness (CA). This packet is only sent once after notifications are requested, not when the CA state is changed.
+
+The packet format is:
+
+```plaintext
+04 00 04 00 09 00 28 [status] 00 00 00
+```
+
+- `[status]` is a single byte at offset 7 (zero-based), immediately after the header.
+    - `0x01` — Conversational Awareness is **enabled**
+    - `0x02` — Conversational Awareness is **disabled**
+    - Any other value — Unknown/undetermined state
+
+**Example:**
+```plaintext
+04 00 04 00 09 00 28 01 00 00 00
+```
+Here, `01` at the 8th byte (offset 7) means CA is enabled.
 
 # Writing to the AirPods
 
