@@ -104,6 +104,7 @@ ApplicationWindow {
             model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
             currentIndex: airPodsTrayApp.noiseControlMode
             onCurrentIndexChanged: airPodsTrayApp.noiseControlMode = currentIndex
+            visible: airPodsTrayApp.airpodsConnected
         }
 
         Text {

@@ -28,6 +28,7 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(QString caseIcon READ caseIcon NOTIFY modelChanged)
     Q_PROPERTY(bool leftPodInEar READ isLeftPodInEar NOTIFY primaryChanged)
     Q_PROPERTY(bool rightPodInEar READ isRightPodInEar NOTIFY primaryChanged)
+    Q_PROPERTY(bool airpodsConnected READ areAirpodsConnected NOTIFY airPodsStatusChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) 
@@ -64,13 +65,8 @@ public:
 
         CrossDevice.isEnabled = loadCrossDeviceEnabled();
 
-        discoveryAgent = new QBluetoothDeviceDiscoveryAgent();
-        discoveryAgent->setLowEnergyDiscoveryTimeout(15000);
-
-        connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::deviceDiscovered, this, &AirPodsTrayApp::onDeviceDiscovered);
-        connect(discoveryAgent, &QBluetoothDeviceDiscoveryAgent::finished, this, &AirPodsTrayApp::onDiscoveryFinished);
-        discoveryAgent->start();
-        LOG_INFO("AirPodsTrayApp initialized and started device discovery");
+        monitor->checkAlreadyConnectedDevices();
+        LOG_INFO("AirPodsTrayApp initialized");
 
         QBluetoothLocalDevice localDevice;
 
@@ -92,7 +88,6 @@ public:
 
         delete trayIcon;
         delete trayMenu;
-        delete discoveryAgent;
         delete socket;
         delete phoneSocket;
     }
@@ -122,6 +117,7 @@ public:
             return m_secoundaryInEar;
         }
     }
+    bool areAirpodsConnected() const { return socket && socket->isOpen() && socket->state() == QBluetoothSocket::SocketState::ConnectedState; }
 
 private:
     bool debugMode;
@@ -140,6 +136,10 @@ private:
 
     void notifyAndroidDevice()
     {
+        if (!CrossDevice.isEnabled) {
+            return;
+        }
+
         if (phoneSocket && phoneSocket->isOpen())
         {
             phoneSocket->write(AirPodsPackets::Phone::NOTIFICATION);
@@ -161,21 +161,6 @@ public slots:
         QBluetoothAddress btAddress(address);
         QBluetoothDeviceInfo device(btAddress, "", 0);
         connectToDevice(device);
-    }
-
-    void showAvailableDevices() {
-        LOG_INFO("Showing available devices");
-        QStringList devices;
-        const QList<QBluetoothDeviceInfo> discoveredDevices = discoveryAgent->discoveredDevices();
-        for (const QBluetoothDeviceInfo &device : discoveredDevices) {
-            devices << device.address().toString() + " - " + device.name();
-        }
-        bool ok;
-        QString selectedDevice = QInputDialog::getItem(nullptr, "Select Device", "Devices:", devices, 0, false, &ok);
-        if (ok && !selectedDevice.isEmpty()) {
-            QString address = selectedDevice.split(" - ").first();
-            connectToDevice(address);
-        }
     }
 
     void setNoiseControlMode(NoiseControlMode mode)
@@ -308,46 +293,12 @@ private slots:
 
     void sendHandshake() {
         LOG_INFO("Connected to device, sending initial packets");
-        discoveryAgent->stop();
         writePacketToSocket(AirPodsPackets::Connection::HANDSHAKE, "Handshake packet written: ");
     }
 
-    void onDeviceDiscovered(const QBluetoothDeviceInfo &device) {
-        QByteArray manufacturerData = device.manufacturerData(MANUFACTURER_ID);
-        if (manufacturerData.startsWith(MANUFACTURER_DATA)) {
-            LOG_INFO("Detected AirPods via BLE manufacturer data");
-            connectToDevice(device.address().toString());
-        }
-        LOG_INFO("Device discovered: " << device.name() << " (" << device.address().toString() << ")");
-        if (isAirPodsDevice(device)) {
-            LOG_DEBUG("Found AirPods device: " + device.name());
-            connectToDevice(device);
-        }
-    }
-
-    void onDiscoveryFinished() {
-        LOG_INFO("Device discovery finished");
-        discoveryAgent->start();
-        const QList<QBluetoothDeviceInfo> discoveredDevices = discoveryAgent->discoveredDevices();
-        for (const QBluetoothDeviceInfo &device : discoveredDevices) {
-            if (isAirPodsDevice(device)) {
-                connectToDevice(device);
-                return;
-            }
-        }
-        LOG_WARN("No device with the specified UUID found");
-    }
-
-    void onDeviceConnected(const QBluetoothAddress &address) {
-        LOG_INFO("Device connected: " << address.toString());
-        QBluetoothDeviceInfo device(address, "", 0);
-        if (isAirPodsDevice(device)) {
-            connectToDevice(device);
-        }
-    }
-    void bluezDeviceConnected(const QString &address) 
+    void bluezDeviceConnected(const QString &address, const QString &name) 
     {
-        QBluetoothDeviceInfo device(QBluetoothAddress(address), "", 0);
+        QBluetoothDeviceInfo device(QBluetoothAddress(address), name, 0);
         connectToDevice(device);
     }
 
@@ -366,42 +317,43 @@ private slots:
             LOG_DEBUG("AIRPODS_DISCONNECTED packet written: " << AirPodsPackets::Connection::AIRPODS_DISCONNECTED.toHex());
         }
 
+        // Clear the device name and model
+        m_deviceName.clear();
+        connectedDeviceMacAddress.clear();
+        m_model = AirPodsModel::Unknown;
+        emit deviceNameChanged(m_deviceName);
+        emit modelChanged();
+
+        // Reset battery status
+        m_battery->reset();
+        m_batteryStatus.clear();
+        emit batteryStatusChanged(m_batteryStatus);
+
+        // Reset ear detection
+        m_earDetectionStatus.clear();
+        m_primaryInEar = false;
+        m_secoundaryInEar = false;
+        emit earDetectionStatusChanged(m_earDetectionStatus);
+        emit primaryChanged();
+
+        // Reset noise control mode
+        m_noiseControlMode = NoiseControlMode::Off;
+        emit noiseControlModeChanged(m_noiseControlMode);
+
         mediaController->pause(); // Since the device is deconnected, we don't know if it was the active output device. Pause to be safe
-        discoveryAgent->start();
+        emit airPodsStatusChanged();
 
         // Show system notification
         trayManager->showNotification(
             tr("AirPods Disconnected"),
             tr("Your AirPods have been disconnected"));
     }
-    void bluezDeviceDisconnected(const QString &address) 
+
+    void bluezDeviceDisconnected(const QString &address, const QString &name)
     {
         if (address == connectedDeviceMacAddress.replace("_", ":"))
         {
-            onDeviceDisconnected(QBluetoothAddress(address));
-
-            // Clear the device name and model
-            m_deviceName.clear();
-            m_model = AirPodsModel::Unknown;
-            emit deviceNameChanged(m_deviceName);
-            emit modelChanged();
-
-            // Reset battery status
-            m_battery->reset();
-            m_batteryStatus.clear();
-            emit batteryStatusChanged(m_batteryStatus);
-
-            // Reset ear detection
-            m_earDetectionStatus.clear();
-            m_primaryInEar = false;
-            m_secoundaryInEar = false;
-            emit earDetectionStatusChanged(m_earDetectionStatus);
-            emit primaryChanged();
-
-            // Reset noise control mode
-            m_noiseControlMode = NoiseControlMode::Off;
-            emit noiseControlModeChanged(m_noiseControlMode);
-        }
+            onDeviceDisconnected(QBluetoothAddress(address));        }
         else {
             LOG_WARN("Disconnected device does not match connected device: " << address << " != " << connectedDeviceMacAddress);
         }
@@ -484,51 +436,72 @@ private slots:
         LOG_INFO("Trailing Byte: " << trailingByte);
     }
 
-    void connectToDevice(const QBluetoothDeviceInfo &device) {
-        if (socket && socket->isOpen() && socket->peerAddress() == device.address()) {
+    QString getEarStatus(char value)
+    {
+        return (value == 0x00) ? "In Ear" : (value == 0x01) ? "Out of Ear"
+                                                            : "In case";
+    }
+
+    void connectToDevice(const QBluetoothDeviceInfo &device)
+    {
+        if (socket && socket->isOpen() && socket->peerAddress() == device.address())
+        {
             LOG_INFO("Already connected to the device: " << device.name());
             return;
         }
 
         LOG_INFO("Connecting to device: " << device.name());
+
+        // Clean up any existing socket
+        if (socket)
+        {
+            socket->close();
+            socket->deleteLater();
+            socket = nullptr;
+        }
+
         QBluetoothSocket *localSocket = new QBluetoothSocket(QBluetoothServiceInfo::L2capProtocol);
-        connect(localSocket, &QBluetoothSocket::connected, this, [this, localSocket]() {
-            // Start periodic magic pairing attempts
-            QTimer *magicPairingTimer = new QTimer(this);
-            connect(magicPairingTimer, &QTimer::timeout, this, [this, magicPairingTimer]() {
-                if (m_magicAccIRK.isEmpty() || m_magicAccEncKey.isEmpty()) {
-                    initiateMagicPairing();
-                } else {
-                    magicPairingTimer->stop();
-                    magicPairingTimer->deleteLater();
-                }
-            });
-            magicPairingTimer->start(500);
-
-            connect(localSocket, &QBluetoothSocket::readyRead, this, [this, localSocket]() {
-                QByteArray data = localSocket->readAll();
-                QMetaObject::invokeMethod(this, "parseData", Qt::QueuedConnection, Q_ARG(QByteArray, data));
-                QMetaObject::invokeMethod(this, "relayPacketToPhone", Qt::QueuedConnection, Q_ARG(QByteArray, data));
-            });
-
-            sendHandshake();
-        });
-
-        connect(localSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred), this, [this, localSocket](QBluetoothSocket::SocketError error) {
-            LOG_ERROR("Socket error: " << error << ", " << localSocket->errorString());
-        });
-
         socket = localSocket;
+
+        // Connection handler
+        auto handleConnection = [this, localSocket]()
+        {
+            connect(localSocket, &QBluetoothSocket::readyRead, this, [this, localSocket]()
+                    {
+            QByteArray data = localSocket->readAll();
+            QMetaObject::invokeMethod(this, "parseData", Qt::QueuedConnection, Q_ARG(QByteArray, data));
+            QMetaObject::invokeMethod(this, "relayPacketToPhone", Qt::QueuedConnection, Q_ARG(QByteArray, data)); });
+            sendHandshake();
+        };
+
+        // Error handler with retry
+        auto handleError = [this, device, localSocket](QBluetoothSocket::SocketError error)
+        {
+            LOG_ERROR("Socket error: " << error << ", " << localSocket->errorString());
+
+            static int retryCount = 0;
+            if (retryCount < 3)
+            {
+                retryCount++;
+                LOG_INFO("Retrying connection (attempt " << retryCount << ")");
+                QTimer::singleShot(1500, this, [this, device]()
+                                   { connectToDevice(device); });
+            }
+            else 
+            {
+                LOG_ERROR("Failed to connect after 3 attempts");
+                retryCount = 0;
+            }
+        };
+
+        connect(localSocket, &QBluetoothSocket::connected, this, handleConnection);
+        connect(localSocket, QOverload<QBluetoothSocket::SocketError>::of(&QBluetoothSocket::errorOccurred),
+                this, handleError);
+
         localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
         mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         notifyAndroidDevice();
-    }
-
-    QString getEarStatus(char value)
-    {
-        return (value == 0x00) ? "In Ear" : (value == 0x01) ? "Out of Ear"
-                                                            : "In case";
     }
 
     void parseData(const QByteArray &data)
@@ -539,7 +512,7 @@ private slots:
         {
             writePacketToSocket(AirPodsPackets::Connection::SET_SPECIFIC_FEATURES, "Set specific features packet written: ");
         }
-        if (data.startsWith(AirPodsPackets::Parse::FEATURES_ACK))
+        else if (data.startsWith(AirPodsPackets::Parse::FEATURES_ACK))
         {
             writePacketToSocket(AirPodsPackets::Connection::REQUEST_NOTIFICATIONS, "Request notifications packet written: ");
             
@@ -626,6 +599,8 @@ private slots:
         else if (data.startsWith(AirPodsPackets::Parse::METADATA))
         {
             parseMetadata(data);
+            initiateMagicPairing();
+            emit airPodsStatusChanged();
         }
         else
         {
@@ -754,6 +729,8 @@ private slots:
 
     void sendDisconnectRequestToAndroid()
     {
+        if (!CrossDevice.isEnabled) return;
+
         if (phoneSocket && phoneSocket->isOpen())
         {
             phoneSocket->write(AirPodsPackets::Phone::DISCONNECT_REQUEST);
@@ -841,11 +818,11 @@ signals:
     void deviceNameChanged(const QString &name);
     void modelChanged();
     void primaryChanged();
+    void airPodsStatusChanged();
 
 private:
     QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
-    QBluetoothDeviceDiscoveryAgent *discoveryAgent;
     QBluetoothSocket *socket = nullptr;
     QBluetoothSocket *phoneSocket = nullptr;
     QString connectedDeviceMacAddress;
