@@ -39,9 +39,14 @@ void MediaController::initializeMprisInterface() {
 }
 
 void MediaController::handleEarDetection(const QString &status) {
+  bool primaryInEar = false;
+  bool secondaryInEar = false;
+
   QStringList parts = status.split(", ");
-  bool primaryInEar = parts[0].contains("In Ear");
-  bool secondaryInEar = parts[1].contains("In Ear");
+  if (parts.size() == 2) {
+    primaryInEar = parts[0].contains("In Ear");
+    secondaryInEar = parts[1].contains("In Ear");
+  }
 
   LOG_DEBUG("Ear detection status: primaryInEar="
             << primaryInEar << ", secondaryInEar=" << secondaryInEar
@@ -73,14 +78,7 @@ void MediaController::handleEarDetection(const QString &status) {
       QString playbackStatus = process.readAllStandardOutput().trimmed();
       LOG_DEBUG("Playback status: " << playbackStatus);
       if (playbackStatus == "Playing") {
-        int result = QProcess::execute("playerctl", QStringList() << "pause");
-        LOG_DEBUG("Executed 'playerctl pause' with result: " << result);
-        if (result == 0) {
-          LOG_INFO("Paused playback via Playerctl");
-          wasPausedByApp = true;
-        } else {
-          LOG_ERROR("Failed to pause playback via Playerctl");
-        }
+        pause();
       }
     }
   }
@@ -180,6 +178,20 @@ MediaController::MediaState MediaController::mediaStateFromPlayerctlOutput(
     return MediaState::Paused;
   } else {
     return MediaState::Stopped;
+  }
+}
+
+void MediaController::pause() {
+  int result = QProcess::execute("playerctl", QStringList() << "pause");
+  LOG_DEBUG("Executed 'playerctl pause' with result: " << result);
+  if (result == 0)
+  {
+    LOG_INFO("Paused playback via Playerctl");
+    wasPausedByApp = true;
+  }
+  else
+  {
+    LOG_ERROR("Failed to pause playback via Playerctl");
   }
 }
 

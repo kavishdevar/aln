@@ -23,6 +23,8 @@ public:
   void removeAudioOutputDevice();
   void setConnectedDeviceMacAddress(const QString &macAddress);
 
+  void pause();
+
 Q_SIGNALS:
   void mediaStateChanged(MediaState state);
 

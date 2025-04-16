@@ -27,6 +27,11 @@ TrayIconManager::TrayIconManager(QObject *parent) : QObject(parent)
     trayIcon->show();
 }
 
+void TrayIconManager::showNotification(const QString &title, const QString &message)
+{
+    trayIcon->showMessage(title, message, QSystemTrayIcon::Information, 3000);
+}
+
 void TrayIconManager::TrayIconManager::updateBatteryStatus(const QString &status)
 {
     trayIcon->setToolTip("Battery Status: " + status);
@@ -83,10 +88,20 @@ void TrayIconManager::setupMenuActions()
 
 void TrayIconManager::updateIconFromBattery(const QString &status)
 {
-    QStringList parts = status.split(", ");
-    int leftLevel = parts[0].split(": ")[1].replace("%", "").toInt();
-    int rightLevel = parts[1].split(": ")[1].replace("%", "").toInt();
+    int leftLevel = 0;
+    int rightLevel = 0;
 
+    if (!status.isEmpty())
+    {
+        // Parse the battery status string
+        QStringList parts = status.split(", ");
+        if (parts.size() >= 2)
+        {
+            leftLevel = parts[0].split(": ")[1].replace("%", "").toInt();
+            rightLevel = parts[1].split(": ")[1].replace("%", "").toInt();
+        }
+    }
+    
     int minLevel = (leftLevel == 0) ? rightLevel : (rightLevel == 0) ? leftLevel
                                                                      : qMin(leftLevel, rightLevel);
 

@@ -20,6 +20,8 @@ public:
 
     void updateConversationalAwareness(bool enabled);
 
+    void showNotification(const QString &title, const QString &message);
+
 private slots:
     void onTrayIconActivated(QSystemTrayIcon::ActivationReason reason);
 
