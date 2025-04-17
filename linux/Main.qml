@@ -75,17 +75,6 @@ ApplicationWindow {
             visible: airPodsTrayApp.airpodsConnected
         }
 
-        Text {
-            text: "Ear Detection Status: " + airPodsTrayApp.earDetectionStatus
-            color: "#ffffff"
-        }
-
-        Switch {
-            text: "Conversational Awareness"
-            checked: airPodsTrayApp.conversationalAwareness
-            onCheckedChanged: airPodsTrayApp.conversationalAwareness = checked
-        }
-
         Slider {
             visible: airPodsTrayApp.adaptiveModeActive
             from: 0
@@ -104,9 +93,14 @@ ApplicationWindow {
 
             Label {
                 text: "Adaptive Noise Level: " + parent.value
-                color: "#ffffff"
                 anchors.top: parent.bottom
             }
+        }
+
+        Switch {
+            text: "Conversational Awareness"
+            checked: airPodsTrayApp.conversationalAwareness
+            onCheckedChanged: airPodsTrayApp.conversationalAwareness = checked
         }
 
         Row {

@@ -25,7 +25,6 @@ Column {
     BatteryIndicator {
         batteryLevel: parent.batteryLevel
         isCharging: parent.isCharging
-        darkMode: true
         indicator: parent.indicator
     }
 }
