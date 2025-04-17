@@ -15,6 +15,26 @@ ApplicationWindow {
         spacing: 20
         padding: 20
 
+        // Connection status indicator (Apple-like pill shape)
+        Rectangle {
+            anchors.horizontalCenter: parent.horizontalCenter
+            anchors.topMargin: 10
+            width: 120
+            height: 24
+            radius: 12
+            color: airPodsTrayApp.airpodsConnected ? "#30D158" : "#FF453A"
+            opacity: 0.8
+            visible: !airPodsTrayApp.airpodsConnected
+
+            Label {
+                anchors.centerIn: parent
+                text: airPodsTrayApp.airpodsConnected ? "Connected" : "Disconnected"
+                color: "white"
+                font.pixelSize: 12
+                font.weight: Font.Medium
+            }
+        }
+
         // Battery Indicator Row
         Row {
             anchors.horizontalCenter: parent.horizontalCenter
