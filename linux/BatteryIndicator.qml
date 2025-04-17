@@ -9,29 +9,30 @@ Rectangle {
     // Public properties
     property int batteryLevel: 50 // 0-100
     property bool isCharging: false
-    property bool darkMode: false
     property string indicator: "" // "L" or "R"
-
-    // Private properties
-    readonly property color darkModeBackground: "#1C1C1E"
-    readonly property color lightModeBackground: "#FFFFFF"
-    readonly property color darkModeText: "#FFFFFF"
-    readonly property color lightModeText: "#000000"
+    
+    readonly property bool darkMode: {
+        return palette.window.hslLightness < palette.windowText.hslLightness;
+    }
 
     readonly property color batteryLowColor: "#FF453A"
     readonly property color batteryMediumColor: "#FFD60A"
     readonly property color batteryHighColor: "#30D158"
     readonly property color chargingColor: "#30D158"
+    readonly property color backgroundColor: palette.buttonText
+    readonly property color indicatorTextColor: palette.window
+    readonly property color textColor: palette.text
+    readonly property color borderColor: darkMode ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(0, 0, 0, 0.3)
 
     // Size parameters
     width: 85
     height: 40
     color: "transparent"
 
-    // Dynamic colors based on dark/light mode
-    readonly property color backgroundColor: darkMode ? darkModeBackground : lightModeBackground
-    readonly property color textColor: darkMode ? darkModeText : lightModeText
-    readonly property color borderColor: darkMode ? Qt.rgba(1, 1, 1, 0.3) : Qt.rgba(0, 0, 0, 0.3)
+    // System palette
+    SystemPalette {
+        id: palette
+    }
 
     // Battery level color based on percentage
     readonly property color levelColor: {
@@ -139,13 +140,13 @@ Rectangle {
                 Layout.preferredWidth: 16
                 Layout.preferredHeight: 16
                 radius: width / 2
-                color: root.darkMode ? "#FFFFFF" : "#1C1C1E"
+                color: root.backgroundColor
 
                 Text {
                     id: indicatorText
                     anchors.centerIn: parent
                     text: root.indicator
-                    color: root.darkMode ? "#1C1C1E" : "#FFFFFF"
+                    color: root.indicatorTextColor
                     font.pixelSize: 10
                     font.family: "SF Pro Text"
                 }
