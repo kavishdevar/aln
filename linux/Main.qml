@@ -8,98 +8,46 @@ ApplicationWindow {
     height: 300
     title: "AirPods Settings"
 
-    onClosing: function(event) {
-        mainWindow.visible = false
-    }
+    onClosing: mainWindow.visible = false
 
     Column {
-        anchors.left: parent.left
-        anchors.right: parent.right
+        anchors.fill: parent
         spacing: 20
         padding: 20
 
-        // Battery Indicator
+        // Battery Indicator Row
         Row {
-            // center the content
             anchors.horizontalCenter: parent.horizontalCenter
             spacing: 8
 
-            Column {
-                spacing: 5
-                opacity: airPodsTrayApp.leftPodInEar ? 1 : 0.5
-                visible: airPodsTrayApp.battery.leftPodAvailable
-
-                Image {
-                    source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
-                    width: 72
-                    height: 72
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    antialiasing: true
-                    mipmap: true
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-
-                BatteryIndicator {
-                    batteryLevel: airPodsTrayApp.battery.leftPodLevel
-                    isCharging: airPodsTrayApp.battery.leftPodCharging
-                    darkMode: true
-                    indicator: "L"
-                }
+            PodColumn {
+                isVisible: airPodsTrayApp.battery.leftPodAvailable
+                inEar: airPodsTrayApp.leftPodInEar
+                iconSource: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
+                batteryLevel: airPodsTrayApp.battery.leftPodLevel
+                isCharging: airPodsTrayApp.battery.leftPodCharging
+                indicator: "L"
             }
 
-            Column {
-                spacing: 5
-                opacity: airPodsTrayApp.rightPodInEar ? 1 : 0.5
-                visible: airPodsTrayApp.battery.rightPodAvailable
-
-                Image {
-                    source: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
-                    mirror: true
-                    width: 72
-                    height: 72
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    antialiasing: true
-                    mipmap: true
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-
-                BatteryIndicator {
-                    batteryLevel: airPodsTrayApp.battery.rightPodLevel
-                    isCharging: airPodsTrayApp.battery.rightPodCharging
-                    darkMode: true
-                    indicator: "R"
-                }
+            PodColumn {
+                isVisible: airPodsTrayApp.battery.rightPodAvailable
+                inEar: airPodsTrayApp.rightPodInEar
+                iconSource: "qrc:/icons/assets/" + airPodsTrayApp.podIcon
+                batteryLevel: airPodsTrayApp.battery.rightPodLevel
+                isCharging: airPodsTrayApp.battery.rightPodCharging
+                indicator: "R"
             }
 
-            Column {
-                spacing: 5
-                // hide the case status if battery level is 0 and no pod is in case
-                visible: airPodsTrayApp.battery.caseAvailable
-
-                Image {
-                    source: "qrc:/icons/assets/" + airPodsTrayApp.caseIcon
-                    width: 92
-                    height: 72
-                    fillMode: Image.PreserveAspectFit
-                    smooth: true
-                    antialiasing: true
-                    mipmap: true
-                    anchors.horizontalCenter: parent.horizontalCenter
-                }
-
-                BatteryIndicator {
-                    batteryLevel: airPodsTrayApp.battery.caseLevel
-                    isCharging: airPodsTrayApp.battery.caseCharging
-                    darkMode: true
-                }
+            PodColumn {
+                isVisible: airPodsTrayApp.battery.caseAvailable
+                inEar: true
+                iconSource: "qrc:/icons/assets/" + airPodsTrayApp.caseIcon
+                batteryLevel: airPodsTrayApp.battery.caseLevel
+                isCharging: airPodsTrayApp.battery.caseCharging
             }
         }
 
         SegmentedControl {
-            id: noiseControlMode
-            // width: parent.width
             anchors.horizontalCenter: parent.horizontalCenter
             model: ["Off", "Noise Cancellation", "Transparency", "Adaptive"]
             currentIndex: airPodsTrayApp.noiseControlMode
@@ -108,47 +56,31 @@ ApplicationWindow {
         }
 
         Text {
-            id: earDetectionStatus
             text: "Ear Detection Status: " + airPodsTrayApp.earDetectionStatus
             color: "#ffffff"
         }
 
         Switch {
-            id: caToggle
             text: "Conversational Awareness"
             checked: airPodsTrayApp.conversationalAwareness
             onCheckedChanged: airPodsTrayApp.conversationalAwareness = checked
         }
 
         Slider {
-            id: noiseLevelSlider
             visible: airPodsTrayApp.adaptiveModeActive
             from: 0
             to: 100
             stepSize: 1
             value: airPodsTrayApp.adaptiveNoiseLevel
-            
-            property Timer debounceTimer: Timer {
-                interval: 500 // 500ms delay after last change
-                onTriggered: {
-                    if (!noiseLevelSlider.pressed) {
-                        airPodsTrayApp.setAdaptiveNoiseLevel(noiseLevelSlider.value)
-                    }
-                }
+
+            Timer {
+                id: debounceTimer
+                interval: 500
+                onTriggered: if (!parent.pressed) airPodsTrayApp.setAdaptiveNoiseLevel(parent.value)
             }
-            
-            onPressedChanged: {
-                if (!pressed) {
-                    debounceTimer.stop()
-                    airPodsTrayApp.setAdaptiveNoiseLevel(value)
-                }
-            }
-            
-            onValueChanged: {
-                if (pressed) {
-                    debounceTimer.restart()
-                }
-            }
+
+            onPressedChanged: if (!pressed) airPodsTrayApp.setAdaptiveNoiseLevel(value)
+            onValueChanged: if (pressed) debounceTimer.restart()
 
             Label {
                 text: "Adaptive Noise Level: " + parent.value
@@ -161,16 +93,13 @@ ApplicationWindow {
             spacing: 10
 
             TextField {
-                id: newNameField
                 placeholderText: airPodsTrayApp.deviceName
                 maximumLength: 32
             }
 
             Button {
                 text: "Rename"
-                onClicked: {
-                    airPodsTrayApp.renameAirPods(newNameField.text)
-                }
+                onClicked: airPodsTrayApp.renameAirPods(newNameField.text)
             }
         }
     }
