@@ -320,6 +320,7 @@ private slots:
         // Clear the device name and model
         m_deviceName.clear();
         connectedDeviceMacAddress.clear();
+        mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         m_model = AirPodsModel::Unknown;
         emit deviceNameChanged(m_deviceName);
         emit modelChanged();
@@ -500,7 +501,6 @@ private slots:
 
         localSocket->connectToService(device.address(), QBluetoothUuid("74ec2172-0bad-4d01-8f77-997b2be0722a"));
         connectedDeviceMacAddress = device.address().toString().replace(":", "_");
-        mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
         notifyAndroidDevice();
     }
 
@@ -600,6 +600,11 @@ private slots:
         {
             parseMetadata(data);
             initiateMagicPairing();
+            mediaController->setConnectedDeviceMacAddress(connectedDeviceMacAddress);
+            if (isLeftPodInEar() || isRightPodInEar()) // AirPods get added as output device only after this
+            {
+                mediaController->activateA2dpProfile();
+            }
             emit airPodsStatusChanged();
         }
         else
