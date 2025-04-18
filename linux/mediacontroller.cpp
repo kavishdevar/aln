@@ -38,12 +38,20 @@ void MediaController::initializeMprisInterface() {
   }
 }
 
-void MediaController::handleEarDetection(const QString &status) {
+void MediaController::handleEarDetection(const QString &status)
+{
+  if (earDetectionBehavior == Disabled)
+  {
+    LOG_DEBUG("Ear detection is disabled, ignoring status");
+    return;
+  }
+
   bool primaryInEar = false;
   bool secondaryInEar = false;
 
   QStringList parts = status.split(", ");
-  if (parts.size() == 2) {
+  if (parts.size() == 2)
+  {
     primaryInEar = parts[0].contains("In Ear");
     secondaryInEar = parts[1].contains("In Ear");
   }
@@ -51,37 +59,68 @@ void MediaController::handleEarDetection(const QString &status) {
   LOG_DEBUG("Ear detection status: primaryInEar="
             << primaryInEar << ", secondaryInEar=" << secondaryInEar
             << ", isAirPodsActive=" << isActiveOutputDeviceAirPods());
-  if (primaryInEar || secondaryInEar) {
-    LOG_INFO("At least one AirPod is in ear");
-    activateA2dpProfile();
-  } else {
-    LOG_INFO("Both AirPods are out of ear");
-    removeAudioOutputDevice();
+
+  // First handle playback pausing based on selected behavior
+  bool shouldPause = false;
+  bool shouldResume = false;
+
+  if (earDetectionBehavior == PauseWhenOneRemoved)
+  {
+    shouldPause = !primaryInEar || !secondaryInEar;
+    shouldResume = primaryInEar && secondaryInEar;
+  }
+  else if (earDetectionBehavior == PauseWhenBothRemoved)
+  {
+    shouldPause = !primaryInEar && !secondaryInEar;
+    shouldResume = primaryInEar || secondaryInEar;
   }
 
-  if (primaryInEar && secondaryInEar) {
-    if (wasPausedByApp && isActiveOutputDeviceAirPods()) {
+  if (shouldPause && isActiveOutputDeviceAirPods())
+  {
+    QProcess process;
+    process.start("playerctl", QStringList() << "status");
+    process.waitForFinished();
+    QString playbackStatus = process.readAllStandardOutput().trimmed();
+    LOG_DEBUG("Playback status: " << playbackStatus);
+    if (playbackStatus == "Playing")
+    {
+      pause();
+    }
+  }
+
+  // Then handle device profile switching
+  if (primaryInEar || secondaryInEar)
+  {
+    LOG_INFO("At least one AirPod is in ear");
+    activateA2dpProfile();
+
+    // Resume if conditions are met and we previously paused
+    if (shouldResume && wasPausedByApp && isActiveOutputDeviceAirPods())
+    {
       int result = QProcess::execute("playerctl", QStringList() << "play");
       LOG_DEBUG("Executed 'playerctl play' with result: " << result);
-      if (result == 0) {
+      if (result == 0)
+      {
         LOG_INFO("Resumed playback via Playerctl");
         wasPausedByApp = false;
-      } else {
+      }
+      else
+      {
         LOG_ERROR("Failed to resume playback via Playerctl");
       }
     }
-  } else {
-    if (isActiveOutputDeviceAirPods()) {
-      QProcess process;
-      process.start("playerctl", QStringList() << "status");
-      process.waitForFinished();
-      QString playbackStatus = process.readAllStandardOutput().trimmed();
-      LOG_DEBUG("Playback status: " << playbackStatus);
-      if (playbackStatus == "Playing") {
-        pause();
-      }
-    }
   }
+  else
+  {
+    LOG_INFO("Both AirPods are out of ear");
+    removeAudioOutputDevice();
+  }
+}
+
+void MediaController::setEarDetectionBehavior(EarDetectionBehavior behavior)
+{
+  earDetectionBehavior = behavior;
+  LOG_INFO("Set ear detection behavior to: " << behavior);
 }
 
 void MediaController::followMediaChanges() {
