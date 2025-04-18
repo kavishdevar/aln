@@ -145,6 +145,11 @@ void MediaController::handleConversationalAwareness(const QByteArray &data) {
 }
 
 void MediaController::activateA2dpProfile() {
+  if (connectedDeviceMacAddress.isEmpty()) {
+    LOG_WARN("Connected device MAC address is empty, cannot activate A2DP profile");
+    return;
+  }
+
   LOG_INFO("Activating A2DP profile for AirPods");
   int result = QProcess::execute(
       "pactl", QStringList()
@@ -156,6 +161,11 @@ void MediaController::activateA2dpProfile() {
 }
 
 void MediaController::removeAudioOutputDevice() {
+  if (connectedDeviceMacAddress.isEmpty()) {
+    LOG_WARN("Connected device MAC address is empty, cannot remove audio output device");
+    return;
+  }
+  
   LOG_INFO("Removing AirPods as audio output device");
   int result = QProcess::execute(
       "pactl", QStringList()
