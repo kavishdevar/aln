@@ -163,18 +163,31 @@ ApplicationWindow {
     Component {
         id: settingsPage
         Item {
-            // Add your settings page content here
-            Column {
+            ScrollView {
                 anchors.fill: parent
-                spacing: 20
-                padding: 20
+                contentWidth: parent.width
+                contentHeight: parent.height
 
-                Label {
-                    text: "Settings Page"
-                    anchors.horizontalCenter: parent.horizontalCenter
+                Column {
+                    spacing: 20
+                    padding: 20
+
+                    Label {
+                        text: "Settings"
+                        font.pixelSize: 24
+                        // center the label
+                        anchors.horizontalCenter: parent.horizontalCenter
+                    }
+
+                    ComboBox {
+                        anchors.horizontalCenter: parent.horizontalCenter
+                        model: ["Pause When One Removed", "Pause When Both Removed", "Never Pause"]
+                        currentIndex: airPodsTrayApp.earDetectionBehavior
+                        onActivated: {
+                            airPodsTrayApp.earDetectionBehavior = currentIndex
+                        }
+                    }
                 }
-
-                
             }
 
             // Floating back button
