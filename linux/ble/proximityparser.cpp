@@ -10,6 +10,9 @@ bool ProximityParser::parseAppleProximityData(const QByteArray &data, DeviceInfo
         return false;
     }
 
+    // Set device type
+    deviceInfo.deviceType = DeviceInfo::DeviceType::PROXIMITY;
+
     // data[1] is the length of the data, so we can skip it
 
     // Check if pairing mode is paired (0x01) or pairing (0x00)
@@ -75,6 +78,62 @@ bool ProximityParser::parseAppleProximityData(const QByteArray &data, DeviceInfo
     {
         deviceInfo.lidState = static_cast<DeviceInfo::LidState>(lidState);
     }
+
+    return true;
+}
+
+bool ProximityParser::parseAppleFindMyData(const QByteArray &data, DeviceInfo &deviceInfo)
+{
+    // Minimum length for Find My message
+    if (data.size() < 26 || data[0] != 0x12 || data[1] != 0x19)
+    {
+        return false;
+    }
+
+    // Set device type
+    deviceInfo.deviceType = DeviceInfo::DeviceType::FIND_MY;
+
+    // Parse status byte
+    quint8 status = static_cast<quint8>(data[2]);
+    deviceInfo.status = status;
+
+    // Check maintained bit (bit 2)
+    bool isMaintained = (status & 0x04) != 0;
+    deviceInfo.isMaintained = isMaintained;
+
+    // Parse battery level if maintained
+    if (isMaintained)
+    {
+        int batteryLevel = (status >> 6) & 0x03;
+        switch (batteryLevel)
+        {
+        case 0:
+            deviceInfo.batteryLevel = DeviceInfo::BatteryLevel::CRITICALLY_LOW;
+            break;
+        case 1:
+            deviceInfo.batteryLevel = DeviceInfo::BatteryLevel::LOW;
+            break;
+        case 2:
+            deviceInfo.batteryLevel = DeviceInfo::BatteryLevel::MEDIUM;
+            break;
+        case 3:
+            deviceInfo.batteryLevel = DeviceInfo::BatteryLevel::FULL;
+            break;
+        }
+    }
+    else
+    {
+        deviceInfo.batteryLevel = DeviceInfo::BatteryLevel::UNKNOWN;
+    }
+
+    // Extract public key (bytes 3-24)
+    deviceInfo.publicKey = data.mid(3, 22);
+
+    // Extract public key bits (byte 25)
+    deviceInfo.publicKeyBits = static_cast<quint8>(data[25]);
+
+    // Extract hint (byte 26)
+    deviceInfo.hint = static_cast<quint8>(data[26]);
 
     return true;
 }

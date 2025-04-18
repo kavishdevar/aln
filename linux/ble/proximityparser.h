@@ -54,12 +54,36 @@ public:
     ConnectionState connectionState = ConnectionState::UNKNOWN;
 
     QDateTime lastSeen; // Timestamp of last detection
+
+    enum class DeviceType
+    {
+        PROXIMITY,
+        FIND_MY,
+        UNKNOWN
+    };
+    DeviceType deviceType = DeviceType::UNKNOWN;
+
+    enum class BatteryLevel
+    {
+        UNKNOWN,
+        CRITICALLY_LOW,
+        LOW,
+        MEDIUM,
+        FULL
+    };
+    BatteryLevel batteryLevel = BatteryLevel::UNKNOWN;
+
+    bool isMaintained = false;
+    QByteArray publicKey;
+    quint8 publicKeyBits = 0;
+    quint8 hint = 0;
 };
 
 class ProximityParser
 {
 public:
     static bool parseAppleProximityData(const QByteArray &data, DeviceInfo &deviceInfo);
+    static bool parseAppleFindMyData(const QByteArray &data, DeviceInfo &deviceInfo);
 };
 
 #endif // PROXIMITYPARSER_H

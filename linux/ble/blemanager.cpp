@@ -47,34 +47,54 @@ const QMap<QString, DeviceInfo> &BleManager::getDevices() const
 
 void BleManager::onDeviceDiscovered(const QBluetoothDeviceInfo &info)
 {
-    // Check for Apple's manufacturer ID (0x004C)
-    if (info.manufacturerData().contains(0x004C))
+    if (info.manufacturerData().contains(0x004C)) // Apple manufacturer ID
     {
         QByteArray data = info.manufacturerData().value(0x004C);
-
         QString address = info.address().toString();
         DeviceInfo deviceInfo;
         deviceInfo.name = info.name();
         deviceInfo.address = address;
         deviceInfo.rawData = data;
 
-        if (ProximityParser::parseAppleProximityData(data, deviceInfo))
+        // Try to parse as Proximity message
+        if (data.size() >= 1 && data[0] == 0x07 && ProximityParser::parseAppleProximityData(data, deviceInfo))
         {
-            // Update timestamp
-            deviceInfo.lastSeen = QDateTime::currentDateTime();
+            deviceInfo.deviceType = DeviceInfo::DeviceType::PROXIMITY;
+        }
+        // Try to parse as Find My message
+        else if (data.size() >= 1 && data[0] == 0x12 && ProximityParser::parseAppleFindMyData(data, deviceInfo))
+        {
+            deviceInfo.deviceType = DeviceInfo::DeviceType::FIND_MY;
+        }
+        else
+        {
+            return; // Not a message we can parse
+        }
 
-            // Store device info in the map
-            devices[address] = deviceInfo;
+        // Update timestamp
+        deviceInfo.lastSeen = QDateTime::currentDateTime();
 
-            // Debug output
-            qDebug() << "Found device:" << deviceInfo.name
+        // Store device info in the map
+        devices[address] = deviceInfo;
+
+        // Debug output
+        if (deviceInfo.deviceType == DeviceInfo::DeviceType::PROXIMITY)
+        {
+            qDebug() << "Found proximity device:" << deviceInfo.name
                      << "Left:" << (deviceInfo.leftPodBattery >= 0 ? QString("%1%").arg(deviceInfo.leftPodBattery) : "N/A")
                      << "Right:" << (deviceInfo.rightPodBattery >= 0 ? QString("%1%").arg(deviceInfo.rightPodBattery) : "N/A")
                      << "Case:" << (deviceInfo.caseBattery >= 0 ? QString("%1%").arg(deviceInfo.caseBattery) : "N/A");
         }
+        else if (deviceInfo.deviceType == DeviceInfo::DeviceType::FIND_MY)
+        {
+            qDebug() << "Found Find My device:" << deviceInfo.name
+                     << "Maintained:" << deviceInfo.isMaintained
+                     << "Battery:" << static_cast<int>(deviceInfo.batteryLevel);
+        }
     }
-    // Add other protocol checks here
+    // Add other manufacturer checks here
 }
+
 void BleManager::onScanFinished()
 {
     qDebug() << "Scan finished.";
