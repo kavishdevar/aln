@@ -182,6 +182,12 @@ namespace AirPodsPackets
         }
     }
 
+    namespace HeadTracking {
+        static const QByteArray ENABLE = QByteArray::fromHex("04000400170000001000100008a102420b080e10021a05409c0000");
+        static const QByteArray DISABLE = QByteArray::fromHex("040004001700000010001100087e1002420b084e10021a050100000000");
+        static const QByteArray DATA_HEADER = QByteArray::fromHex("04000400170000001000");
+    }
+
     // Parsing Headers
     namespace Parse
     {

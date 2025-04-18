@@ -158,6 +158,18 @@ private:
     }
 
 public slots:
+    void startHeadTracking()
+    {
+        LOG_INFO("Starting head tracking");
+        writePacketToSocket(AirPodsPackets::HeadTracking::ENABLE, "Head tracking enable packet written: ");
+    }
+
+    void stopHeadTracking()
+    {
+        LOG_INFO("Stopping head tracking");
+        writePacketToSocket(AirPodsPackets::HeadTracking::DISABLE, "Head tracking disable packet written: ");
+    }
+
     void connectToDevice(const QString &address) {
         LOG_INFO("Connecting to device with address: " << address);
         QBluetoothAddress btAddress(address);

@@ -116,5 +116,22 @@ ApplicationWindow {
                 onClicked: airPodsTrayApp.renameAirPods(newNameField.text)
             }
         }
+
+        // Add this to your QML file (where the other controls are)
+        Row {
+            anchors.horizontalCenter: parent.horizontalCenter
+            spacing: 10
+            visible: airPodsTrayApp.airpodsConnected
+
+            Button {
+                text: "Start Head Tracking"
+                onClicked: airPodsTrayApp.startHeadTracking()
+            }
+
+            Button {
+                text: "Stop Head Tracking"
+                onClicked: airPodsTrayApp.stopHeadTracking()
+            }
+        }
     }
 }
