@@ -16,6 +16,8 @@ qt_add_executable(ble_monitor
     blemanager.cpp
     blescanner.h
     blescanner.cpp
+    proximityparser.h
+    proximityparser.cpp
 )
 
 target_link_libraries(ble_monitor
