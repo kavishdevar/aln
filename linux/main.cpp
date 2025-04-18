@@ -34,7 +34,8 @@ public:
     AirPodsTrayApp(bool debugMode) 
       : debugMode(debugMode)
       , m_battery(new Battery(this)) 
-      , monitor(new BluetoothMonitor(this)) {
+      , monitor(new BluetoothMonitor(this))
+      , m_settings(new QSettings("AirPodsTrayApp", "AirPodsTrayApp")){
         if (debugMode) {
             QLoggingCategory::setFilterRules("airpodsApp.debug=true");
         } else {
@@ -85,6 +86,7 @@ public:
 
     ~AirPodsTrayApp() {
         saveCrossDeviceEnabled();
+        saveEarDetectionSettings();
 
         delete trayIcon;
         delete trayMenu;
@@ -265,18 +267,11 @@ public slots:
         }
     }
 
-    bool loadCrossDeviceEnabled()
-    {
-        QSettings settings;
-        return settings.value("crossdevice/enabled", false).toBool();
-    }
+    bool loadCrossDeviceEnabled() { return m_settings->value("crossdevice/enabled", false).toBool(); }
+    void saveCrossDeviceEnabled() { m_settings->setValue("crossdevice/enabled", CrossDevice.isEnabled); }
 
-    void saveCrossDeviceEnabled()
-    {
-        QSettings settings;
-        settings.setValue("crossdevice/enabled", CrossDevice.isEnabled);
-        settings.sync();
-    }
+    int loadEarDetectionSettings() { return m_settings->value("earDetection/setting", MediaController::EarDetectionBehavior::PauseWhenOneRemoved).toInt(); }
+    void saveEarDetectionSettings() { m_settings->setValue("earDetection/setting", mediaController->getEarDetectionBehavior()); }
 
 private slots:
     void onTrayIconActivated()
@@ -836,7 +831,7 @@ private:
     MediaController* mediaController;
     TrayIconManager *trayManager;
     BluetoothMonitor *monitor;
-    QSettings *settings;
+    QSettings *m_settings;
 
     QString m_batteryStatus;
     QString m_earDetectionStatus;
