@@ -131,21 +131,6 @@ ApplicationWindow {
                     checked: airPodsTrayApp.conversationalAwareness
                     onCheckedChanged: airPodsTrayApp.conversationalAwareness = checked
                 }
-
-                Row {
-                    spacing: 10
-
-                    TextField {
-                        id: newNameField
-                        placeholderText: airPodsTrayApp.deviceName
-                        maximumLength: 32
-                    }
-
-                    Button {
-                        text: "Rename"
-                        onClicked: airPodsTrayApp.renameAirPods(newNameField.text)
-                    }
-                }
             }
 
             RoundButton {
@@ -179,12 +164,41 @@ ApplicationWindow {
                         anchors.horizontalCenter: parent.horizontalCenter
                     }
 
-                    ComboBox {
-                        anchors.horizontalCenter: parent.horizontalCenter
-                        model: ["Pause When One Removed", "Pause When Both Removed", "Never Pause"]
-                        currentIndex: airPodsTrayApp.earDetectionBehavior
-                        onActivated: {
-                            airPodsTrayApp.earDetectionBehavior = currentIndex
+                    Column {
+                        spacing: 5 // Small gap between label and ComboBox
+
+                        Label {
+                            text: "Pause Behavior When Removing AirPods:"
+                        }
+
+                        ComboBox {
+                            width: parent.width // Ensures full width
+                            model: ["One Removed", "Both Removed", "Never"]
+                            currentIndex: airPodsTrayApp.earDetectionBehavior
+                            onActivated: airPodsTrayApp.earDetectionBehavior = currentIndex
+                        }
+                    }
+
+                    Switch {
+                        text: "Cross-Device Connectivity with Android"
+                        checked: airPodsTrayApp.crossDeviceEnabled
+                        onCheckedChanged: {
+                            airPodsTrayApp.setCrossDeviceEnabled(checked)
+                        }
+                    }
+
+                    Row {
+                        spacing: 10
+
+                        TextField {
+                            id: newNameField
+                            placeholderText: airPodsTrayApp.deviceName
+                            maximumLength: 32
+                        }
+
+                        Button {
+                            text: "Rename"
+                            onClicked: airPodsTrayApp.renameAirPods(newNameField.text)
                         }
                     }
                 }
