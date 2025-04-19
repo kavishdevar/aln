@@ -31,6 +31,7 @@ qt_add_qml_module(applinux
         BatteryIndicator.qml
         SegmentedControl.qml
         PodColumn.qml
+        Icon.qml
 )
 
 # Add the resource file
@@ -46,6 +47,7 @@ qt_add_resources(applinux "resources"
         assets/podpro.png
         assets/podpro_case.png
         assets/podmax.png
+        assets/fonts/SF-Symbols-6.ttf
 )
 
 target_link_libraries(applinux

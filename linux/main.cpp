@@ -29,6 +29,8 @@ class AirPodsTrayApp : public QObject {
     Q_PROPERTY(bool leftPodInEar READ isLeftPodInEar NOTIFY primaryChanged)
     Q_PROPERTY(bool rightPodInEar READ isRightPodInEar NOTIFY primaryChanged)
     Q_PROPERTY(bool airpodsConnected READ areAirpodsConnected NOTIFY airPodsStatusChanged)
+    Q_PROPERTY(int earDetectionBehavior READ earDetectionBehavior WRITE setEarDetectionBehavior NOTIFY earDetectionBehaviorChanged)
+    Q_PROPERTY(bool crossDeviceEnabled READ crossDeviceEnabled WRITE setCrossDeviceEnabled NOTIFY crossDeviceEnabledChanged)
 
 public:
     AirPodsTrayApp(bool debugMode) 
@@ -64,7 +66,9 @@ public:
 
         connect(m_battery, &Battery::primaryChanged, this, &AirPodsTrayApp::primaryChanged);
 
+        // Load settings
         CrossDevice.isEnabled = loadCrossDeviceEnabled();
+        setEarDetectionBehavior(loadEarDetectionSettings());
 
         monitor->checkAlreadyConnectedDevices();
         LOG_INFO("AirPodsTrayApp initialized");
@@ -120,6 +124,8 @@ public:
         }
     }
     bool areAirpodsConnected() const { return socket && socket->isOpen() && socket->state() == QBluetoothSocket::SocketState::ConnectedState; }
+    int earDetectionBehavior() const { return mediaController->getEarDetectionBehavior(); }
+    bool crossDeviceEnabled() const { return CrossDevice.isEnabled; }
 
 private:
     bool debugMode;
@@ -250,6 +256,33 @@ public slots:
         {
             LOG_ERROR("Failed to send rename command: socket not open");
         }
+    }
+
+    void setEarDetectionBehavior(int behavior)
+    {
+        if (behavior == earDetectionBehavior())
+        {
+            LOG_INFO("Ear detection behavior is already set to: " << behavior);
+            return;
+        }
+
+        mediaController->setEarDetectionBehavior(static_cast<MediaController::EarDetectionBehavior>(behavior));
+        saveEarDetectionSettings();
+        emit earDetectionBehaviorChanged(behavior);
+    }
+
+    void setCrossDeviceEnabled(bool enabled)
+    {
+        if (CrossDevice.isEnabled == enabled)
+        {
+            LOG_INFO("Cross-device feature is already " << (enabled ? "enabled" : "disabled"));
+            return;
+        }
+
+        CrossDevice.isEnabled = enabled;
+        saveCrossDeviceEnabled();
+        connectToPhone();
+        emit crossDeviceEnabledChanged(enabled);
     }
 
     bool writePacketToSocket(const QByteArray &packet, const QString &logMessage)
@@ -560,10 +593,8 @@ private slots:
         {
             char primary = data[6];
             char secondary = data[7];
-            m_primaryInEar = primary == 0x00;
-            m_secoundaryInEar = secondary == 0x00;
-            m_primaryInEar = primary == 0x00;
-            m_secoundaryInEar = secondary == 0x00;
+            m_primaryInEar = data[6] == 0x00;
+            m_secoundaryInEar = data[7] == 0x00;
             m_earDetectionStatus = QString("Primary: %1, Secondary: %2")
                                        .arg(getEarStatus(primary), getEarStatus(secondary));
             LOG_INFO("Ear detection status: " << m_earDetectionStatus);
@@ -819,9 +850,10 @@ signals:
     void modelChanged();
     void primaryChanged();
     void airPodsStatusChanged();
+    void earDetectionBehaviorChanged(int behavior);
+    void crossDeviceEnabledChanged(bool enabled);
 
-private:
-    QSystemTrayIcon *trayIcon;
+    private : QSystemTrayIcon *trayIcon;
     QMenu *trayMenu;
     QBluetoothSocket *socket = nullptr;
     QBluetoothSocket *phoneSocket = nullptr;
