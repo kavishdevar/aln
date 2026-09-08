@@ -142,6 +142,41 @@ impl AirPodsDevice {
             }
         });
 
+        // The microphone runs over AACP, so it never asks the audio stack for an
+        // HFP mic and playback keeps its A2DP profile.
+        #[cfg(feature = "mic")]
+        {
+            let (mic_tx, mut mic_rx) = tokio::sync::mpsc::unbounded_channel::<bool>();
+            if let Some(handle) = &tray_handle {
+                handle
+                    .update(|tray: &mut MyTray| tray.mic_tx = Some(mic_tx.clone()))
+                    .await;
+            }
+
+            let mic_manager = aacp_manager.clone();
+            tokio::spawn(async move {
+                let mut stream: Option<crate::audio::mic::MicStream> = None;
+                while let Some(enable) = mic_rx.recv().await {
+                    match (enable, stream.take()) {
+                        (true, None) => {
+                            match crate::audio::mic::MicStream::start(mic_manager.clone()).await {
+                                Ok(started) => stream = Some(started),
+                                Err(e) => log::error!("Could not start the microphone: {e}"),
+                            }
+                        }
+                        (true, running) => stream = running,
+                        (false, Some(running)) => running.stop().await,
+                        (false, None) => {}
+                    }
+                }
+                // The channel closes when the device goes away; leaving the buds
+                // streaming would push the audio stack back to HFP.
+                if let Some(running) = stream.take() {
+                    running.stop().await;
+                }
+            });
+        }
+
         let mc_listener = media_controller.lock().await;
         let aacp_manager_clone_listener = aacp_manager.clone();
         mc_listener

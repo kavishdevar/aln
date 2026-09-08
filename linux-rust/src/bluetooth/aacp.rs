@@ -360,6 +360,8 @@ impl AACPManagerState {
 #[derive(Clone)]
 pub struct AACPManager {
     pub state: Arc<Mutex<AACPManagerState>>,
+    /// Microphone sink, kept out of `state` so audio never contends for it.
+    audio_subscriber: Arc<Mutex<Option<mpsc::UnboundedSender<Vec<u8>>>>>,
     tasks: Arc<Mutex<JoinSet<()>>>,
 }
 
@@ -367,6 +369,7 @@ impl AACPManager {
     pub fn new() -> Self {
         AACPManager {
             state: Arc::new(Mutex::new(AACPManagerState::new())),
+            audio_subscriber: Arc::new(Mutex::new(None)),
             tasks: Arc::new(Mutex::new(JoinSet::new())),
         }
     }
@@ -438,9 +441,62 @@ impl AACPManager {
         tasks.spawn(send_thread(rx, seq_packet));
     }
 
+    /// Hands microphone access units to the audio pipeline. Called before
+    /// control parsing so audio never reaches the command handlers or the logs.
+    async fn receive_audio_packet(&self, packet: &[u8]) {
+        let subscriber = self.audio_subscriber.lock().await.clone();
+        let Some(subscriber) = subscriber else {
+            return;
+        };
+        for unit in crate::audio::eld::access_units(packet) {
+            if subscriber.send(unit.to_vec()).is_err() {
+                break;
+            }
+        }
+    }
+
+    /// Starts the microphone stream and returns its access units. Playback stays
+    /// on A2DP: this path never asks the audio stack for an HFP microphone.
+    pub async fn start_audio_stream(&self) -> Result<mpsc::UnboundedReceiver<Vec<u8>>> {
+        let (tx, rx) = mpsc::unbounded_channel();
+        *self.audio_subscriber.lock().await = Some(tx);
+        self.send_packet(&crate::audio::eld::START_AUDIO_STREAM)
+            .await?;
+        info!("Started AirPods microphone stream");
+        Ok(rx)
+    }
+
+    /// Stops the stream. Buds left streaming keep the audio stack in a state
+    /// where playback falls back to HFP, so this must run on every teardown.
+    pub async fn stop_audio_stream(&self) -> Result<()> {
+        *self.audio_subscriber.lock().await = None;
+        let result = self
+            .send_packet(&crate::audio::eld::STOP_AUDIO_STREAM)
+            .await;
+        info!("Stopped AirPods microphone stream");
+        result
+    }
+
     async fn send_packet(&self, data: &[u8]) -> Result<()> {
-        let state = self.state.lock().await;
-        if let Some(sender) = &state.sender {
+        // The sender is cloned and the lock released before awaiting: holding
+        // the state mutex across a full channel stalls every other task,
+        // including the receive path, and wedges the whole manager.
+        let sender = match tokio::time::timeout(
+            std::time::Duration::from_secs(2),
+            self.state.lock(),
+        )
+        .await
+        {
+            Ok(state) => state.sender.clone(),
+            Err(_) => {
+                error!("send_packet: state mutex held for over 2s, giving up");
+                return Err(Error::from(std::io::Error::new(
+                    std::io::ErrorKind::TimedOut,
+                    "state mutex busy",
+                )));
+            }
+        };
+        if let Some(sender) = sender {
             sender.send(data.to_vec()).await.map_err(|e| {
                 error!("Failed to send packet to channel: {}", e);
                 Error::from(std::io::Error::new(
@@ -495,6 +551,10 @@ impl AACPManager {
     }
 
     pub async fn receive_packet(&self, packet: &[u8]) {
+        if crate::audio::eld::is_audio_packet(packet) {
+            self.receive_audio_packet(packet).await;
+            return;
+        }
         if !packet.starts_with(&HEADER_BYTES) {
             debug!(
                 "Received packet does not start with expected header: {}",
@@ -1203,7 +1263,9 @@ impl AACPManager {
 }
 
 async fn recv_thread(manager: AACPManager, sp: Arc<SeqPacket>) {
-    let mut buf = vec![0u8; 1024];
+    // Microphone SDUs are far larger than control packets and a short buffer
+    // truncates them, so the receive buffer is sized for audio.
+    let mut buf = vec![0u8; 8192];
     loop {
         match sp.recv(&mut buf).await {
             Ok(0) => {
@@ -1212,7 +1274,11 @@ async fn recv_thread(manager: AACPManager, sp: Arc<SeqPacket>) {
             }
             Ok(n) => {
                 let data = &buf[..n];
-                debug!("Received {} bytes: {}", n, hex::encode(data));
+                // Audio arrives ~130 times a second; hex-dumping it floods the
+                // log and burns CPU, so only control traffic is logged.
+                if !crate::audio::eld::is_audio_packet(data) {
+                    debug!("Received {} bytes: {}", n, hex::encode(data));
+                }
                 manager.receive_packet(data).await;
             }
             Err(e) => {

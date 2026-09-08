@@ -23,6 +23,9 @@ pub struct MyTray {
     pub listening_mode: Option<u8>,
     pub allow_off_option: Option<u8>,
     pub command_tx: Option<UnboundedSender<(ControlCommandIdentifiers, Vec<u8>)>>,
+    /// Requests the microphone stream to start (true) or stop (false).
+    pub mic_tx: Option<UnboundedSender<bool>>,
+    pub mic_enabled: bool,
     pub ui_tx: Option<UnboundedSender<BluetoothUIMessage>>,
 }
 
@@ -177,6 +180,22 @@ impl ksni::Tray for MyTray {
                             vec![value],
                         ));
                         this.conversation_detect_enabled = Some(new_state);
+                    }
+                }),
+                ..Default::default()
+            }
+            .into(),
+            CheckmarkItem {
+                label: "AirPods Microphone".into(),
+                checked: self.mic_enabled,
+                // Only offered by builds that ship the AAC-ELD decoder.
+                enabled: self.mic_tx.is_some(),
+                activate: Box::new(|this: &mut Self| {
+                    if let Some(tx) = &this.mic_tx {
+                        let enable = !this.mic_enabled;
+                        if tx.send(enable).is_ok() {
+                            this.mic_enabled = enable;
+                        }
                     }
                 }),
                 ..Default::default()

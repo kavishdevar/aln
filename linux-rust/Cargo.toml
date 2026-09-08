@@ -22,6 +22,15 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 aes = "0.9.0-rc.4"
 futures = "0.3.32"
+fdk-aac = { version = "0.8", optional = true }
+pipewire = { version = "0.10", optional = true }
+libspa = { version = "0.10", optional = true }
+
+[features]
+default = []
+# Microphone streaming needs a non-free AAC-ELD decoder, so it stays opt-in:
+#   cargo build --release --features mic
+mic = ["dep:fdk-aac", "dep:pipewire", "dep:libspa"]
 
 [profile.release]
 opt-level = "s"

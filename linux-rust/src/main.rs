@@ -1,3 +1,4 @@
+mod audio;
 mod bluetooth;
 mod devices;
 mod media_controller;
@@ -148,6 +149,8 @@ async fn async_main(
             listening_mode: None,
             allow_off_option: None,
             command_tx: None,
+            mic_tx: None,
+            mic_enabled: false,
             ui_tx: Some(ui_tx.clone()),
         };
         let handle = tray.spawn().await.unwrap();

@@ -101,6 +101,37 @@ systemctl --user enable --now mpris-proxy
   - View battery levels
   - Control playback
 
+## Microphone (AAC-ELD)
+
+AirPods can stream their microphone over AACP instead of HFP, so playback keeps
+its A2DP profile and full quality while the microphone is in use. Enabling it
+publishes a PipeWire source named **AirPods Microphone (LibrePods)** that any
+application can record from.
+
+This needs a decoder for AAC-ELD, which is not part of `fdk-aac-free`, so the
+feature is opt-in:
+
+```bash
+# Fedora: fdk-aac lives in RPM Fusion (nonfree)
+sudo dnf install fdk-aac-devel pipewire-devel clang
+
+cargo build --release --features mic
+```
+
+Turn it on from **AirPods Microphone** in the tray menu, then pick the source in
+your application.
+
+One WirePlumber policy gets in the way. `bluetooth.autoswitch-to-headset-profile`
+reacts to *any* capture stream by pausing media players in preparation for an HFP
+switch, so playback pauses even though this microphone never needs HFP:
+
+```bash
+wpctl settings --save bluetooth.autoswitch-to-headset-profile false
+```
+
+With that disabled the headset microphone is no longer offered automatically -
+which is the point, since this source replaces it without degrading playback.
+
 ## Hearing Aid
 
 To use hearing aid features, you need to have an audiogram. To enable/disable hearing aid, you can use the toggle in the main app. But, to adjust the settings and set the audiogram, you need to use a different script which is located in this folder as `hearing_aid.py`. You can run it with:
