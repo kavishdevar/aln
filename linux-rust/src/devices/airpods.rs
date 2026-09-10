@@ -142,6 +142,15 @@ impl AirPodsDevice {
             }
         });
 
+        // PipeWire can leave the card on the "off" profile when it appears
+        // before its A2DP transport is ready, and nothing revisits that choice
+        // until playback starts - so freshly connected buds stay silent, and
+        // the microphone has no transport either. Claim a profile right away.
+        let mc_profile = media_controller.clone();
+        tokio::spawn(async move {
+            mc_profile.lock().await.activate_a2dp_profile().await;
+        });
+
         let mc_listener = media_controller.lock().await;
         let aacp_manager_clone_listener = aacp_manager.clone();
         mc_listener
