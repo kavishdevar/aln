@@ -29,6 +29,7 @@ struct OwnedCardInfo {
     index: u32,
     proplist: Proplist,
     profiles: Vec<OwnedCardProfileInfo>,
+    active_profile: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -301,51 +302,115 @@ impl MediaController {
         }
     }
 
+    /// Number of one-second attempts to wait for A2DP profiles to be enumerated.
+    const A2DP_ENUMERATION_ATTEMPTS: u32 = 5;
+
+    /// Currently active profile of the card, used to avoid pointless switches.
+    async fn get_active_profile(&self, card_index: u32) -> Option<String> {
+        tokio::task::spawn_blocking(move || {
+            get_card_info_list_sync()
+                .iter()
+                .find(|c| c.index == card_index)
+                .and_then(|c| c.active_profile.clone())
+        })
+        .await
+        .unwrap_or(None)
+    }
+
+    /// Resolves the card by Bluetooth MAC and refreshes the cached index.
+    /// PipeWire can assign a different index after a disconnect/reconnect.
+    async fn refresh_device_index(&self) -> Option<u32> {
+        let mac = self.state.lock().await.connected_device_mac.clone();
+        if mac.is_empty() {
+            return None;
+        }
+        let index = self.get_audio_device_index(&mac).await;
+        self.state.lock().await.device_index = index;
+        index
+    }
+
+    /// Waits for the card to expose an A2DP profile, re-resolving the card on
+    /// every attempt. Sleeps between attempts, but never after the last one.
+    async fn wait_for_a2dp_profile(&self, attempts: u32) -> bool {
+        for attempt in 0..attempts {
+            if self.refresh_device_index().await.is_some() && self.is_a2dp_profile_available().await
+            {
+                return true;
+            }
+            if attempt + 1 < attempts {
+                tokio::time::sleep(Duration::from_secs(1)).await;
+            }
+        }
+        false
+    }
+
+    async fn restart_wire_plumber(&self) -> bool {
+        info!("Restarting WirePlumber to rediscover A2DP profiles");
+        let result = Command::new("systemctl")
+            .args(["--user", "restart", "wireplumber"])
+            .output();
+
+        match result {
+            Ok(output) if output.status.success() => {
+                info!("WirePlumber restarted successfully");
+                tokio::time::sleep(Duration::from_secs(2)).await;
+                true
+            }
+            _ => {
+                error!("Failed to restart WirePlumber. Do you use wireplumber?");
+                false
+            }
+        }
+    }
+
     pub async fn activate_a2dp_profile(&self) {
         debug!("Entering activate_a2dp_profile");
-        let state = self.state.lock().await;
 
-        if state.connected_device_mac.is_empty() {
+        if self.state.lock().await.connected_device_mac.is_empty() {
             warn!("Connected device MAC is empty, cannot activate A2DP profile");
             return;
         }
 
-        let device_index = state.device_index;
-        let mac = state.connected_device_mac.clone();
-        drop(state);
-
-        let mut current_device_index = device_index;
-
-        if current_device_index.is_none() {
-            warn!("Device index not found, trying to get it.");
-            current_device_index = self.get_audio_device_index(&mac).await;
-            if let Some(idx) = current_device_index {
-                self.state.lock().await.device_index = Some(idx);
-            } else {
-                warn!("Could not get device index. Cannot activate A2DP profile.");
-                return;
-            }
+        // Always resolve the card by MAC first: a reconnect can change its index.
+        if self.refresh_device_index().await.is_none() {
+            warn!("Could not get device index. Cannot activate A2DP profile.");
+            return;
         }
 
         if !self.is_a2dp_profile_available().await {
-            warn!("A2DP profile not available, attempting to restart WirePlumber");
-            if self.restart_wire_plumber().await {
-                let mut state = self.state.lock().await;
-                state.device_index = self
-                    .get_audio_device_index(&state.connected_device_mac)
-                    .await;
-                debug!(
-                    "Updated device_index after WirePlumber restart: {:?}",
-                    state.device_index
-                );
-                if !self.is_a2dp_profile_available().await {
-                    error!("A2DP profile still not available after WirePlumber restart");
+            // A freshly connected card can show up before its profiles are
+            // enumerated. Give that a grace period before restarting
+            // WirePlumber, which interrupts playback for several seconds.
+            warn!("A2DP profile not available yet, waiting for enumeration");
+            if !self
+                .wait_for_a2dp_profile(Self::A2DP_ENUMERATION_ATTEMPTS)
+                .await
+            {
+                warn!("A2DP profile still missing, restarting WirePlumber as a last resort");
+                if !self.restart_wire_plumber().await
+                    || !self
+                        .wait_for_a2dp_profile(Self::A2DP_ENUMERATION_ATTEMPTS)
+                        .await
+                {
+                    error!("A2DP profile unavailable, skipping profile activation");
                     return;
                 }
-            } else {
-                error!("Could not restart WirePlumber, A2DP profile unavailable");
-                return;
             }
+        }
+
+        let Some(idx) = self.state.lock().await.device_index else {
+            error!("Device index not available for activating profile.");
+            return;
+        };
+
+        // Leave an already-active A2DP variant alone. Switching profiles
+        // recreates the PipeWire sink and stops the stream that triggered this
+        // activation, so players pause again right after the user pressed play.
+        if let Some(active) = self.get_active_profile(idx).await
+            && active.starts_with("a2dp")
+        {
+            debug!("A2DP profile {} already active, leaving it unchanged", active);
+            return;
         }
 
         let preferred_profile = self.get_preferred_a2dp_profile().await;
@@ -354,22 +419,16 @@ impl MediaController {
             return;
         }
 
-        let device_index = self.state.lock().await.device_index;
-        if let Some(idx) = device_index {
-            info!("Activating A2DP profile for AirPods: {}", preferred_profile);
-            let profile_name = preferred_profile.clone();
-            let success =
-                tokio::task::spawn_blocking(move || set_card_profile_sync(idx, &profile_name))
-                    .await
-                    .unwrap_or(false);
+        info!("Activating A2DP profile for AirPods: {}", preferred_profile);
+        let profile_name = preferred_profile.clone();
+        let success = tokio::task::spawn_blocking(move || set_card_profile_sync(idx, &profile_name))
+            .await
+            .unwrap_or(false);
 
-            if success {
-                info!("Successfully activated A2DP profile: {}", preferred_profile);
-            } else {
-                warn!("Failed to activate A2DP profile: {}", preferred_profile);
-            }
+        if success {
+            info!("Successfully activated A2DP profile: {}", preferred_profile);
         } else {
-            error!("Device index not available for activating profile.");
+            warn!("Failed to activate A2DP profile: {}", preferred_profile);
         }
     }
 
@@ -564,7 +623,7 @@ impl MediaController {
             return cached_profile;
         }
 
-        for profile in ["a2dp-sink-sbc_xq", "a2dp-sink-sbc", "a2dp-sink"] {
+        for profile in crate::utils::load_preferred_codec().profile_order() {
             if self.is_profile_available(index, profile).await {
                 info!("Selected best available A2DP profile: {}", profile);
                 self.state.lock().await.cached_a2dp_profile = profile.to_string();
@@ -592,25 +651,6 @@ impl MediaController {
         })
             .await
             .unwrap_or(false)
-    }
-
-    async fn restart_wire_plumber(&self) -> bool {
-        info!("Restarting WirePlumber to rediscover A2DP profiles");
-        let result = Command::new("systemctl")
-            .args(["--user", "restart", "wireplumber"])
-            .output();
-
-        match result {
-            Ok(output) if output.status.success() => {
-                info!("WirePlumber restarted successfully");
-                tokio::time::sleep(Duration::from_secs(2)).await;
-                true
-            }
-            _ => {
-                error!("Failed to restart WirePlumber. Do you use wireplumber?");
-                false
-            }
-        }
     }
 
     async fn get_audio_device_index(&self, mac: &str) -> Option<u32> {
@@ -920,10 +960,15 @@ fn get_card_info_list_sync() -> Vec<OwnedCardInfo> {
                         name: p.name.as_ref().map(|n| n.to_string()),
                     })
                     .collect();
+                let active_profile = item
+                    .active_profile
+                    .as_ref()
+                    .and_then(|p| p.name.as_ref().map(|n| n.to_string()));
                 cards.borrow_mut().push(OwnedCardInfo {
                     index: item.index,
                     proplist: item.proplist.clone(),
                     profiles,
+                    active_profile,
                 });
             }
         }

@@ -1,5 +1,6 @@
-use crate::bluetooth::aacp::BatteryStatus;
+use crate::bluetooth::aacp::{AACPEvent, BatteryComponent, BatteryInfo, BatteryStatus};
 use crate::devices::enums::{DeviceData, DeviceInformation, DeviceType};
+use crate::ui::messages::BluetoothUIMessage;
 use crate::ui::tray::MyTray;
 use crate::utils::{ah, get_devices_path, get_preferences_path};
 use aes::Aes128;
@@ -15,6 +16,7 @@ use std::collections::{HashMap, HashSet};
 use std::str::FromStr;
 use std::sync::Arc;
 use tokio::sync::Mutex;
+use tokio::sync::mpsc::UnboundedSender;
 
 fn decrypt(key: &[u8; 16], data: &[u8; 16]) -> [u8; 16] {
     let cipher = Aes128::new(&Array::from(*key));
@@ -46,7 +48,10 @@ fn verify_rpa(addr: &str, irk: &[u8; 16]) -> bool {
     hash == computed_hash
 }
 
-pub async fn start_le_monitor(tray_handle: Option<ksni::Handle<MyTray>>) -> bluer::Result<()> {
+pub async fn start_le_monitor(
+    tray_handle: Option<ksni::Handle<MyTray>>,
+    ui_tx: UnboundedSender<BluetoothUIMessage>,
+) -> bluer::Result<()> {
     let session = Session::new().await?;
     let adapter = session.default_adapter().await?;
     adapter.set_powered(true).await?;
@@ -143,6 +148,7 @@ pub async fn start_le_monitor(tray_handle: Option<ksni::Handle<MyTray>>) -> blue
             if matched_airpods_mac.is_some() {
                 let mut events = dev.events().await?;
                 let tray_handle_clone = tray_handle.clone();
+                let ui_tx_clone = ui_tx.clone();
                 let connecting_macs_clone = Arc::clone(&connecting_macs);
                 tokio::spawn(async move {
                     while let Some(ev) = events.next().await {
@@ -246,6 +252,7 @@ pub async fn start_le_monitor(tray_handle: Option<ksni::Handle<MyTray>>) -> blue
                                                         );
                                                     }
                                                 }
+                                            } else {
                                                 info!(
                                                     "Auto-connect is disabled for {}, not attempting to connect.",
                                                     matched_airpods_mac.as_ref().unwrap()
@@ -334,6 +341,36 @@ pub async fn start_le_monitor(tray_handle: Option<ksni::Handle<MyTray>>) -> blue
                                                     };
                                                 })
                                                 .await;
+                                        }
+
+                                        // The tray is not the only consumer: the window shows the
+                                        // case level too, and over AACP the case reports itself as
+                                        // disconnected whenever the buds are outside it.
+                                        if let Some(mac) = matched_airpods_mac.as_ref() {
+                                            let battery_info = [
+                                                (BatteryComponent::Left, left_byte, left_battery, left_charging),
+                                                (BatteryComponent::Right, right_byte, right_battery, right_charging),
+                                                (BatteryComponent::Case, case_byte, case_battery, case_charging),
+                                            ]
+                                            .into_iter()
+                                            .filter(|(_, raw, _, _)| *raw != 0xff)
+                                            .map(|(component, _, level, charging)| BatteryInfo {
+                                                component,
+                                                level: level as u8,
+                                                status: if charging {
+                                                    BatteryStatus::Charging
+                                                } else {
+                                                    BatteryStatus::NotCharging
+                                                },
+                                            })
+                                            .collect::<Vec<_>>();
+
+                                            if !battery_info.is_empty() {
+                                                let _ = ui_tx_clone.send(BluetoothUIMessage::AACPUIEvent(
+                                                    mac.clone(),
+                                                    AACPEvent::BatteryInfo(battery_info),
+                                                ));
+                                            }
                                         }
 
                                         debug!(

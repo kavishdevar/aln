@@ -51,6 +51,60 @@ pub fn get_app_settings_path() -> PathBuf {
     new_path
 }
 
+/// Preferred A2DP codec. The chosen one is tried first, the rest act as fallbacks.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
+pub enum PreferredCodec {
+    #[default]
+    Aac,
+    SbcXq,
+    Sbc,
+}
+
+impl PreferredCodec {
+    pub const ALL: [PreferredCodec; 3] = [Self::Aac, Self::SbcXq, Self::Sbc];
+
+    /// PulseAudio/PipeWire card profile name for this codec.
+    pub fn profile_name(self) -> &'static str {
+        match self {
+            Self::Aac => "a2dp-sink",
+            Self::SbcXq => "a2dp-sink-sbc_xq",
+            Self::Sbc => "a2dp-sink-sbc",
+        }
+    }
+
+    /// Profiles to try, most preferred first.
+    pub fn profile_order(self) -> Vec<&'static str> {
+        std::iter::once(self.profile_name())
+            .chain(
+                Self::ALL
+                    .iter()
+                    .filter(|c| **c != self)
+                    .map(|c| c.profile_name()),
+            )
+            .collect()
+    }
+}
+
+impl std::fmt::Display for PreferredCodec {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            Self::Aac => "AAC",
+            Self::SbcXq => "SBC-XQ",
+            Self::Sbc => "SBC",
+        })
+    }
+}
+
+/// Reads the preferred codec from the app settings file, falling back to AAC.
+pub fn load_preferred_codec() -> PreferredCodec {
+    std::fs::read_to_string(get_app_settings_path())
+        .ok()
+        .and_then(|s| serde_json::from_str::<serde_json::Value>(&s).ok())
+        .and_then(|v| v.get("preferred_codec").cloned())
+        .and_then(|c| serde_json::from_value(c).ok())
+        .unwrap_or_default()
+}
+
 fn e(key: &[u8; 16], data: &[u8; 16]) -> [u8; 16] {
     let mut swapped_key = *key;
     swapped_key.reverse();

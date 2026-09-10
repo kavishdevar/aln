@@ -87,15 +87,20 @@ fn main() -> iced::Result {
         // Run headless without UI
         info!("Running in headless mode (no GUI)");
         let rt = tokio::runtime::Runtime::new().unwrap();
-        rt.block_on(async_main(ui_tx, device_managers)).unwrap();
+        if let Err(e) = rt.block_on(async_main(ui_tx, device_managers)) {
+            log::error!("LibrePods could not start: {e}");
+            std::process::exit(1);
+        }
         Ok(())
     } else {
         // Run with UI
         let device_managers_clone = device_managers.clone();
         std::thread::spawn(|| {
             let rt = tokio::runtime::Runtime::new().unwrap();
-            rt.block_on(async_main(ui_tx, device_managers_clone))
-                .unwrap();
+            if let Err(e) = rt.block_on(async_main(ui_tx, device_managers_clone)) {
+                log::error!("LibrePods could not start: {e}");
+                std::process::exit(1);
+            }
         });
 
         ui::window::start_ui(ui_rx, args.start_minimized, device_managers)
@@ -149,14 +154,30 @@ async fn async_main(
         Some(handle)
     };
 
-    let session = bluer::Session::new().await?;
-    let adapter = session.default_adapter().await?;
-    adapter.set_powered(true).await?;
+    let session = bluer::Session::new().await.inspect_err(|e| {
+        log::error!(
+            "Cannot talk to BlueZ over D-Bus: {e}. Is the bluetooth service running? \
+             Check with `systemctl status bluetooth`."
+        )
+    })?;
+    let adapter = session.default_adapter().await.inspect_err(|e| {
+        log::error!(
+            "No Bluetooth adapter available: {e}. Make sure an adapter is present \
+             and not blocked - see `rfkill list bluetooth`."
+        )
+    })?;
+    adapter.set_powered(true).await.inspect_err(|e| {
+        log::error!(
+            "Cannot power on the Bluetooth adapter: {e}. It is likely soft-blocked, \
+             try `rfkill unblock bluetooth`."
+        )
+    })?;
 
     let le_tray_clone = tray_handle.clone();
+    let le_ui_tx = ui_tx.clone();
     tokio::spawn(async move {
         info!("Starting LE monitor...");
-        if let Err(e) = start_le_monitor(le_tray_clone).await {
+        if let Err(e) = start_le_monitor(le_tray_clone, le_ui_tx).await {
             log::error!("LE monitor error: {}", e);
         }
     });
